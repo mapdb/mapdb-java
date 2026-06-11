@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/set/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/set/mutable/primitive"
 
 fileName(primitive) ::= "Unmodifiable<primitive.name>SetTest"
 
@@ -15,13 +15,13 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.set.mutable.primitive;
+package org.mapdb.collections.impl.set.mutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

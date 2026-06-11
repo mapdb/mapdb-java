@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/set/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/set/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>HashSet"
 
@@ -14,7 +14,7 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.set.mutable.primitive;
+package org.mapdb.collections.impl.set.mutable.primitive;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -25,28 +25,28 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Object<name>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
-import org.eclipse.collections.api.factory.Lists;
-import org.eclipse.collections.api.factory.primitive.<name>Sets;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.api.set.ImmutableSet;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.api.set.primitive.Immutable<name>Set;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.api.set.primitive.<name>Set;
-import org.eclipse.collections.impl.set.immutable.primitive.Immutable<name>SetSerializationProxy;
-import org.eclipse.collections.impl.set.mutable.UnifiedSet;
-import org.eclipse.collections.impl.Fibonacci;
-import org.eclipse.collections.impl.set.immutable.primitive.AbstractImmutable<name>Set;
-import org.eclipse.collections.impl.set.primitive.Abstract<name>Set;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Object<name>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.api.factory.Lists;
+import org.mapdb.collections.api.factory.primitive.<name>Sets;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.set.ImmutableSet;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.api.set.primitive.Immutable<name>Set;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.api.set.primitive.<name>Set;
+import org.mapdb.collections.impl.set.immutable.primitive.Immutable<name>SetSerializationProxy;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
+import org.mapdb.collections.impl.Fibonacci;
+import org.mapdb.collections.impl.set.immutable.primitive.AbstractImmutable<name>Set;
+import org.mapdb.collections.impl.set.primitive.Abstract<name>Set;
 
 /**
  * This file was automatically generated from template file primitiveHashSet.stg.

@@ -7,7 +7,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>HashMap"
 
@@ -38,7 +38,7 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, keyArray, valueArray, increment, valueIndex) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -48,43 +48,43 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name1>Iterable;
-import org.eclipse.collections.api.Lazy<name1>Iterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.<name2>Iterable;<endif>
-import org.eclipse.collections.api.RichIterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
-import org.eclipse.collections.api.block.function.primitive.<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name2>Function0;
-import org.eclipse.collections.api.block.function.primitive.<name2>To<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name1><name2>Predicate;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.block.procedure.Procedure2;
-import org.eclipse.collections.api.block.procedure.primitive.<name1>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name1><name2>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.ObjectIntProcedure;
-<if(!primitive1.bytePrimitive)>import org.eclipse.collections.impl.Fibonacci;<endif>
-import org.eclipse.collections.api.collection.primitive.Mutable<name2>Collection;
-import org.eclipse.collections.api.factory.primitive.<name1><name2>Maps;
-<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.eclipse.collections.api.factory.primitive.<name2><name1>Maps;<endif><endif>
-import org.eclipse.collections.api.iterator.<name1>Iterator;
-import org.eclipse.collections.api.iterator.Mutable<name1>Iterator;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.iterator.Mutable<name2>Iterator;<endif>
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Mutable<name1><name2>Map;
-<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.eclipse.collections.api.map.primitive.Mutable<name2><name1>Map;<endif><endif>
-import org.eclipse.collections.api.set.primitive.<name1>Set;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.set.primitive.<name2>Set;<endif>
-import org.eclipse.collections.api.set.primitive.Mutable<name1>Set;
-import org.eclipse.collections.api.tuple.primitive.<name1><name2>Pair;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name2>HashBag;
-import org.eclipse.collections.impl.iterator.Unmodifiable<name1>Iterator;
-import org.eclipse.collections.impl.lazy.AbstractLazyIterable;
-import org.eclipse.collections.impl.lazy.primitive.AbstractLazy<name1>Iterable;
-import org.eclipse.collections.impl.set.mutable.primitive.<name1>HashSet;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.<name1>Iterable;
+import org.mapdb.collections.api.Lazy<name1>Iterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.<name2>Iterable;<endif>
+import org.mapdb.collections.api.RichIterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
+import org.mapdb.collections.api.block.function.primitive.<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function0;
+import org.mapdb.collections.api.block.function.primitive.<name2>To<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name1><name2>Predicate;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.Procedure2;
+import org.mapdb.collections.api.block.procedure.primitive.<name1>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name1><name2>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.ObjectIntProcedure;
+<if(!primitive1.bytePrimitive)>import org.mapdb.collections.impl.Fibonacci;<endif>
+import org.mapdb.collections.api.collection.primitive.Mutable<name2>Collection;
+import org.mapdb.collections.api.factory.primitive.<name1><name2>Maps;
+<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.mapdb.collections.api.factory.primitive.<name2><name1>Maps;<endif><endif>
+import org.mapdb.collections.api.iterator.<name1>Iterator;
+import org.mapdb.collections.api.iterator.Mutable<name1>Iterator;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.iterator.Mutable<name2>Iterator;<endif>
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Mutable<name1><name2>Map;
+<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.mapdb.collections.api.map.primitive.Mutable<name2><name1>Map;<endif><endif>
+import org.mapdb.collections.api.set.primitive.<name1>Set;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.set.primitive.<name2>Set;<endif>
+import org.mapdb.collections.api.set.primitive.Mutable<name1>Set;
+import org.mapdb.collections.api.tuple.primitive.<name1><name2>Pair;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name2>HashBag;
+import org.mapdb.collections.impl.iterator.Unmodifiable<name1>Iterator;
+import org.mapdb.collections.impl.lazy.AbstractLazyIterable;
+import org.mapdb.collections.impl.lazy.primitive.AbstractLazy<name1>Iterable;
+import org.mapdb.collections.impl.set.mutable.primitive.<name1>HashSet;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 
 /**
  * This file was automatically generated from template file primitivePrimitiveHashMap.stg.

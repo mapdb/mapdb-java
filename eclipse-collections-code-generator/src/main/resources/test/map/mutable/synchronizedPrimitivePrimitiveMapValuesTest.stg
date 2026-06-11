@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Synchronized<primitive1.name><primitive2.name>MapValuesTest"
 
@@ -20,26 +20,26 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, wrapperName1, wrapperName2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name2>Iterable;
-import org.eclipse.collections.api.bag.MutableBag;
-import org.eclipse.collections.api.block.function.primitive.<name2>ToObjectFunction;
-import org.eclipse.collections.api.collection.primitive.Mutable<name2>Collection;
-import org.eclipse.collections.api.iterator.<name2>Iterator;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.impl.bag.mutable.HashBag;
-import org.eclipse.collections.impl.block.factory.primitive.<name2>Predicates;
-import org.eclipse.collections.impl.collection.mutable.primitive.AbstractMutable<name2>CollectionTestCase;
-import org.eclipse.collections.impl.collection.mutable.primitive.Synchronized<name2>Collection;
-import org.eclipse.collections.impl.collection.mutable.primitive.Unmodifiable<name2>Collection;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.primitive.<name2>Bags;
-<if(primitive2.floatOrDoublePrimitive)><if(primitive1.byteOrShortOrCharPrimitive)>import org.eclipse.collections.impl.list.Interval;<endif><endif>
-import org.eclipse.collections.impl.list.mutable.primitive.<name2>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name2>Iterable;
+import org.mapdb.collections.api.bag.MutableBag;
+import org.mapdb.collections.api.block.function.primitive.<name2>ToObjectFunction;
+import org.mapdb.collections.api.collection.primitive.Mutable<name2>Collection;
+import org.mapdb.collections.api.iterator.<name2>Iterator;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.impl.bag.mutable.HashBag;
+import org.mapdb.collections.impl.block.factory.primitive.<name2>Predicates;
+import org.mapdb.collections.impl.collection.mutable.primitive.AbstractMutable<name2>CollectionTestCase;
+import org.mapdb.collections.impl.collection.mutable.primitive.Synchronized<name2>Collection;
+import org.mapdb.collections.impl.collection.mutable.primitive.Unmodifiable<name2>Collection;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.primitive.<name2>Bags;
+<if(primitive2.floatOrDoublePrimitive)><if(primitive1.byteOrShortOrCharPrimitive)>import org.mapdb.collections.impl.list.Interval;<endif><endif>
+import org.mapdb.collections.impl.list.mutable.primitive.<name2>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

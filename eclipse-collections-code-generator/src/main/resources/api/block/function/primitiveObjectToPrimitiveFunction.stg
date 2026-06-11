@@ -1,6 +1,6 @@
 import "copyright.stg"
 
-targetPath() ::= "org/eclipse/collections/api/block/function/primitive"
+targetPath() ::= "org/mapdb/collections/api/block/function/primitive"
 
 fileName(primitive) ::= "<primitive.name>ObjectTo<primitive.name>Function"
 
@@ -11,7 +11,7 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.api.block.function.primitive;
+package org.mapdb.collections.api.block.function.primitive;
 
 import java.io.Serializable;
 

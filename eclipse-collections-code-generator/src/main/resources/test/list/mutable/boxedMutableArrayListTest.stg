@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/list/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/list/mutable/primitive"
 
 fileName(primitive) ::= "BoxedMutable<primitive.name>ListTest"
 
@@ -15,14 +15,14 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightOf("The Bank of New York Mellon")>
 
-package org.eclipse.collections.impl.list.mutable.primitive;
+package org.mapdb.collections.impl.list.mutable.primitive;
 
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.eclipse.collections.api.factory.Lists;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.factory.Lists;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

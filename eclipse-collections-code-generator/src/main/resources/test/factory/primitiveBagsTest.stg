@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>BagsTest"
 
@@ -15,15 +15,15 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.factory.primitive;
+package org.mapdb.collections.impl.factory.primitive;
 
-import org.eclipse.collections.api.bag.primitive.Immutable<name>Bag;
-import org.eclipse.collections.api.bag.primitive.Mutable<name>Bag;
-import org.eclipse.collections.api.factory.bag.primitive.Immutable<name>BagFactory;
-import org.eclipse.collections.api.factory.bag.primitive.Mutable<name>BagFactory;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.bag.primitive.Immutable<name>Bag;
+import org.mapdb.collections.api.bag.primitive.Mutable<name>Bag;
+import org.mapdb.collections.api.factory.bag.primitive.Immutable<name>BagFactory;
+import org.mapdb.collections.api.factory.bag.primitive.Mutable<name>BagFactory;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +39,7 @@ public class <name>BagsTest
     public void immutables()
     {
         this.assertImmutableBagFactory(<name>Bags.immutable);
-        this.assertImmutableBagFactory(org.eclipse.collections.api.factory.primitive.<name>Bags.immutable);
+        this.assertImmutableBagFactory(org.mapdb.collections.api.factory.primitive.<name>Bags.immutable);
     }
 
     private void assertImmutableBagFactory(Immutable<name>BagFactory bagFactory)
@@ -74,7 +74,7 @@ public class <name>BagsTest
     public void mutables()
     {
         this.assertMutableBagFactory(<name>Bags.mutable);
-        this.assertMutableBagFactory(org.eclipse.collections.api.factory.primitive.<name>Bags.mutable);
+        this.assertMutableBagFactory(org.mapdb.collections.api.factory.primitive.<name>Bags.mutable);
     }
 
     private void assertMutableBagFactory(Mutable<name>BagFactory bagFactory)

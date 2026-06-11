@@ -1,6 +1,6 @@
 import "copyrightAndOthers.stg"
 
-targetPath() ::= "org/eclipse/collections/api/factory/primitive"
+targetPath() ::= "org/mapdb/collections/api/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>Bags"
 
@@ -11,11 +11,11 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.factory.primitive;
+package org.mapdb.collections.api.factory.primitive;
 
-import org.eclipse.collections.api.factory.ServiceLoaderUtils;
-import org.eclipse.collections.api.factory.bag.primitive.Immutable<name>BagFactory;
-import org.eclipse.collections.api.factory.bag.primitive.Mutable<name>BagFactory;
+import org.mapdb.collections.api.factory.ServiceLoaderUtils;
+import org.mapdb.collections.api.factory.bag.primitive.Immutable<name>BagFactory;
+import org.mapdb.collections.api.factory.bag.primitive.Mutable<name>BagFactory;
 
 /**
  * <name>Bags is a static utility for creating {@link Immutable<name>BagFactory} and {@link Mutable<name>BagFactory}.

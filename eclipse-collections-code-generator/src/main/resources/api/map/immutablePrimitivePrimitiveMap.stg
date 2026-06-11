@@ -4,7 +4,7 @@ skipBooleanKeys() ::= "true"
 
 hasTwoPrimitives() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/api/map/primitive"
+targetPath() ::= "org/mapdb/collections/api/map/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Immutable<primitive1.name><primitive2.name>Map"
 
@@ -15,14 +15,14 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.api.map.primitive;
+package org.mapdb.collections.api.map.primitive;
 
-import org.eclipse.collections.api.<name1>Iterable;
-import org.eclipse.collections.api.bag.ImmutableBag;
-import org.eclipse.collections.api.bag.primitive.Immutable<name2>Bag;
-import org.eclipse.collections.api.block.function.primitive.<name2>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name2>Predicate;
-import org.eclipse.collections.api.block.predicate.primitive.<name1><name2>Predicate;
+import org.mapdb.collections.api.<name1>Iterable;
+import org.mapdb.collections.api.bag.ImmutableBag;
+import org.mapdb.collections.api.bag.primitive.Immutable<name2>Bag;
+import org.mapdb.collections.api.block.function.primitive.<name2>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name2>Predicate;
+import org.mapdb.collections.api.block.predicate.primitive.<name1><name2>Predicate;
 
 /**
  * This file was automatically generated from template file immutablePrimitivePrimitiveMap.stg.

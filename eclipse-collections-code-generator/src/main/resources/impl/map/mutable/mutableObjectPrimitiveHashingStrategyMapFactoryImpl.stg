@@ -1,6 +1,6 @@
 import "copyrightAndOthers.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "MutableObject<primitive.name>HashingStrategyMapFactoryImpl"
 
@@ -11,11 +11,11 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.block.HashingStrategy;
-import org.eclipse.collections.api.factory.map.primitive.MutableObject<name>HashingStrategyMapFactory;
-import org.eclipse.collections.api.map.primitive.MutableObject<name>Map;
+import org.mapdb.collections.api.block.HashingStrategy;
+import org.mapdb.collections.api.factory.map.primitive.MutableObject<name>HashingStrategyMapFactory;
+import org.mapdb.collections.api.map.primitive.MutableObject<name>Map;
 
 /**
  * MutableObject<name>HashingStrategyMapFactoryImpl is a factory implementation which creates instances of type {@link MutableObject<name>Map}.

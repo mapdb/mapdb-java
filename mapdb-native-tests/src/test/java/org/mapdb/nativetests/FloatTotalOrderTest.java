@@ -12,7 +12,7 @@ package org.mapdb.nativetests;
 
 import java.util.Arrays;
 
-import org.eclipse.collections.impl.utility.FloatTotalOrder;
+import org.mapdb.collections.impl.utility.FloatTotalOrder;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

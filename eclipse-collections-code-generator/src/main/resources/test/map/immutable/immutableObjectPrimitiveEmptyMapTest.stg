@@ -7,7 +7,7 @@ skipBoolean() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive) ::= "ImmutableObject<primitive.name>EmptyMapTest"
 
@@ -18,20 +18,20 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.map.primitive.ImmutableObject<name>Map;
-import org.eclipse.collections.api.map.primitive.Object<name>Map;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.list.mutable.FastList;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.map.mutable.primitive.Object<name>HashMap;
-import org.eclipse.collections.impl.math.Mutable<wrapperName>;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.map.primitive.ImmutableObject<name>Map;
+import org.mapdb.collections.api.map.primitive.Object<name>Map;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.map.mutable.primitive.Object<name>HashMap;
+import org.mapdb.collections.impl.math.Mutable<wrapperName>;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

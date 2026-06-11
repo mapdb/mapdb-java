@@ -6,7 +6,7 @@ isTest() ::= "true"
 
 skipBoolean() ::="true"
 
-targetPath() ::= "org/eclipse/collections/impl/stack/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/stack/immutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>ArrayStackTest"
 
@@ -17,14 +17,14 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.stack.immutable.primitive;
+package org.mapdb.collections.impl.stack.immutable.primitive;
 
-import org.eclipse.collections.api.stack.primitive.Immutable<name>Stack;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.math.Mutable<wrapperName>;
-import org.eclipse.collections.impl.stack.mutable.primitive.<name>ArrayStack;
+import org.mapdb.collections.api.stack.primitive.Immutable<name>Stack;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.math.Mutable<wrapperName>;
+import org.mapdb.collections.impl.stack.mutable.primitive.<name>ArrayStack;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

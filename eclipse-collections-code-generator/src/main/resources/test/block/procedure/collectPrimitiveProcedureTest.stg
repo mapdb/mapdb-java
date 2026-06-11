@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 skipBoolean() ::= "true"
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/block/procedure/primitive"
+targetPath() ::= "org/mapdb/collections/impl/block/procedure/primitive"
 
 fileName(primitive) ::= "Collect<primitive.name>ProcedureTest"
 
@@ -15,12 +15,12 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.block.procedure.primitive;
+package org.mapdb.collections.impl.block.procedure.primitive;
 
-import org.eclipse.collections.api.block.function.primitive.<name>Function;
-import org.eclipse.collections.api.list.primitive.Immutable<name>List;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
-import org.eclipse.collections.impl.factory.primitive.<name>Lists;
+import org.mapdb.collections.api.block.function.primitive.<name>Function;
+import org.mapdb.collections.api.list.primitive.Immutable<name>List;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.impl.factory.primitive.<name>Lists;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

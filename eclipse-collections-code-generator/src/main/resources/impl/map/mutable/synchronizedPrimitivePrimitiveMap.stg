@@ -7,7 +7,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBooleanKeys() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Synchronized<primitive1.name><primitive2.name>Map"
 
@@ -18,46 +18,46 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.eclipse.collections.api.<name2>Iterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.<name1>Iterable;<endif>
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.Lazy<name2>Iterable;<endif>
-import org.eclipse.collections.api.Lazy<name1>Iterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.bag.MutableBag;
-import org.eclipse.collections.api.bag.primitive.Mutable<name2>Bag;
-import org.eclipse.collections.api.block.function.primitive.<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name2>Function0;
-import org.eclipse.collections.api.block.function.primitive.<name2>To<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name2>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
-import org.eclipse.collections.api.block.predicate.primitive.<name2>Predicate;
-import org.eclipse.collections.api.block.predicate.primitive.<name1><name2>Predicate;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.procedure.primitive.<name2>Procedure;<endif>
-import org.eclipse.collections.api.block.procedure.primitive.<name1><name2>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name1>Procedure;
-import org.eclipse.collections.api.collection.primitive.Mutable<name2>Collection;
-import org.eclipse.collections.api.iterator.Mutable<name2>Iterator;
-import org.eclipse.collections.api.list.primitive.Mutable<name2>List;
-import org.eclipse.collections.api.map.MutableMap;
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Mutable<name1><name2>Map;
-<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.eclipse.collections.api.map.primitive.Mutable<name2><name1>Map;<endif><endif>
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.set.primitive.Mutable<name1>Set;<endif>
-import org.eclipse.collections.api.set.primitive.Mutable<name2>Set;
-import org.eclipse.collections.api.tuple.primitive.<name1><name2>Pair;
-import org.eclipse.collections.impl.SynchronizedRichIterable;
-import org.eclipse.collections.impl.factory.primitive.<name1><name2>Maps;
-import org.eclipse.collections.impl.set.mutable.primitive.Synchronized<name1>Set;
-import org.eclipse.collections.impl.collection.mutable.primitive.Synchronized<name2>Collection;
+import org.mapdb.collections.api.<name2>Iterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.<name1>Iterable;<endif>
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.Lazy<name2>Iterable;<endif>
+import org.mapdb.collections.api.Lazy<name1>Iterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.bag.MutableBag;
+import org.mapdb.collections.api.bag.primitive.Mutable<name2>Bag;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function0;
+import org.mapdb.collections.api.block.function.primitive.<name2>To<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name2>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
+import org.mapdb.collections.api.block.predicate.primitive.<name2>Predicate;
+import org.mapdb.collections.api.block.predicate.primitive.<name1><name2>Predicate;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.procedure.primitive.<name2>Procedure;<endif>
+import org.mapdb.collections.api.block.procedure.primitive.<name1><name2>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name1>Procedure;
+import org.mapdb.collections.api.collection.primitive.Mutable<name2>Collection;
+import org.mapdb.collections.api.iterator.Mutable<name2>Iterator;
+import org.mapdb.collections.api.list.primitive.Mutable<name2>List;
+import org.mapdb.collections.api.map.MutableMap;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Mutable<name1><name2>Map;
+<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.mapdb.collections.api.map.primitive.Mutable<name2><name1>Map;<endif><endif>
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.set.primitive.Mutable<name1>Set;<endif>
+import org.mapdb.collections.api.set.primitive.Mutable<name2>Set;
+import org.mapdb.collections.api.tuple.primitive.<name1><name2>Pair;
+import org.mapdb.collections.impl.SynchronizedRichIterable;
+import org.mapdb.collections.impl.factory.primitive.<name1><name2>Maps;
+import org.mapdb.collections.impl.set.mutable.primitive.Synchronized<name1>Set;
+import org.mapdb.collections.impl.collection.mutable.primitive.Synchronized<name2>Collection;
 
 /**
  * A synchronized view of a {@link Mutable<name1><name2>Map}. It is imperative that the user manually synchronize on the collection when iterating over it using the

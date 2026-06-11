@@ -1,7 +1,7 @@
 import "copyright.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/iterator"
+targetPath() ::= "org/mapdb/collections/impl/iterator"
 
 fileName(primitive) ::= "Singleton<primitive.name>Iterator"
 
@@ -12,11 +12,11 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.iterator;
+package org.mapdb.collections.impl.iterator;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.iterator.<name>Iterator;
 
 /**
  * This file was automatically generated from template file singletonPrimitiveIterator.stg.

@@ -5,7 +5,7 @@ import "primitiveCompare.stg"
 
 hasTwoPrimitives() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/tuple/primitive"
+targetPath() ::= "org/mapdb/collections/impl/tuple/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>PairImpl"
 
@@ -16,9 +16,9 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, wrapperName1, wrapperName2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.tuple.primitive;
+package org.mapdb.collections.impl.tuple.primitive;
 
-import org.eclipse.collections.api.tuple.primitive.<name1><name2>Pair;
+import org.mapdb.collections.api.tuple.primitive.<name1><name2>Pair;
 
 /**
  * This file was automatically generated from template file primitivePrimitivePairImpl.stg

@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/lazy/primitive"
+targetPath() ::= "org/mapdb/collections/impl/lazy/primitive"
 
 fileName(primitive) ::= "Select<primitive.name>IterableTest"
 
@@ -16,19 +16,19 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.lazy.primitive;
+package org.mapdb.collections.impl.lazy.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-<if(primitive.floatingPoint)>import org.eclipse.collections.impl.list.Interval;<endif>
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.math.Mutable<wrapperName>;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+<if(primitive.floatingPoint)>import org.mapdb.collections.impl.list.Interval;<endif>
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.math.Mutable<wrapperName>;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

@@ -16,9 +16,9 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.eclipse.collections</groupId>
-    <artifactId>eclipse-collections-parent</artifactId>
-    <version>14.0.0-SNAPSHOT</version>
+    <groupId>org.mapdb</groupId>
+    <artifactId>mapdb-collections-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
@@ -472,10 +472,10 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                                 <pluginExecution>
                                     <pluginExecutionFilter>
                                         <groupId>
-                                            org.eclipse.collections
+                                            org.mapdb
                                         </groupId>
                                         <artifactId>
-                                            eclipse-collections-code-generator-maven-plugin
+                                            mapdb-collections-code-generator-maven-plugin
                                         </artifactId>
                                         <versionRange>
                                             [7.1.0-SNAPSHOT,)
@@ -554,7 +554,7 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                     <destDir>${project.version}</destDir>
                     <doclint>html,syntax,accessibility</doclint>
                     <excludePackageNames>
-                        org.openjdk,org.eclipse.collections.impl.jmh,org.eclipse.collections.codegenerator.maven
+                        org.mapdb.collections.codegenerator.maven
                     </excludePackageNames>
                     <additionalOptions>-html5</additionalOptions>
                     <legacyMode>true</legacyMode>
@@ -665,7 +665,7 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                             <destDir>${project.version}</destDir>
                             <doclint>html,syntax,accessibility</doclint>
                             <excludePackageNames>
-                                org.openjdk,org.eclipse.collections.impl.jmh,org.eclipse.collections.codegenerator.maven
+                                org.mapdb.collections.codegenerator.maven
                             </excludePackageNames>
                             <legacyMode>true</legacyMode>
                         </configuration>
@@ -725,7 +725,7 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                                             <banLatest>true</banLatest>
                                             <banRelease>true</banRelease>
                                             <unCheckedPluginList>
-                                                org.eclipse.collections:eclipse-collections-code-generator-maven-plugin,
+                                                org.mapdb:mapdb-collections-code-generator-maven-plugin,
                                                 org.eclipse.ebr:ebr-maven-plugin,
                                                 org.eclipse.ebr:ebr-tycho-extras-plugin,
                                                 org.apache.maven.plugins:maven-site-plugin,
@@ -1056,7 +1056,7 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                             <destDir>${project.version}</destDir>
                             <doclint>html,syntax,accessibility</doclint>
                             <excludePackageNames>
-                                org.openjdk,org.eclipse.collections.impl.jmh,org.eclipse.collections.codegenerator.maven
+                                org.mapdb.collections.codegenerator.maven
                             </excludePackageNames>
                             <legacyMode>true</legacyMode>
                         </configuration>

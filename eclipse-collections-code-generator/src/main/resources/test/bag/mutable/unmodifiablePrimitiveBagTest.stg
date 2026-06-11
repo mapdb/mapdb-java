@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/bag/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/bag/mutable/primitive"
 
 fileName(primitive) ::= "Unmodifiable<primitive.name>BagTest"
 
@@ -15,16 +15,16 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.bag.mutable.primitive;
+package org.mapdb.collections.impl.bag.mutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.api.bag.primitive.Mutable<name>Bag;
-import org.eclipse.collections.api.tuple.primitive.<name>IntPair;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.factory.primitive.<name>Bags;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.api.bag.primitive.Mutable<name>Bag;
+import org.mapdb.collections.api.tuple.primitive.<name>IntPair;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.factory.primitive.<name>Bags;
 
 import org.junit.jupiter.api.Test;
 

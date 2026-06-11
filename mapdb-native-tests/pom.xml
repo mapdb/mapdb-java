@@ -37,20 +37,20 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
-        <eclipse.collections.version>14.0.0-SNAPSHOT</eclipse.collections.version>
+        <mapdb.collections.version>1.0.0-SNAPSHOT</mapdb.collections.version>
         <junit.version>5.11.3</junit.version>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections-api</artifactId>
-            <version>${eclipse.collections.version}</version>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections-api</artifactId>
+            <version>${mapdb.collections.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections</artifactId>
-            <version>${eclipse.collections.version}</version>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections</artifactId>
+            <version>${mapdb.collections.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

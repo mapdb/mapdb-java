@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/tuple/primitive"
+targetPath() ::= "org/mapdb/collections/impl/tuple/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>PairImplTest"
 
@@ -20,10 +20,10 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, wrapperName1) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.tuple.primitive;
+package org.mapdb.collections.impl.tuple.primitive;
 
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.Tuples;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.Tuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Immutable<primitive1.name><primitive2.name>SingletonMapTest"
 
@@ -20,22 +20,22 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name2>Iterable;
-import org.eclipse.collections.api.iterator.<name2>Iterator;
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-import org.eclipse.collections.impl.block.factory.primitive.<name2>Predicates;
-import org.eclipse.collections.impl.factory.primitive.<name1><name2>Maps;
-import org.eclipse.collections.impl.factory.primitive.<name2>Bags;
-import org.eclipse.collections.impl.list.mutable.primitive.<name1>ArrayList;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.impl.list.mutable.primitive.<name2>ArrayList;<endif>
-import org.eclipse.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
-import org.eclipse.collections.impl.math.Mutable<primitive2.wrapperName>;
+import org.mapdb.collections.api.<name2>Iterable;
+import org.mapdb.collections.api.iterator.<name2>Iterator;
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+import org.mapdb.collections.impl.block.factory.primitive.<name2>Predicates;
+import org.mapdb.collections.impl.factory.primitive.<name1><name2>Maps;
+import org.mapdb.collections.impl.factory.primitive.<name2>Bags;
+import org.mapdb.collections.impl.list.mutable.primitive.<name1>ArrayList;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.impl.list.mutable.primitive.<name2>ArrayList;<endif>
+import org.mapdb.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
+import org.mapdb.collections.impl.math.Mutable<primitive2.wrapperName>;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

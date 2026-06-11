@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>StacksTest"
 
@@ -15,15 +15,15 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.factory.primitive;
+package org.mapdb.collections.impl.factory.primitive;
 
-import org.eclipse.collections.api.factory.stack.primitive.Immutable<name>StackFactory;
-import org.eclipse.collections.api.factory.stack.primitive.Mutable<name>StackFactory;
-import org.eclipse.collections.api.stack.primitive.Immutable<name>Stack;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.stack.mutable.primitive.<name>ArrayStack;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.factory.stack.primitive.Immutable<name>StackFactory;
+import org.mapdb.collections.api.factory.stack.primitive.Mutable<name>StackFactory;
+import org.mapdb.collections.api.stack.primitive.Immutable<name>Stack;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.stack.mutable.primitive.<name>ArrayStack;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +39,7 @@ public class <name>StacksTest
     public void immutables()
     {
         this.assertImmutableStackFactory(<name>Stacks.immutable);
-        this.assertImmutableStackFactory(org.eclipse.collections.api.factory.primitive.<name>Stacks.immutable);
+        this.assertImmutableStackFactory(org.mapdb.collections.api.factory.primitive.<name>Stacks.immutable);
     }
 
     private void assertImmutableStackFactory(Immutable<name>StackFactory stackFactory)
@@ -74,7 +74,7 @@ public class <name>StacksTest
     public void mutables()
     {
         this.assertMutableStackFactory(<name>Stacks.mutable);
-        this.assertMutableStackFactory(org.eclipse.collections.api.factory.primitive.<name>Stacks.mutable);
+        this.assertMutableStackFactory(org.mapdb.collections.api.factory.primitive.<name>Stacks.mutable);
     }
 
     private void assertMutableStackFactory(Mutable<name>StackFactory stackFactory)

@@ -1,27 +1,27 @@
 // Copyright (c) 2026 Jan Kotek.
 // Internal cross-language validation runner for the Eclipse Collections fork
 // (mapdb-java). Routes scenarios through STOCK, UNRENAMED Eclipse Collections
-// (org.eclipse.collections) production collections and emits a red/green list.
+// (org.mapdb.collections) production collections and emits a red/green list.
 package org.mapdb.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.eclipse.collections.api.set.sorted.MutableSortedSet;
-import org.eclipse.collections.api.map.sorted.MutableSortedMap;
-import org.eclipse.collections.impl.bag.mutable.primitive.IntHashBag;
-import org.eclipse.collections.impl.list.mutable.primitive.FloatArrayList;
-import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
-import org.eclipse.collections.impl.map.mutable.primitive.FloatIntHashMap;
-import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
-import org.eclipse.collections.impl.map.mutable.primitive.LongIntHashMap;
-import org.eclipse.collections.impl.map.sorted.mutable.TreeSortedMap;
-import org.eclipse.collections.impl.multimap.list.FastListMultimap;
-import org.eclipse.collections.impl.multimap.set.UnifiedSetMultimap;
-import org.eclipse.collections.impl.set.mutable.primitive.FloatHashSet;
-import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
-import org.eclipse.collections.impl.set.sorted.mutable.TreeSortedSet;
-import org.eclipse.collections.impl.utility.FloatTotalOrder;
+import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.api.map.sorted.MutableSortedMap;
+import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
+import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
+import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
+import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.LongIntHashMap;
+import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
+import org.mapdb.collections.impl.multimap.list.FastListMultimap;
+import org.mapdb.collections.impl.multimap.set.UnifiedSetMultimap;
+import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
+import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
+import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
 import java.nio.file.Files;

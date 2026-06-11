@@ -1,6 +1,6 @@
 import "copyrightAndOthers.stg"
 
-targetPath() ::= "org/eclipse/collections/api/map/primitive"
+targetPath() ::= "org/mapdb/collections/api/map/primitive"
 
 fileName(primitive) ::= "Object<primitive.name>Map"
 
@@ -11,20 +11,20 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.map.primitive;
+package org.mapdb.collections.api.map.primitive;
 
 import java.util.Set;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.LazyIterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.block.predicate.primitive.Object<name>Predicate;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.Object<name>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.block.function.primitive.ObjectObject<name>ToObjectFunction;
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
-import org.eclipse.collections.api.tuple.primitive.Object<name>Pair;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.LazyIterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.block.predicate.primitive.Object<name>Predicate;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.Object<name>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.block.function.primitive.ObjectObject<name>ToObjectFunction;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.api.tuple.primitive.Object<name>Pair;
 
 /**
  * This file was automatically generated from template file objectPrimitiveMap.stg.

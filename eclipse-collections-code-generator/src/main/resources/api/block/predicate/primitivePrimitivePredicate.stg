@@ -2,7 +2,7 @@ import "copyright.stg"
 
 hasTwoPrimitives() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/api/block/predicate/primitive"
+targetPath() ::= "org/mapdb/collections/api/block/predicate/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>Predicate"
 
@@ -13,7 +13,7 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.api.block.predicate.primitive;
+package org.mapdb.collections.api.block.predicate.primitive;
 
 import java.io.Serializable;
 

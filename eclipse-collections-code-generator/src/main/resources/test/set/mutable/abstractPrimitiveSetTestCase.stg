@@ -3,7 +3,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/set/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/set/mutable/primitive"
 
 fileName(primitive) ::= "Abstract<primitive.name>SetTestCase"
 
@@ -14,26 +14,26 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.set.mutable.primitive;
+package org.mapdb.collections.impl.set.mutable.primitive;
 
 <if(primitive.floatingPoint)>import java.util.HashSet;<endif>
 import java.util.NoSuchElementException;
 <if(primitive.floatingPoint)>import java.util.Set;<endif>
 
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.collection.mutable.primitive.AbstractMutable<name>CollectionTestCase;
-import org.eclipse.collections.impl.factory.primitive.<name>Sets;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.set.mutable.UnifiedSet;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
-import org.eclipse.collections.api.tuple.primitive.<name><name>Pair;
-import org.eclipse.collections.impl.factory.Sets;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.collection.mutable.primitive.AbstractMutable<name>CollectionTestCase;
+import org.mapdb.collections.impl.factory.primitive.<name>Sets;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.tuple.primitive.<name><name>Pair;
+import org.mapdb.collections.impl.factory.Sets;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

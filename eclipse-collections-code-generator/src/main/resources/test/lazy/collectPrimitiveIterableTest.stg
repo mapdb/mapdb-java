@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/lazy/primitive"
+targetPath() ::= "org/mapdb/collections/impl/lazy/primitive"
 
 skipBoolean() ::= "true"
 
@@ -18,22 +18,22 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.lazy.primitive;
+package org.mapdb.collections.impl.lazy.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.block.factory.PrimitiveFunctions;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.list.Interval;
-import org.eclipse.collections.impl.list.mutable.FastList;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.block.factory.PrimitiveFunctions;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.list.Interval;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

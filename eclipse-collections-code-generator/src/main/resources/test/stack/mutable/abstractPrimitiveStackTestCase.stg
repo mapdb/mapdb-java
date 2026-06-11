@@ -6,7 +6,7 @@ isTest() ::= "true"
 
 skipBoolean() ::="true"
 
-targetPath() ::= "org/eclipse/collections/impl/stack/primitive"
+targetPath() ::= "org/mapdb/collections/impl/stack/primitive"
 
 fileName(primitive) ::= "Abstract<primitive.name>StackTestCase"
 
@@ -17,30 +17,30 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.stack.primitive;
+package org.mapdb.collections.impl.stack.primitive;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
-import org.eclipse.collections.api.stack.StackIterable;
-import org.eclipse.collections.api.stack.primitive.<name>Stack;
-import org.eclipse.collections.api.stack.primitive.Immutable<name>Stack;
-import org.eclipse.collections.api.tuple.primitive.<name>IntPair;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.collection.mutable.primitive.Abstract<name>IterableTestCase;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
-<if(!primitive.intPrimitive)>import org.eclipse.collections.impl.factory.primitive.<name>Lists;<endif>
-import org.eclipse.collections.impl.factory.primitive.IntLists;
-<if(!primitive.intPrimitive)>import org.eclipse.collections.impl.factory.primitive.<name>Sets;<endif>
-import org.eclipse.collections.impl.factory.primitive.IntSets;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.stack.mutable.ArrayStack;
-import org.eclipse.collections.impl.stack.mutable.primitive.<name>ArrayStack;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.api.stack.StackIterable;
+import org.mapdb.collections.api.stack.primitive.<name>Stack;
+import org.mapdb.collections.api.stack.primitive.Immutable<name>Stack;
+import org.mapdb.collections.api.tuple.primitive.<name>IntPair;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.collection.mutable.primitive.Abstract<name>IterableTestCase;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
+<if(!primitive.intPrimitive)>import org.mapdb.collections.impl.factory.primitive.<name>Lists;<endif>
+import org.mapdb.collections.impl.factory.primitive.IntLists;
+<if(!primitive.intPrimitive)>import org.mapdb.collections.impl.factory.primitive.<name>Sets;<endif>
+import org.mapdb.collections.impl.factory.primitive.IntSets;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.stack.mutable.ArrayStack;
+import org.mapdb.collections.impl.stack.mutable.primitive.<name>ArrayStack;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

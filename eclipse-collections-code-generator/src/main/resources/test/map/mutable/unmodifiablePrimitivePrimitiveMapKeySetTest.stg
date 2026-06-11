@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Unmodifiable<primitive1.name><primitive2.name>MapKeySetTest"
 
@@ -20,15 +20,15 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, wrapperName1) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.iterator.Mutable<name1>Iterator;
-import org.eclipse.collections.api.set.primitive.Mutable<name1>Set;
-import org.eclipse.collections.impl.block.factory.primitive.<name1>Predicates;
-<if(primitive1.floatingPoint)>import org.eclipse.collections.impl.list.Interval;<endif>
-import org.eclipse.collections.impl.list.mutable.primitive.<name1>ArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.Abstract<name1>SetTestCase;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.iterator.Mutable<name1>Iterator;
+import org.mapdb.collections.api.set.primitive.Mutable<name1>Set;
+import org.mapdb.collections.impl.block.factory.primitive.<name1>Predicates;
+<if(primitive1.floatingPoint)>import org.mapdb.collections.impl.list.Interval;<endif>
+import org.mapdb.collections.impl.list.mutable.primitive.<name1>ArrayList;
+import org.mapdb.collections.impl.set.mutable.primitive.Abstract<name1>SetTestCase;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

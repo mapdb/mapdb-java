@@ -7,7 +7,7 @@ isTest() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/utility/internal/primitive"
+targetPath() ::= "org/mapdb/collections/impl/utility/internal/primitive"
 
 fileName(primitive) ::= "<primitive.name>IteratorIterateTest"
 
@@ -18,15 +18,15 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.utility.internal.primitive;
+package org.mapdb.collections.impl.utility.internal.primitive;
 
 import java.util.NoSuchElementException;
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-<if(primitive.floatingPoint)>import org.eclipse.collections.impl.list.Interval;<endif>
-import org.eclipse.collections.impl.list.mutable.FastList;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+<if(primitive.floatingPoint)>import org.mapdb.collections.impl.list.Interval;<endif>
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

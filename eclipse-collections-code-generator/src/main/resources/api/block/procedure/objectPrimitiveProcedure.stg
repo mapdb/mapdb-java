@@ -1,6 +1,6 @@
 import "copyright.stg"
 
-targetPath() ::= "org/eclipse/collections/api/block/procedure/primitive"
+targetPath() ::= "org/mapdb/collections/api/block/procedure/primitive"
 
 fileName(primitive) ::= "Object<primitive.name>Procedure"
 
@@ -11,7 +11,7 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.api.block.procedure.primitive;
+package org.mapdb.collections.api.block.procedure.primitive;
 
 import java.io.Serializable;
 

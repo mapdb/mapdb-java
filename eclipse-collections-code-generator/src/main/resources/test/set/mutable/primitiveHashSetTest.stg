@@ -3,7 +3,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/set/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/set/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>HashSetTest"
 
@@ -14,15 +14,15 @@ class(primitive) ::= <<
 body(type, wrapperName, name, charPrimitive, shortPrimitive) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.set.mutable.primitive;
+package org.mapdb.collections.impl.set.mutable.primitive;
 
 import java.lang.reflect.Field;
 
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.impl.factory.primitive.<name>Sets;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.impl.factory.primitive.<name>Sets;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

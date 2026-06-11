@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/set/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/set/mutable/primitive"
 
 fileName(primitive) ::= "BoxedMutable<primitive.name>SetTest"
 
@@ -15,14 +15,14 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightOf("The Bank of New York Mellon")>
 
-package org.eclipse.collections.impl.set.mutable.primitive;
+package org.mapdb.collections.impl.set.mutable.primitive;
 
 import java.util.Arrays;
 import java.util.HashSet;
 
-import org.eclipse.collections.api.factory.Sets;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.factory.Sets;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

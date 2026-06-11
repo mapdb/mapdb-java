@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/collection/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/collection/mutable/primitive"
 
 fileName(primitive) ::= "AbstractMutable<primitive.name>CollectionTestCase"
 
@@ -16,16 +16,16 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.collection.mutable.primitive;
+package org.mapdb.collections.impl.collection.mutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

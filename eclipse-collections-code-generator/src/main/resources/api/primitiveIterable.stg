@@ -1,7 +1,7 @@
 import "copyrightAndOthers.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/api"
+targetPath() ::= "org/mapdb/collections/api"
 
 fileName(primitive) ::= "<primitive.name>Iterable"
 
@@ -12,46 +12,46 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api;
+package org.mapdb.collections.api;
 
 import java.util.Collection;
 import java.util.NoSuchElementException;
 <(wideStatisticsImport.(type))>
 
 <(comparatorImports.(type))(type)>
-import org.eclipse.collections.api.bag.primitive.Mutable<name>Bag;
-import org.eclipse.collections.api.block.function.primitive.<name>ToBooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToByteFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToShortFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToCharFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToDoubleFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToFloatFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToIntFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToLongFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Boolean<name>ToBooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.Byte<name>ToByteFunction;
-import org.eclipse.collections.api.block.function.primitive.Char<name>ToCharFunction;
-import org.eclipse.collections.api.block.function.primitive.Double<name>ToDoubleFunction;
-import org.eclipse.collections.api.block.function.primitive.Float<name>ToFloatFunction;
-import org.eclipse.collections.api.block.function.primitive.Int<name>ToIntFunction;
-import org.eclipse.collections.api.block.function.primitive.Long<name>ToLongFunction;
-import org.eclipse.collections.api.block.function.primitive.Object<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Short<name>ToShortFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.collection.primitive.MutableBooleanCollection;
-import org.eclipse.collections.api.collection.primitive.MutableByteCollection;
-import org.eclipse.collections.api.collection.primitive.MutableCharCollection;
-import org.eclipse.collections.api.collection.primitive.MutableDoubleCollection;
-import org.eclipse.collections.api.collection.primitive.MutableFloatCollection;
-import org.eclipse.collections.api.collection.primitive.MutableIntCollection;
-import org.eclipse.collections.api.collection.primitive.MutableLongCollection;
-import org.eclipse.collections.api.collection.primitive.MutableShortCollection;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
-import org.eclipse.collections.api.set.primitive.<name>Set;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.api.bag.primitive.Mutable<name>Bag;
+import org.mapdb.collections.api.block.function.primitive.<name>ToBooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToByteFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToShortFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToCharFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToDoubleFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToFloatFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToIntFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToLongFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Boolean<name>ToBooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.Byte<name>ToByteFunction;
+import org.mapdb.collections.api.block.function.primitive.Char<name>ToCharFunction;
+import org.mapdb.collections.api.block.function.primitive.Double<name>ToDoubleFunction;
+import org.mapdb.collections.api.block.function.primitive.Float<name>ToFloatFunction;
+import org.mapdb.collections.api.block.function.primitive.Int<name>ToIntFunction;
+import org.mapdb.collections.api.block.function.primitive.Long<name>ToLongFunction;
+import org.mapdb.collections.api.block.function.primitive.Object<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Short<name>ToShortFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.collection.primitive.MutableBooleanCollection;
+import org.mapdb.collections.api.collection.primitive.MutableByteCollection;
+import org.mapdb.collections.api.collection.primitive.MutableCharCollection;
+import org.mapdb.collections.api.collection.primitive.MutableDoubleCollection;
+import org.mapdb.collections.api.collection.primitive.MutableFloatCollection;
+import org.mapdb.collections.api.collection.primitive.MutableIntCollection;
+import org.mapdb.collections.api.collection.primitive.MutableLongCollection;
+import org.mapdb.collections.api.collection.primitive.MutableShortCollection;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.api.set.primitive.<name>Set;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
 
 /**
  * <name>Iterable is an interface which is memory-optimized for <type> primitives.
@@ -628,7 +628,7 @@ comparatorImports ::= [
 
 allComparatorImports(type) ::= <<
 import java.util.Comparator;
-import org.eclipse.collections.api.block.comparator.primitive.<name>Comparator;
+import org.mapdb.collections.api.block.comparator.primitive.<name>Comparator;
 
 >>
 

@@ -2,15 +2,15 @@
   <configuration default="false" name="JMHTestRunner.runTests" type="JUnit" factoryName="JUnit">
     <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
       <pattern>
-        <option name="PATTERN" value="org.eclipse.collections.impl.jmh.*" />
+        <option name="PATTERN" value="org.mapdb.collections.impl.jmh.*" />
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
     <module name="jmh-tests" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
     <option name="ALTERNATIVE_JRE_PATH" value="" />
-    <option name="PACKAGE_NAME" value="org.eclipse.collections.impl.jmh.runner" />
-    <option name="MAIN_CLASS_NAME" value="org.eclipse.collections.impl.jmh.runner.JMHRunnerTest" />
+    <option name="PACKAGE_NAME" value="org.mapdb.collections.impl.jmh.runner" />
+    <option name="MAIN_CLASS_NAME" value="org.mapdb.collections.impl.jmh.runner.JMHRunnerTest" />
     <option name="METHOD_NAME" value="runTests" />
     <option name="TEST_OBJECT" value="method" />
     <option name="VM_PARAMETERS" value="-ea" />

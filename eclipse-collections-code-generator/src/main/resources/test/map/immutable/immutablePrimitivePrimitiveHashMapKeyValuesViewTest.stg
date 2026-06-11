@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Immutable<primitive1.name><primitive2.name>HashMapKeyValuesViewTest"
 
@@ -20,11 +20,11 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-import org.eclipse.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
-import org.eclipse.collections.impl.map.primitive.Abstract<name1><name2>MapKeyValuesViewTestCase;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+import org.mapdb.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
+import org.mapdb.collections.impl.map.primitive.Abstract<name1><name2>MapKeyValuesViewTestCase;
 
 /**
  * JUnit test for {@link Immutable<name1><name2>HashMap#keyValuesView()}.

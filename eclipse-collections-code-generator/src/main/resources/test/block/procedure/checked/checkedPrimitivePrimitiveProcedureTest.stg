@@ -7,7 +7,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBooleanKeys() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/block/procedure/checked/primitive"
+targetPath() ::= "org/mapdb/collections/impl/block/procedure/checked/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Checked<primitive1.name><primitive2.name>ProcedureTest"
 
@@ -18,7 +18,7 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.block.procedure.checked.primitive;
+package org.mapdb.collections.impl.block.procedure.checked.primitive;
 
 import java.io.IOException;
 import org.junit.jupiter.api.Test;

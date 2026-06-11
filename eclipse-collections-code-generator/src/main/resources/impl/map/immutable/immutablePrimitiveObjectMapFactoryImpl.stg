@@ -2,7 +2,7 @@ import "copyright.stg"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>ObjectMapFactoryImpl"
 
@@ -13,14 +13,14 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
-import org.eclipse.collections.api.block.function.Function;
-import org.eclipse.collections.api.block.function.primitive.<name>Function;
-import org.eclipse.collections.api.factory.map.primitive.Immutable<name>ObjectMapFactory;
-import org.eclipse.collections.api.map.primitive.Immutable<name>ObjectMap;
-import org.eclipse.collections.api.map.primitive.<name>ObjectMap;
-import org.eclipse.collections.impl.factory.primitive.<name>ObjectMaps;
+import org.mapdb.collections.api.block.function.Function;
+import org.mapdb.collections.api.block.function.primitive.<name>Function;
+import org.mapdb.collections.api.factory.map.primitive.Immutable<name>ObjectMapFactory;
+import org.mapdb.collections.api.map.primitive.Immutable<name>ObjectMap;
+import org.mapdb.collections.api.map.primitive.<name>ObjectMap;
+import org.mapdb.collections.impl.factory.primitive.<name>ObjectMaps;
 
 /**
  * Immutable<name>ObjectMapFactoryImpl is a factory implementation which creates instances of type {@link Immutable<name>ObjectMap}.

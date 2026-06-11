@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive) ::= "ImmutableObject<primitive.name>HashMap"
 
@@ -14,45 +14,45 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.LazyIterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.bag.primitive.Mutable<name>Bag;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Object<name>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.block.predicate.primitive.Object<name>Predicate;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.Object<name>Procedure;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.api.map.primitive.Object<name>Map;
-import org.eclipse.collections.api.collection.ImmutableCollection;
-import org.eclipse.collections.api.collection.MutableCollection;
-import org.eclipse.collections.api.collection.primitive.Immutable<name>Collection;
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
-import org.eclipse.collections.api.map.primitive.ImmutableObject<name>Map;
-<if(!primitive.booleanPrimitive)>import org.eclipse.collections.api.map.primitive.Immutable<name>ObjectMap;<endif>
-import org.eclipse.collections.api.map.primitive.MutableObject<name>Map;
-<if(!primitive.booleanPrimitive)>import org.eclipse.collections.api.map.primitive.Mutable<name>ObjectMap;<endif>
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.api.tuple.primitive.Object<name>Pair;
-import org.eclipse.collections.impl.collection.mutable.primitive.Unmodifiable<name>Collection;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.primitive.<name>Bags;
-import org.eclipse.collections.impl.iterator.Unmodifiable<name>Iterator;
-import org.eclipse.collections.impl.map.mutable.primitive.Object<name>HashMap;
-<if(!primitive.booleanPrimitive)>import org.eclipse.collections.impl.factory.primitive.<name>ObjectMaps;<endif>
-import org.eclipse.collections.impl.set.mutable.UnmodifiableMutableSet;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.LazyIterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.bag.primitive.Mutable<name>Bag;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Object<name>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.block.predicate.primitive.Object<name>Predicate;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.Object<name>Procedure;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.map.primitive.Object<name>Map;
+import org.mapdb.collections.api.collection.ImmutableCollection;
+import org.mapdb.collections.api.collection.MutableCollection;
+import org.mapdb.collections.api.collection.primitive.Immutable<name>Collection;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.api.map.primitive.ImmutableObject<name>Map;
+<if(!primitive.booleanPrimitive)>import org.mapdb.collections.api.map.primitive.Immutable<name>ObjectMap;<endif>
+import org.mapdb.collections.api.map.primitive.MutableObject<name>Map;
+<if(!primitive.booleanPrimitive)>import org.mapdb.collections.api.map.primitive.Mutable<name>ObjectMap;<endif>
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.api.tuple.primitive.Object<name>Pair;
+import org.mapdb.collections.impl.collection.mutable.primitive.Unmodifiable<name>Collection;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.primitive.<name>Bags;
+import org.mapdb.collections.impl.iterator.Unmodifiable<name>Iterator;
+import org.mapdb.collections.impl.map.mutable.primitive.Object<name>HashMap;
+<if(!primitive.booleanPrimitive)>import org.mapdb.collections.impl.factory.primitive.<name>ObjectMaps;<endif>
+import org.mapdb.collections.impl.set.mutable.UnmodifiableMutableSet;
 
 /**
  * ImmutableObject<name>HashMap is the non-modifiable equivalent of {@link Object<name>HashMap}.

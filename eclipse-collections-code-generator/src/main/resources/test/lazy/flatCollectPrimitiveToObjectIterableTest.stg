@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/lazy/primitive"
+targetPath() ::= "org/mapdb/collections/impl/lazy/primitive"
 
 skipBoolean() ::= "true"
 
@@ -18,18 +18,18 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.lazy.primitive;
+package org.mapdb.collections.impl.lazy.primitive;
 
-import org.eclipse.collections.api.InternalIterable;
-import org.eclipse.collections.api.LazyIterable;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.impl.block.factory.Predicates;
-import org.eclipse.collections.impl.block.factory.Predicates2;
-import org.eclipse.collections.impl.block.procedure.CollectionAddProcedure;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.list.mutable.FastList;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.InternalIterable;
+import org.mapdb.collections.api.LazyIterable;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.impl.block.factory.Predicates;
+import org.mapdb.collections.impl.block.factory.Predicates2;
+import org.mapdb.collections.impl.block.procedure.CollectionAddProcedure;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

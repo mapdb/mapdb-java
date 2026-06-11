@@ -10,8 +10,8 @@
 
 package org.mapdb.nativetests;
 
-import org.eclipse.collections.impl.set.mutable.primitive.DoubleHashSet;
-import org.eclipse.collections.impl.set.mutable.primitive.FloatHashSet;
+import org.mapdb.collections.impl.set.mutable.primitive.DoubleHashSet;
+import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

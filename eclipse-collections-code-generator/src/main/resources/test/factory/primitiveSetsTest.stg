@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>SetsTest"
 
@@ -15,21 +15,21 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.factory.primitive;
+package org.mapdb.collections.impl.factory.primitive;
 
 import java.util.Set;
 
-import org.eclipse.collections.api.LazyIterable;
-import org.eclipse.collections.api.set.primitive.Immutable<name>Set;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.api.factory.set.primitive.Immutable<name>SetFactory;
-import org.eclipse.collections.api.factory.set.primitive.Mutable<name>SetFactory;
-import org.eclipse.collections.api.tuple.primitive.<name><name>Pair;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.Sets;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.LazyIterable;
+import org.mapdb.collections.api.set.primitive.Immutable<name>Set;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.api.factory.set.primitive.Immutable<name>SetFactory;
+import org.mapdb.collections.api.factory.set.primitive.Mutable<name>SetFactory;
+import org.mapdb.collections.api.tuple.primitive.<name><name>Pair;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.Sets;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,7 +45,7 @@ public class <name>SetsTest
     public void immutables()
     {
         this.assertImmutableSetFactory(<name>Sets.immutable);
-        this.assertImmutableSetFactory(org.eclipse.collections.api.factory.primitive.<name>Sets.immutable);
+        this.assertImmutableSetFactory(org.mapdb.collections.api.factory.primitive.<name>Sets.immutable);
     }
 
     private void assertImmutableSetFactory(Immutable<name>SetFactory setFactory)
@@ -80,7 +80,7 @@ public class <name>SetsTest
     public void mutables()
     {
         this.assertMutableSetFactory(<name>Sets.mutable);
-        this.assertMutableSetFactory(org.eclipse.collections.api.factory.primitive.<name>Sets.mutable);
+        this.assertMutableSetFactory(org.mapdb.collections.api.factory.primitive.<name>Sets.mutable);
     }
 
     private void assertMutableSetFactory(Mutable<name>SetFactory setFactory)

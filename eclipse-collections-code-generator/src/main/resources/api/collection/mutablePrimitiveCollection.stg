@@ -1,7 +1,7 @@
 import "copyrightAndOthers.stg"
 import "primitiveAPI.stg"
 
-targetPath() ::= "org/eclipse/collections/api/collection/primitive"
+targetPath() ::= "org/mapdb/collections/api/collection/primitive"
 
 fileName(primitive) ::= "Mutable<primitive.name>Collection"
 
@@ -12,16 +12,16 @@ class(primitive) ::= <<
 body(type, name, primitive) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.collection.primitive;
+package org.mapdb.collections.api.collection.primitive;
 
 import java.util.Collection;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.api.collection.MutableCollection;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.api.collection.MutableCollection;
 
 /**
  * This file was automatically generated from template file mutablePrimitiveCollection.stg.

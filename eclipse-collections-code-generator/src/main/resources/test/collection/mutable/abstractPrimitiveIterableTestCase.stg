@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/collection/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/collection/mutable/primitive"
 
 fileName(primitive) ::= "Abstract<primitive.name>IterableTestCase"
 
@@ -16,7 +16,7 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.collection.mutable.primitive;
+package org.mapdb.collections.impl.collection.mutable.primitive;
 
 import java.util.Arrays;
 <if(primitive.floatingPoint)>import java.util.HashSet;<endif>
@@ -24,39 +24,39 @@ import java.util.List;
 import java.util.NoSuchElementException;
 <if(primitive.floatingPoint)>import java.util.Set;<endif>
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
-import org.eclipse.collections.impl.block.factory.Comparators;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.factory.Bags;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.Sets;
-import org.eclipse.collections.impl.factory.primitive.BooleanLists;
-import org.eclipse.collections.impl.factory.primitive.BooleanSets;
-import org.eclipse.collections.impl.factory.primitive.ByteLists;
-import org.eclipse.collections.impl.factory.primitive.ByteSets;
-import org.eclipse.collections.impl.factory.primitive.CharLists;
-import org.eclipse.collections.impl.factory.primitive.CharSets;
-import org.eclipse.collections.impl.factory.primitive.DoubleLists;
-import org.eclipse.collections.impl.factory.primitive.DoubleSets;
-import org.eclipse.collections.impl.factory.primitive.FloatLists;
-import org.eclipse.collections.impl.factory.primitive.FloatSets;
-import org.eclipse.collections.impl.factory.primitive.IntLists;
-import org.eclipse.collections.impl.factory.primitive.IntSets;
-import org.eclipse.collections.impl.factory.primitive.LongLists;
-import org.eclipse.collections.impl.factory.primitive.LongSets;
-import org.eclipse.collections.impl.factory.primitive.ShortLists;
-import org.eclipse.collections.impl.factory.primitive.ShortSets;
-<if(primitive.floatingPoint)>import org.eclipse.collections.impl.list.Interval;<endif>
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name>HashBag;
+import org.mapdb.collections.impl.block.factory.Comparators;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.factory.Bags;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.Sets;
+import org.mapdb.collections.impl.factory.primitive.BooleanLists;
+import org.mapdb.collections.impl.factory.primitive.BooleanSets;
+import org.mapdb.collections.impl.factory.primitive.ByteLists;
+import org.mapdb.collections.impl.factory.primitive.ByteSets;
+import org.mapdb.collections.impl.factory.primitive.CharLists;
+import org.mapdb.collections.impl.factory.primitive.CharSets;
+import org.mapdb.collections.impl.factory.primitive.DoubleLists;
+import org.mapdb.collections.impl.factory.primitive.DoubleSets;
+import org.mapdb.collections.impl.factory.primitive.FloatLists;
+import org.mapdb.collections.impl.factory.primitive.FloatSets;
+import org.mapdb.collections.impl.factory.primitive.IntLists;
+import org.mapdb.collections.impl.factory.primitive.IntSets;
+import org.mapdb.collections.impl.factory.primitive.LongLists;
+import org.mapdb.collections.impl.factory.primitive.LongSets;
+import org.mapdb.collections.impl.factory.primitive.ShortLists;
+import org.mapdb.collections.impl.factory.primitive.ShortSets;
+<if(primitive.floatingPoint)>import org.mapdb.collections.impl.list.Interval;<endif>
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

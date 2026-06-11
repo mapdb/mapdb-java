@@ -7,7 +7,7 @@ skipBoolean() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>BooleanHashMapTest"
 
@@ -18,17 +18,17 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.lang.reflect.Field;
 import java.util.BitSet;
 
-import org.eclipse.collections.api.block.function.primitive.BooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.BooleanFunction0;
-import org.eclipse.collections.api.block.function.primitive.BooleanToBooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToBooleanFunction;
-import org.eclipse.collections.api.map.primitive.Mutable<name>BooleanMap;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.block.function.primitive.BooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.BooleanFunction0;
+import org.mapdb.collections.api.block.function.primitive.BooleanToBooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToBooleanFunction;
+import org.mapdb.collections.api.map.primitive.Mutable<name>BooleanMap;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

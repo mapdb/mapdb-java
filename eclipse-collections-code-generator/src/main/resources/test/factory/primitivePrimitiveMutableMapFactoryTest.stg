@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/api/factory/map/primitive"
+targetPath() ::= "org/mapdb/collections/api/factory/map/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Mutable<primitive1.name><primitive2.name>MapFactoryTest"
 
@@ -20,10 +20,10 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.factory.map.primitive;
+package org.mapdb.collections.api.factory.map.primitive;
 
-import org.eclipse.collections.api.factory.primitive.<name1><name2>Maps;
-import org.eclipse.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
+import org.mapdb.collections.api.factory.primitive.<name1><name2>Maps;
+import org.mapdb.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

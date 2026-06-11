@@ -1,6 +1,6 @@
 import "copyrightAndOthers.stg"
 
-targetPath() ::= "org/eclipse/collections/api/factory/list/primitive"
+targetPath() ::= "org/mapdb/collections/api/factory/list/primitive"
 
 fileName(primitive) ::= "Mutable<primitive.name>ListFactory"
 
@@ -11,10 +11,10 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.factory.list.primitive;
+package org.mapdb.collections.api.factory.list.primitive;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.list.primitive.Mutable<name>List;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.list.primitive.Mutable<name>List;
 <(wideStreamImport.(type))>
 
 /**

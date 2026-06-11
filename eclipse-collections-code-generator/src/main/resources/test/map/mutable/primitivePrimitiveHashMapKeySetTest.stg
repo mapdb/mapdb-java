@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>HashMapKeySetTest"
 
@@ -20,13 +20,13 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, wrapperName1) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.set.primitive.Mutable<name1>Set;
-import org.eclipse.collections.impl.block.factory.primitive.<name1>Predicates;
-import org.eclipse.collections.impl.list.mutable.primitive.<name1>ArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.Abstract<name1>SetTestCase;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.set.primitive.Mutable<name1>Set;
+import org.mapdb.collections.impl.block.factory.primitive.<name1>Predicates;
+import org.mapdb.collections.impl.list.mutable.primitive.<name1>ArrayList;
+import org.mapdb.collections.impl.set.mutable.primitive.Abstract<name1>SetTestCase;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

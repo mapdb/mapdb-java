@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/lazy/primitive"
+targetPath() ::= "org/mapdb/collections/impl/lazy/primitive"
 
 skipBoolean() ::= "false"
 
@@ -16,25 +16,25 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.lazy.primitive;
+package org.mapdb.collections.impl.lazy.primitive;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.Predicate;
-import org.eclipse.collections.api.block.predicate.Predicate2;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.block.procedure.Procedure2;
-import org.eclipse.collections.api.block.procedure.primitive.ObjectIntProcedure;
-import org.eclipse.collections.impl.EmptyIterator;
-import org.eclipse.collections.impl.block.factory.Predicates;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.impl.block.procedure.AdaptObjectIntProcedureToProcedure;
-import org.eclipse.collections.impl.lazy.AbstractLazyIterable;
-import org.eclipse.collections.impl.utility.Iterate;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.Predicate;
+import org.mapdb.collections.api.block.predicate.Predicate2;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.Procedure2;
+import org.mapdb.collections.api.block.procedure.primitive.ObjectIntProcedure;
+import org.mapdb.collections.impl.EmptyIterator;
+import org.mapdb.collections.impl.block.factory.Predicates;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.impl.block.procedure.AdaptObjectIntProcedureToProcedure;
+import org.mapdb.collections.impl.lazy.AbstractLazyIterable;
+import org.mapdb.collections.impl.utility.Iterate;
 
 /**
  * This file was automatically generated from template file flatCollectPrimitiveToObjectIterable.stg.

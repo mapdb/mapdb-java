@@ -1,6 +1,6 @@
 import "copyright.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/utility/primitive"
+targetPath() ::= "org/mapdb/collections/impl/utility/primitive"
 
 fileName(primitive) ::= "<primitive.name>QuickSort"
 
@@ -11,9 +11,9 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.utility.primitive;
+package org.mapdb.collections.impl.utility.primitive;
 
-import org.eclipse.collections.api.block.comparator.primitive.<name>Comparator;
+import org.mapdb.collections.api.block.comparator.primitive.<name>Comparator;
 
 /**
  * <name>QuickSort is an implementation of the Quick Sort algorithm as described in Donald Knuth's TAOCP with some

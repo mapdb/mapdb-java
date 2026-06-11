@@ -3,7 +3,7 @@
 Internal, unpublished Maven module. It runs the
 `mapdb-collection-spec/cross-language-validation` scenarios (every `*.json`
 under the scenarios root) against **stock, unrenamed Eclipse Collections**
-(still `org.eclipse.collections`, version `14.0.0-SNAPSHOT` installed in the
+(still `org.mapdb.collections`, version `14.0.0-SNAPSHOT` installed in the
 local `~/.m2`) and prints a red/green conformance list.
 
 This module is deliberately **NOT** in the root pom `<modules>`, so the

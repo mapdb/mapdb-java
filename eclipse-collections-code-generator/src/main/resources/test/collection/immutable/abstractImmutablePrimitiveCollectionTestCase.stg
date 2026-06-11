@@ -5,7 +5,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/collection/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/collection/immutable/primitive"
 
 fileName(primitive) ::= "AbstractImmutable<primitive.name>CollectionTestCase"
 
@@ -16,11 +16,11 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.collection.immutable.primitive;
+package org.mapdb.collections.impl.collection.immutable.primitive;
 
-import org.eclipse.collections.api.collection.primitive.Immutable<name>Collection;
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
-import org.eclipse.collections.impl.collection.mutable.primitive.Abstract<name>IterableTestCase;
+import org.mapdb.collections.api.collection.primitive.Immutable<name>Collection;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.impl.collection.mutable.primitive.Abstract<name>IterableTestCase;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

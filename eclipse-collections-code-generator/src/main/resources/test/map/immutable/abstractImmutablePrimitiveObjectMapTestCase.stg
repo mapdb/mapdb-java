@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive) ::= "AbstractImmutable<primitive.name>ObjectMapTestCase"
 
@@ -17,17 +17,17 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.util.Iterator;
 
-import org.eclipse.collections.api.map.primitive.Immutable<name>ObjectMap;
-import org.eclipse.collections.impl.factory.primitive.<name>ObjectMaps;
-import org.eclipse.collections.impl.factory.primitive.Object<name>Maps;
-import org.eclipse.collections.impl.map.mutable.primitive.<name>ObjectHashMap;
-import org.eclipse.collections.impl.map.mutable.primitive.Object<name>HashMap;
-import org.eclipse.collections.impl.map.primitive.Abstract<name>ObjectMapTestCase;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.map.primitive.Immutable<name>ObjectMap;
+import org.mapdb.collections.impl.factory.primitive.<name>ObjectMaps;
+import org.mapdb.collections.impl.factory.primitive.Object<name>Maps;
+import org.mapdb.collections.impl.map.mutable.primitive.<name>ObjectHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.Object<name>HashMap;
+import org.mapdb.collections.impl.map.primitive.Abstract<name>ObjectMapTestCase;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

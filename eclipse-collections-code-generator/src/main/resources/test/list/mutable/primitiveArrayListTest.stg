@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/list/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/list/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>ArrayListTest"
 
@@ -15,16 +15,16 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.list.mutable.primitive;
+package org.mapdb.collections.impl.list.mutable.primitive;
 
 import java.lang.reflect.Field;
 
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.factory.primitive.<name>Lists;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.utility.internal.primitive.<name>IterableIterate;
-import org.eclipse.collections.impl.utility.internal.primitive.<name>IteratorIterate;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.factory.primitive.<name>Lists;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.utility.internal.primitive.<name>IterableIterate;
+import org.mapdb.collections.impl.utility.internal.primitive.<name>IteratorIterate;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

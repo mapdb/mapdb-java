@@ -6,7 +6,7 @@ isTest() ::= "true"
 
 skipBoolean() ::="true"
 
-targetPath() ::= "org/eclipse/collections/impl/stack/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/stack/mutable/primitive"
 
 fileName(primitive) ::= "AbstractMutable<primitive.name>StackTestCase"
 
@@ -17,15 +17,15 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.stack.mutable.primitive;
+package org.mapdb.collections.impl.stack.mutable.primitive;
 
 import java.util.EmptyStackException;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.stack.primitive.Abstract<name>StackTestCase;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.stack.primitive.Abstract<name>StackTestCase;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

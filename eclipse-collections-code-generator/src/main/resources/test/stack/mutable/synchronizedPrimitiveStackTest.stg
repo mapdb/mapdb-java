@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/stack/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/stack/mutable/primitive"
 
 fileName(primitive) ::= "Synchronized<primitive.name>StackTest"
 
@@ -15,11 +15,11 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.stack.mutable.primitive;
+package org.mapdb.collections.impl.stack.mutable.primitive;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

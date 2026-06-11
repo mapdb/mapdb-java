@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive) ::= "AbstractImmutableObject<primitive.name>Map"
 
@@ -14,18 +14,18 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.eclipse.collections.api.map.primitive.ImmutableObject<name>Map;
-import org.eclipse.collections.api.map.primitive.Object<name>Map;
-import org.eclipse.collections.api.map.primitive.MutableObject<name>Map;
-import org.eclipse.collections.impl.block.procedure.checked.primitive.CheckedObject<name>Procedure;
-import org.eclipse.collections.impl.map.mutable.primitive.Object<name>HashMap;
+import org.mapdb.collections.api.map.primitive.ImmutableObject<name>Map;
+import org.mapdb.collections.api.map.primitive.Object<name>Map;
+import org.mapdb.collections.api.map.primitive.MutableObject<name>Map;
+import org.mapdb.collections.impl.block.procedure.checked.primitive.CheckedObject<name>Procedure;
+import org.mapdb.collections.impl.map.mutable.primitive.Object<name>HashMap;
 
 /**
  * This file was automatically generated from template file abstractImmutableObjectPrimitiveMap.stg.

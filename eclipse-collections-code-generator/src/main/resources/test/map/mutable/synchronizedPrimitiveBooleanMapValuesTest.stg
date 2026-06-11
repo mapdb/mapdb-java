@@ -7,7 +7,7 @@ skipBoolean() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "Synchronized<primitive.name>BooleanMapValuesTest"
 
@@ -18,21 +18,21 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.BooleanIterable;
-import org.eclipse.collections.api.bag.MutableBag;
-import org.eclipse.collections.api.block.function.primitive.BooleanToObjectFunction;
-import org.eclipse.collections.api.collection.primitive.MutableBooleanCollection;
-import org.eclipse.collections.impl.bag.mutable.HashBag;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.primitive.BooleanBags;
-import org.eclipse.collections.impl.block.factory.primitive.BooleanPredicates;
-import org.eclipse.collections.impl.collection.mutable.primitive.AbstractMutableBooleanCollectionTestCase;
-import org.eclipse.collections.impl.collection.mutable.primitive.SynchronizedBooleanCollection;
-import org.eclipse.collections.impl.collection.mutable.primitive.UnmodifiableBooleanCollection;
-import org.eclipse.collections.impl.list.mutable.primitive.BooleanArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.BooleanIterable;
+import org.mapdb.collections.api.bag.MutableBag;
+import org.mapdb.collections.api.block.function.primitive.BooleanToObjectFunction;
+import org.mapdb.collections.api.collection.primitive.MutableBooleanCollection;
+import org.mapdb.collections.impl.bag.mutable.HashBag;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.primitive.BooleanBags;
+import org.mapdb.collections.impl.block.factory.primitive.BooleanPredicates;
+import org.mapdb.collections.impl.collection.mutable.primitive.AbstractMutableBooleanCollectionTestCase;
+import org.mapdb.collections.impl.collection.mutable.primitive.SynchronizedBooleanCollection;
+import org.mapdb.collections.impl.collection.mutable.primitive.UnmodifiableBooleanCollection;
+import org.mapdb.collections.impl.list.mutable.primitive.BooleanArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

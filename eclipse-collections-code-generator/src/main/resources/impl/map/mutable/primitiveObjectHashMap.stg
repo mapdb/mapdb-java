@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>ObjectHashMap"
 
@@ -24,7 +24,7 @@ public Mutable<name>Bag collect<name>(<name>Function\<? super V> <type>Function)
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -38,109 +38,109 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.LazyIterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.bag.MutableBag;
-import org.eclipse.collections.api.bag.primitive.MutableBooleanBag;
-import org.eclipse.collections.api.bag.primitive.MutableByteBag;
-import org.eclipse.collections.api.bag.primitive.MutableCharBag;
-import org.eclipse.collections.api.bag.primitive.MutableDoubleBag;
-import org.eclipse.collections.api.bag.primitive.MutableFloatBag;
-import org.eclipse.collections.api.bag.primitive.MutableIntBag;
-import org.eclipse.collections.api.bag.primitive.MutableLongBag;
-import org.eclipse.collections.api.bag.primitive.MutableShortBag;
-import org.eclipse.collections.api.bag.sorted.MutableSortedBag;
-import org.eclipse.collections.api.bimap.MutableBiMap;
-import org.eclipse.collections.api.block.function.Function;
-import org.eclipse.collections.api.block.function.Function0;
-import org.eclipse.collections.api.block.function.Function2;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.BooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.ByteFunction;
-import org.eclipse.collections.api.block.function.primitive.CharFunction;
-import org.eclipse.collections.api.block.function.primitive.DoubleFunction;
-import org.eclipse.collections.api.block.function.primitive.DoubleObjectToDoubleFunction;
-import org.eclipse.collections.api.block.function.primitive.FloatFunction;
-import org.eclipse.collections.api.block.function.primitive.FloatObjectToFloatFunction;
-import org.eclipse.collections.api.block.function.primitive.IntFunction;
-import org.eclipse.collections.api.block.function.primitive.IntObjectToIntFunction;
-import org.eclipse.collections.api.block.function.primitive.LongFunction;
-import org.eclipse.collections.api.block.function.primitive.LongObjectToLongFunction;
-import org.eclipse.collections.api.block.function.primitive.ShortFunction;
-import org.eclipse.collections.api.block.predicate.Predicate;
-import org.eclipse.collections.api.block.predicate.Predicate2;
-import org.eclipse.collections.api.block.predicate.primitive.<name>ObjectPredicate;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.block.procedure.Procedure2;
-import org.eclipse.collections.api.block.procedure.primitive.<name>ObjectProcedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.ObjectIntProcedure;
-import org.eclipse.collections.api.factory.Bags;
-import org.eclipse.collections.api.factory.BiMaps;
-import org.eclipse.collections.api.factory.Lists;
-import org.eclipse.collections.api.factory.primitive.<name>ObjectMaps;
-<if(!primitive.longPrimitive)><if(!primitive.doublePrimitive)>import org.eclipse.collections.api.factory.primitive.Object<name>Maps;<endif><endif>
-import org.eclipse.collections.api.factory.primitive.ObjectDoubleMaps;
-import org.eclipse.collections.api.factory.primitive.ObjectLongMaps;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.api.iterator.Mutable<name>Iterator;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.api.map.MutableMap;
-import org.eclipse.collections.api.map.MutableMapIterable;
-import org.eclipse.collections.api.map.primitive.<name>ObjectMap;
-import org.eclipse.collections.api.map.primitive.Immutable<name>ObjectMap;
-import org.eclipse.collections.api.map.primitive.MutableObjectDoubleMap;
-import org.eclipse.collections.api.map.primitive.MutableObjectLongMap;
-import org.eclipse.collections.api.map.primitive.Mutable<name>ObjectMap;
-<if(!primitive.longPrimitive)><if(!primitive.doublePrimitive)>import org.eclipse.collections.api.map.primitive.MutableObject<name>Map;<endif><endif>
-import org.eclipse.collections.api.map.sorted.MutableSortedMap;
-import org.eclipse.collections.api.multimap.MutableMultimap;
-import org.eclipse.collections.api.multimap.bag.MutableBagMultimap;
-import org.eclipse.collections.api.partition.bag.PartitionMutableBag;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.api.set.primitive.<name>Set;
-import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
-import org.eclipse.collections.api.set.sorted.MutableSortedSet;
-import org.eclipse.collections.api.tuple.Pair;
-import org.eclipse.collections.api.tuple.primitive.<name>ObjectPair;
-<if(!primitive.bytePrimitive)>import org.eclipse.collections.impl.Fibonacci;<endif>
-import org.eclipse.collections.impl.bag.mutable.HashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.BooleanHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.ByteHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.CharHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.DoubleHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.FloatHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.IntHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.LongHashBag;
-import org.eclipse.collections.impl.bag.mutable.primitive.ShortHashBag;
-import org.eclipse.collections.impl.bag.sorted.mutable.TreeBag;
-import org.eclipse.collections.impl.block.factory.Comparators;
-import org.eclipse.collections.impl.block.factory.Functions;
-import org.eclipse.collections.impl.block.factory.Functions0;
-import org.eclipse.collections.impl.block.factory.Predicates;
-import org.eclipse.collections.impl.block.factory.PrimitiveFunctions;
-import org.eclipse.collections.impl.block.factory.Procedures2;
-import org.eclipse.collections.impl.block.procedure.BiMapCollectProcedure;
-import org.eclipse.collections.impl.block.procedure.MapCollectProcedure;
-import org.eclipse.collections.impl.block.procedure.MutatingAggregationProcedure;
-import org.eclipse.collections.impl.block.procedure.PartitionProcedure;
-import org.eclipse.collections.impl.block.procedure.SelectInstancesOfProcedure;
-import org.eclipse.collections.impl.iterator.Unmodifiable<name>Iterator;
-import org.eclipse.collections.impl.lazy.AbstractLazyIterable;
-import org.eclipse.collections.impl.lazy.primitive.AbstractLazy<name>Iterable;
-import org.eclipse.collections.impl.map.mutable.UnifiedMap;
-import org.eclipse.collections.impl.map.sorted.mutable.TreeSortedMap;
-import org.eclipse.collections.impl.multimap.bag.HashBagMultimap;
-import org.eclipse.collections.impl.partition.bag.PartitionHashBag;
-import org.eclipse.collections.impl.set.mutable.UnifiedSet;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.set.sorted.mutable.TreeSortedSet;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
-import org.eclipse.collections.impl.utility.Iterate;
-import org.eclipse.collections.impl.utility.LazyIterate;
-import org.eclipse.collections.impl.utility.internal.IterableIterate;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.LazyIterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.bag.MutableBag;
+import org.mapdb.collections.api.bag.primitive.MutableBooleanBag;
+import org.mapdb.collections.api.bag.primitive.MutableByteBag;
+import org.mapdb.collections.api.bag.primitive.MutableCharBag;
+import org.mapdb.collections.api.bag.primitive.MutableDoubleBag;
+import org.mapdb.collections.api.bag.primitive.MutableFloatBag;
+import org.mapdb.collections.api.bag.primitive.MutableIntBag;
+import org.mapdb.collections.api.bag.primitive.MutableLongBag;
+import org.mapdb.collections.api.bag.primitive.MutableShortBag;
+import org.mapdb.collections.api.bag.sorted.MutableSortedBag;
+import org.mapdb.collections.api.bimap.MutableBiMap;
+import org.mapdb.collections.api.block.function.Function;
+import org.mapdb.collections.api.block.function.Function0;
+import org.mapdb.collections.api.block.function.Function2;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.BooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.ByteFunction;
+import org.mapdb.collections.api.block.function.primitive.CharFunction;
+import org.mapdb.collections.api.block.function.primitive.DoubleFunction;
+import org.mapdb.collections.api.block.function.primitive.DoubleObjectToDoubleFunction;
+import org.mapdb.collections.api.block.function.primitive.FloatFunction;
+import org.mapdb.collections.api.block.function.primitive.FloatObjectToFloatFunction;
+import org.mapdb.collections.api.block.function.primitive.IntFunction;
+import org.mapdb.collections.api.block.function.primitive.IntObjectToIntFunction;
+import org.mapdb.collections.api.block.function.primitive.LongFunction;
+import org.mapdb.collections.api.block.function.primitive.LongObjectToLongFunction;
+import org.mapdb.collections.api.block.function.primitive.ShortFunction;
+import org.mapdb.collections.api.block.predicate.Predicate;
+import org.mapdb.collections.api.block.predicate.Predicate2;
+import org.mapdb.collections.api.block.predicate.primitive.<name>ObjectPredicate;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.Procedure2;
+import org.mapdb.collections.api.block.procedure.primitive.<name>ObjectProcedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.ObjectIntProcedure;
+import org.mapdb.collections.api.factory.Bags;
+import org.mapdb.collections.api.factory.BiMaps;
+import org.mapdb.collections.api.factory.Lists;
+import org.mapdb.collections.api.factory.primitive.<name>ObjectMaps;
+<if(!primitive.longPrimitive)><if(!primitive.doublePrimitive)>import org.mapdb.collections.api.factory.primitive.Object<name>Maps;<endif><endif>
+import org.mapdb.collections.api.factory.primitive.ObjectDoubleMaps;
+import org.mapdb.collections.api.factory.primitive.ObjectLongMaps;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.api.iterator.Mutable<name>Iterator;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.map.MutableMap;
+import org.mapdb.collections.api.map.MutableMapIterable;
+import org.mapdb.collections.api.map.primitive.<name>ObjectMap;
+import org.mapdb.collections.api.map.primitive.Immutable<name>ObjectMap;
+import org.mapdb.collections.api.map.primitive.MutableObjectDoubleMap;
+import org.mapdb.collections.api.map.primitive.MutableObjectLongMap;
+import org.mapdb.collections.api.map.primitive.Mutable<name>ObjectMap;
+<if(!primitive.longPrimitive)><if(!primitive.doublePrimitive)>import org.mapdb.collections.api.map.primitive.MutableObject<name>Map;<endif><endif>
+import org.mapdb.collections.api.map.sorted.MutableSortedMap;
+import org.mapdb.collections.api.multimap.MutableMultimap;
+import org.mapdb.collections.api.multimap.bag.MutableBagMultimap;
+import org.mapdb.collections.api.partition.bag.PartitionMutableBag;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.api.set.primitive.<name>Set;
+import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
+import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.api.tuple.Pair;
+import org.mapdb.collections.api.tuple.primitive.<name>ObjectPair;
+<if(!primitive.bytePrimitive)>import org.mapdb.collections.impl.Fibonacci;<endif>
+import org.mapdb.collections.impl.bag.mutable.HashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.BooleanHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.ByteHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.CharHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.DoubleHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.FloatHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.LongHashBag;
+import org.mapdb.collections.impl.bag.mutable.primitive.ShortHashBag;
+import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
+import org.mapdb.collections.impl.block.factory.Comparators;
+import org.mapdb.collections.impl.block.factory.Functions;
+import org.mapdb.collections.impl.block.factory.Functions0;
+import org.mapdb.collections.impl.block.factory.Predicates;
+import org.mapdb.collections.impl.block.factory.PrimitiveFunctions;
+import org.mapdb.collections.impl.block.factory.Procedures2;
+import org.mapdb.collections.impl.block.procedure.BiMapCollectProcedure;
+import org.mapdb.collections.impl.block.procedure.MapCollectProcedure;
+import org.mapdb.collections.impl.block.procedure.MutatingAggregationProcedure;
+import org.mapdb.collections.impl.block.procedure.PartitionProcedure;
+import org.mapdb.collections.impl.block.procedure.SelectInstancesOfProcedure;
+import org.mapdb.collections.impl.iterator.Unmodifiable<name>Iterator;
+import org.mapdb.collections.impl.lazy.AbstractLazyIterable;
+import org.mapdb.collections.impl.lazy.primitive.AbstractLazy<name>Iterable;
+import org.mapdb.collections.impl.map.mutable.UnifiedMap;
+import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
+import org.mapdb.collections.impl.multimap.bag.HashBagMultimap;
+import org.mapdb.collections.impl.partition.bag.PartitionHashBag;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.impl.utility.Iterate;
+import org.mapdb.collections.impl.utility.LazyIterate;
+import org.mapdb.collections.impl.utility.internal.IterableIterate;
 
 /**
  * This file was automatically generated from template file primitiveObjectHashMap.stg.
@@ -1431,7 +1431,7 @@ public class <name>ObjectHashMap\<V> implements Mutable<name>ObjectMap\<V>, Exte
     }
 
     /**
-     * @deprecated in 7.0. Use {@link org.eclipse.collections.api.ordered.OrderedIterable#zip(Iterable)} instead.
+     * @deprecated in 7.0. Use {@link org.mapdb.collections.api.ordered.OrderedIterable#zip(Iterable)} instead.
      */
     @Deprecated
     @Override
@@ -1453,7 +1453,7 @@ public class <name>ObjectHashMap\<V> implements Mutable<name>ObjectMap\<V>, Exte
     }
 
     /**
-     * @deprecated in 7.0. Use {@link org.eclipse.collections.api.ordered.OrderedIterable#zipWithIndex()} instead.
+     * @deprecated in 7.0. Use {@link org.mapdb.collections.api.ordered.OrderedIterable#zipWithIndex()} instead.
      */
     @Deprecated
     @Override

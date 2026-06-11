@@ -14,14 +14,14 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <parent>
-        <artifactId>eclipse-collections-parent</artifactId>
-        <groupId>org.eclipse.collections</groupId>
-        <version>14.0.0-SNAPSHOT</version>
+        <artifactId>mapdb-collections-parent</artifactId>
+        <groupId>org.mapdb</groupId>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>eclipse-collections-code-generator</artifactId>
+    <artifactId>mapdb-collections-code-generator</artifactId>
 
     <name>Eclipse Collections Code Generator</name>
 

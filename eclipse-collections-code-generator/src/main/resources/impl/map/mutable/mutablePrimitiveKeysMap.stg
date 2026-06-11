@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 skipBoolean() ::= "true"
 
@@ -16,9 +16,9 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.impl.map.primitive.<name>KeysMap;
+import org.mapdb.collections.impl.map.primitive.<name>KeysMap;
 
 /**
  * This file was automatically generated from template file mutablePrimitiveKeysMap.stg.

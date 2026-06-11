@@ -1,0 +1,423 @@
+/*
+ * Copyright (c) 2024 Goldman Sachs and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v. 1.0 which accompany this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
+
+package org.mapdb.collections.impl.map.mutable;
+
+import java.util.Collections;
+
+import org.mapdb.collections.api.bag.MutableBag;
+import org.mapdb.collections.api.block.function.Function;
+import org.mapdb.collections.api.block.function.Function2;
+import org.mapdb.collections.api.block.function.Function3;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.block.procedure.Procedure2;
+import org.mapdb.collections.api.factory.Bags;
+import org.mapdb.collections.api.factory.Maps;
+import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.api.map.ConcurrentMutableMap;
+import org.mapdb.collections.api.map.MapIterable;
+import org.mapdb.collections.api.map.MutableMap;
+import org.mapdb.collections.api.partition.PartitionIterable;
+import org.mapdb.collections.impl.bag.mutable.HashBag;
+import org.mapdb.collections.impl.block.factory.Functions;
+import org.mapdb.collections.impl.block.factory.IntegerPredicates;
+import org.mapdb.collections.impl.block.factory.Predicates2;
+import org.mapdb.collections.impl.list.Interval;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.parallel.ParallelIterate;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.ImmutableEntry;
+import org.junit.jupiter.api.Test;
+
+import static org.mapdb.collections.impl.factory.Iterables.iSet;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * JUnit test for {@link ConcurrentHashMapUnsafe}.
+ */
+public class ConcurrentHashMapUnsafeTest extends ConcurrentHashMapTestCase
+{
+    public static final MutableMap<Integer, MutableBag<Integer>> SMALL_BAG_MUTABLE_MAP = Interval.oneTo(100).groupBy(each -> each % 10).toMap(Bags.mutable::of);
+
+    @Override
+    public <K, V> ConcurrentMutableMap<K, V> newMap()
+    {
+        return ConcurrentHashMapUnsafe.newMap();
+    }
+
+    @Override
+    public <K, V> ConcurrentMutableMap<K, V> newMapWithKeyValue(K key, V value)
+    {
+        return ConcurrentHashMapUnsafe.<K, V>newMap().withKeyValue(key, value);
+    }
+
+    @Override
+    public <K, V> ConcurrentMutableMap<K, V> newMapWithKeysValues(K key1, V value1, K key2, V value2)
+    {
+        return ConcurrentHashMapUnsafe.<K, V>newMap().withKeyValue(key1, value1).withKeyValue(key2, value2);
+    }
+
+    @Override
+    public <K, V> ConcurrentMutableMap<K, V> newMapWithKeysValues(K key1, V value1, K key2, V value2, K key3, V value3)
+    {
+        return ConcurrentHashMapUnsafe.<K, V>newMap()
+                .withKeyValue(key1, value1)
+                .withKeyValue(key2, value2)
+                .withKeyValue(key3, value3);
+    }
+
+    @Override
+    public <K, V> ConcurrentMutableMap<K, V> newMapWithKeysValues(K key1, V value1, K key2, V value2, K key3, V value3, K key4, V value4)
+    {
+        return ConcurrentHashMapUnsafe.<K, V>newMap()
+                .withKeyValue(key1, value1)
+                .withKeyValue(key2, value2)
+                .withKeyValue(key3, value3)
+                .withKeyValue(key4, value4);
+    }
+
+    @Test
+    public void doubleReverseTest()
+    {
+        FastList<String> source = FastList.newListWith("1", "2", "3");
+        MutableList<String> expectedDoubleReverse = source.toReversed().collect(new Function<String, String>()
+        {
+            private String visited = "";
+
+            @Override
+            public String valueOf(String object)
+            {
+                return this.visited += object;
+            }
+        }).toReversed();
+        assertEquals(FastList.newListWith("321", "32", "3"), expectedDoubleReverse);
+        MutableList<String> expectedNormal = source.collect(new Function<String, String>()
+        {
+            private String visited = "";
+
+            @Override
+            public String valueOf(String object)
+            {
+                return this.visited += object;
+            }
+        });
+        assertEquals(FastList.newListWith("1", "12", "123"), expectedNormal);
+    }
+
+    @Test
+    public void putIfAbsent()
+    {
+        ConcurrentMutableMap<Integer, Integer> map = this.newMapWithKeysValues(1, 1, 2, 2);
+        assertEquals(Integer.valueOf(1), map.putIfAbsent(1, 1));
+        assertNull(map.putIfAbsent(3, 3));
+    }
+
+    @Test
+    public void replace()
+    {
+        ConcurrentMutableMap<Integer, Integer> map = this.newMapWithKeysValues(1, 1, 2, 2);
+        assertEquals(Integer.valueOf(1), map.replace(1, 7));
+        assertEquals(Integer.valueOf(7), map.get(1));
+        assertNull(map.replace(3, 3));
+    }
+
+    @Test
+    public void entrySetContains()
+    {
+        MutableMap<String, Integer> map = this.newMapWithKeysValues("One", Integer.valueOf(1), "Two", Integer.valueOf(2), "Three", Integer.valueOf(3));
+        assertFalse(map.entrySet().contains(null));
+        assertFalse(map.entrySet().contains(ImmutableEntry.of("Zero", Integer.valueOf(0))));
+        assertTrue(map.entrySet().contains(ImmutableEntry.of("One", Integer.valueOf(1))));
+    }
+
+    @Test
+    public void entrySetRemove()
+    {
+        MutableMap<String, Integer> map = this.newMapWithKeysValues("One", Integer.valueOf(1), "Two", Integer.valueOf(2), "Three", Integer.valueOf(3));
+        assertFalse(map.entrySet().remove(null));
+        assertFalse(map.entrySet().remove(ImmutableEntry.of("Zero", Integer.valueOf(0))));
+        assertTrue(map.entrySet().remove(ImmutableEntry.of("One", Integer.valueOf(1))));
+    }
+
+    @Test
+    public void replaceWithOldValue()
+    {
+        ConcurrentMutableMap<Integer, Integer> map = this.newMapWithKeysValues(1, 1, 2, 2);
+        assertTrue(map.replace(1, 1, 7));
+        assertEquals(Integer.valueOf(7), map.get(1));
+        assertFalse(map.replace(2, 3, 3));
+    }
+
+    @Test
+    public void removeWithKeyValue()
+    {
+        ConcurrentMutableMap<Integer, Integer> map = this.newMapWithKeysValues(1, 1, 2, 2);
+        assertTrue(map.remove(1, 1));
+        assertFalse(map.remove(2, 3));
+    }
+
+    @Override
+    @Test
+    public void removeFromEntrySet()
+    {
+        MutableMap<String, Integer> map = this.newMapWithKeysValues("One", 1, "Two", 2, "Three", 3);
+        assertTrue(map.entrySet().remove(ImmutableEntry.of("Two", 2)));
+        assertEquals(UnifiedMap.newWithKeysValues("One", 1, "Three", 3), map);
+
+        assertFalse(map.entrySet().remove(ImmutableEntry.of("Four", 4)));
+        Verify.assertEqualsAndHashCode(UnifiedMap.newWithKeysValues("One", 1, "Three", 3), map);
+    }
+
+    @Override
+    @Test
+    public void removeAllFromEntrySet()
+    {
+        MutableMap<String, Integer> map = this.newMapWithKeysValues("One", 1, "Two", 2, "Three", 3);
+        assertTrue(map.entrySet().removeAll(FastList.newListWith(
+                ImmutableEntry.of("One", 1),
+                ImmutableEntry.of("Three", 3))));
+        assertEquals(UnifiedMap.newWithKeysValues("Two", 2), map);
+
+        assertFalse(map.entrySet().removeAll(FastList.newListWith(ImmutableEntry.of("Four", 4))));
+        Verify.assertEqualsAndHashCode(UnifiedMap.newWithKeysValues("Two", 2), map);
+    }
+
+    @Override
+    @Test
+    public void keySetEqualsAndHashCode()
+    {
+        MutableMap<String, Integer> map = this.newMapWithKeysValues("One", 1, "Two", 2, "Three", 3);
+        Verify.assertEqualsAndHashCode(UnifiedSet.newSetWith("One", "Two", "Three"), map.keySet());
+    }
+
+    @Test
+    public void equalsEdgeCases()
+    {
+        assertNotEquals(ConcurrentHashMapUnsafe.newMap().withKeyValue(1, 1), ConcurrentHashMapUnsafe.newMap());
+        assertNotEquals(ConcurrentHashMapUnsafe.newMap().withKeyValue(1, 1), ConcurrentHashMapUnsafe.newMap().withKeyValue(1, 1).withKeyValue(2, 2));
+    }
+
+    @Test
+    public void negativeInitialSize()
+    {
+        assertThrows(IllegalArgumentException.class, () -> ConcurrentHashMapUnsafe.newMap(-1));
+    }
+
+    @Override
+    @Test
+    public void partition_value()
+    {
+        MapIterable<String, Integer> map = this.newMapWithKeysValues(
+                "A", 1,
+                "B", 2,
+                "C", 3,
+                "D", 4);
+        PartitionIterable<Integer> partition = map.partition(IntegerPredicates.isEven());
+        assertEquals(iSet(2, 4), partition.getSelected().toSet());
+        assertEquals(iSet(1, 3), partition.getRejected().toSet());
+    }
+
+    @Override
+    @Test
+    public void partitionWith_value()
+    {
+        MapIterable<String, Integer> map = this.newMapWithKeysValues(
+                "A", 1,
+                "B", 2,
+                "C", 3,
+                "D", 4);
+        PartitionIterable<Integer> partition = map.partitionWith(Predicates2.in(), map.select(IntegerPredicates.isEven()));
+        assertEquals(iSet(2, 4), partition.getSelected().toSet());
+        assertEquals(iSet(1, 3), partition.getRejected().toSet());
+    }
+
+    @Override
+    @Test
+    public void withMapNull()
+    {
+        assertThrows(NullPointerException.class, () -> this.newMap().withMap(null));
+    }
+
+    @Test
+    public void parallelGroupByIntoConcurrentHashMap()
+    {
+        MutableMap<Integer, MutableBag<Integer>> actual = ConcurrentHashMapUnsafe.newMap();
+        ParallelIterate.forEach(Interval.oneTo(100), each -> actual.getIfAbsentPut(each % 10, () -> HashBag.<Integer>newBag().asSynchronized()).add(each), 10, this.executor);
+        Verify.assertEqualsAndHashCode(SMALL_BAG_MUTABLE_MAP, actual);
+    }
+
+    @Test
+    public void parallelForEachValue()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> source =
+                ConcurrentHashMapUnsafe.newMap(Interval.oneTo(100).toMap(Functions.getIntegerPassThru(), Functions.getIntegerPassThru()));
+        MutableMap<Integer, MutableBag<Integer>> actual = ConcurrentHashMapUnsafe.newMap();
+        Procedure<Integer> procedure = each -> actual.getIfAbsentPut(each % 10, () -> HashBag.<Integer>newBag().asSynchronized()).add(each);
+        source.parallelForEachValue(FastList.newList(Collections.nCopies(5, procedure)), this.executor);
+        Verify.assertEqualsAndHashCode(SMALL_BAG_MUTABLE_MAP, actual);
+    }
+
+    @Test
+    public void parallelForEachEntry()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> source =
+                ConcurrentHashMapUnsafe.newMap(Interval.oneTo(100).toMap(Functions.getIntegerPassThru(), Functions.getIntegerPassThru()));
+        MutableMap<Integer, MutableBag<Integer>> actual = ConcurrentHashMapUnsafe.newMap();
+        Procedure2<Integer, Integer> procedure2 = (key, value) -> actual.getIfAbsentPut(value % 10, () -> HashBag.<Integer>newBag().asSynchronized()).add(value);
+        source.parallelForEachKeyValue(FastList.newList(Collections.nCopies(5, procedure2)), this.executor);
+        Verify.assertEqualsAndHashCode(SMALL_BAG_MUTABLE_MAP, actual);
+    }
+
+    @Test
+    public void putAllInParallelSmallMap()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> source = ConcurrentHashMapUnsafe.newMap(Interval.oneTo(100).toMap(Functions.getIntegerPassThru(), Functions.getIntegerPassThru()));
+        ConcurrentHashMapUnsafe<Integer, Integer> target = ConcurrentHashMapUnsafe.newMap();
+        target.putAllInParallel(source, 100, this.executor);
+        Verify.assertEqualsAndHashCode(source, target);
+    }
+
+    @Test
+    public void putAllInParallelLargeMap()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> source = ConcurrentHashMapUnsafe.newMap(Interval.oneTo(600).toMap(Functions.getIntegerPassThru(), Functions.getIntegerPassThru()));
+        ConcurrentHashMapUnsafe<Integer, Integer> target = ConcurrentHashMapUnsafe.newMap();
+        target.putAllInParallel(source, 100, this.executor);
+        Verify.assertEqualsAndHashCode(source, target);
+    }
+
+    @Test
+    public void concurrentPutGetPutAllRemoveContainsKeyContainsValueGetIfAbsentPutTest()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> map1 = ConcurrentHashMapUnsafe.newMap();
+        ConcurrentHashMapUnsafe<Integer, Integer> map2 = ConcurrentHashMapUnsafe.newMap();
+        ParallelIterate.forEach(Interval.oneTo(100), each ->
+        {
+            map1.put(each, each);
+            assertEquals(each, map1.get(each));
+            map2.putAll(Maps.mutable.of(each, each));
+            map1.remove(each);
+            map1.putAll(Maps.mutable.of(each, each));
+            assertEquals(each, map2.get(each));
+            map2.remove(each);
+            assertNull(map2.get(each));
+            assertFalse(map2.containsValue(each));
+            assertFalse(map2.containsKey(each));
+            assertEquals(each, map2.getIfAbsentPut(each, Functions.getIntegerPassThru()));
+            assertTrue(map2.containsValue(each));
+            assertTrue(map2.containsKey(each));
+            assertEquals(each, map2.getIfAbsentPut(each, Functions.getIntegerPassThru()));
+            map2.remove(each);
+            assertEquals(each, map2.getIfAbsentPutWith(each, Functions.getIntegerPassThru(), each));
+            assertEquals(each, map2.getIfAbsentPutWith(each, Functions.getIntegerPassThru(), each));
+            assertEquals(each, map2.getIfAbsentPut(each, Functions.getIntegerPassThru()));
+        }, 1, this.executor);
+        Verify.assertEqualsAndHashCode(map1, map2);
+    }
+
+    @Test
+    public void concurrentPutIfAbsentGetIfPresentPutTest()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> map1 = ConcurrentHashMapUnsafe.newMap();
+        ConcurrentHashMapUnsafe<Integer, Integer> map2 = ConcurrentHashMapUnsafe.newMap();
+        ParallelIterate.forEach(Interval.oneTo(100), each ->
+        {
+            map1.put(each, each);
+            map1.put(each, each);
+            assertEquals(each, map1.get(each));
+            map2.putAll(Maps.mutable.of(each, each));
+            map2.putAll(Maps.mutable.of(each, each));
+            map1.remove(each);
+            assertNull(map1.putIfAbsentGetIfPresent(each, new KeyTransformer(), new ValueFactory(), null, null));
+            assertEquals(each, map1.putIfAbsentGetIfPresent(each, new KeyTransformer(), new ValueFactory(), null, null));
+        }, 1, this.executor);
+        assertEquals(map1, map2);
+    }
+
+    @Test
+    public void concurrentClear()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> map = ConcurrentHashMapUnsafe.newMap();
+        ParallelIterate.forEach(Interval.oneTo(100), each ->
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                map.put(each + i * 1000, each);
+            }
+            map.clear();
+        }, 1, this.executor);
+        Verify.assertEmpty(map);
+    }
+
+    @Test
+    public void concurrentRemoveAndPutIfAbsent()
+    {
+        ConcurrentHashMapUnsafe<Integer, Integer> map1 = ConcurrentHashMapUnsafe.newMap();
+        ParallelIterate.forEach(Interval.oneTo(100), each ->
+        {
+            assertNull(map1.put(each, each));
+            map1.remove(each);
+            assertNull(map1.get(each));
+            assertEquals(each, map1.getIfAbsentPut(each, Functions.getIntegerPassThru()));
+            map1.remove(each);
+            assertNull(map1.get(each));
+            assertEquals(each, map1.getIfAbsentPutWith(each, Functions.getIntegerPassThru(), each));
+            map1.remove(each);
+            assertNull(map1.get(each));
+            for (int i = 0; i < 10; i++)
+            {
+                assertNull(map1.putIfAbsent(each + i * 1000, each));
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                assertEquals(each, map1.putIfAbsent(each + i * 1000, each));
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                assertEquals(each, map1.remove(each + i * 1000));
+            }
+        }, 1, this.executor);
+    }
+
+    @Test
+    public void emptyToString()
+    {
+        ConcurrentHashMapUnsafe<?, ?> empty = ConcurrentHashMapUnsafe.newMap(0);
+        assertEquals("{}", empty.toString());
+    }
+
+    private static class KeyTransformer implements Function2<Integer, Integer, Integer>
+    {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Integer value(Integer key, Integer value)
+        {
+            return key;
+        }
+    }
+
+    private static class ValueFactory implements Function3<Object, Object, Integer, Integer>
+    {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Integer value(Object argument1, Object argument2, Integer key)
+        {
+            return key;
+        }
+    }
+}

@@ -3,7 +3,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/block/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/block/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>PredicatesTest"
 
@@ -14,9 +14,9 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.block.factory.primitive;
+package org.mapdb.collections.impl.block.factory.primitive;
 
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;

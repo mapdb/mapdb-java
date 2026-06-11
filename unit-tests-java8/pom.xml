@@ -17,9 +17,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.eclipse.collections</groupId>
-        <artifactId>eclipse-collections-parent</artifactId>
-        <version>14.0.0-SNAPSHOT</version>
+        <groupId>org.mapdb</groupId>
+        <artifactId>mapdb-collections-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>unit-tests-java8</artifactId>
@@ -33,22 +33,22 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections-api</artifactId>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections-api</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections</artifactId>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections-testutils</artifactId>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections-testutils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

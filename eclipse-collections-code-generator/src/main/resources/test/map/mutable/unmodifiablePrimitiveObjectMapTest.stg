@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "Unmodifiable<primitive.name>ObjectMapTest"
 
@@ -17,26 +17,26 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.block.function.Function;
-import org.eclipse.collections.api.block.function.Function0;
-import org.eclipse.collections.api.block.function.Function2;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.map.primitive.Mutable<name>ObjectMap;
-import org.eclipse.collections.impl.factory.Iterables;
-import org.eclipse.collections.api.set.MutableSet;
-import org.eclipse.collections.impl.block.factory.Functions0;
-import org.eclipse.collections.impl.block.function.AddFunction;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.set.mutable.UnifiedSet;
-import org.eclipse.collections.api.set.primitive.<name>Set;
-import org.eclipse.collections.impl.set.mutable.primitive.<name>HashSet;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.block.function.Function;
+import org.mapdb.collections.api.block.function.Function0;
+import org.mapdb.collections.api.block.function.Function2;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.map.primitive.Mutable<name>ObjectMap;
+import org.mapdb.collections.impl.factory.Iterables;
+import org.mapdb.collections.api.set.MutableSet;
+import org.mapdb.collections.impl.block.factory.Functions0;
+import org.mapdb.collections.impl.block.function.AddFunction;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
+import org.mapdb.collections.api.set.primitive.<name>Set;
+import org.mapdb.collections.impl.set.mutable.primitive.<name>HashSet;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

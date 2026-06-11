@@ -2,7 +2,7 @@ import "copyright.stg"
 
 skipBoolean() ::= "false"
 
-targetPath() ::= "org/eclipse/collections/impl/block/procedure/primitive"
+targetPath() ::= "org/mapdb/collections/impl/block/procedure/primitive"
 
 fileName(primitive) ::= "Collect<primitive.name>Procedure"
 
@@ -13,11 +13,11 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.block.procedure.primitive;
+package org.mapdb.collections.impl.block.procedure.primitive;
 
-import org.eclipse.collections.api.block.function.primitive.<name>Function;
-import org.eclipse.collections.api.block.procedure.Procedure;
-import org.eclipse.collections.api.collection.primitive.Mutable<name>Collection;
+import org.mapdb.collections.api.block.function.primitive.<name>Function;
+import org.mapdb.collections.api.block.procedure.Procedure;
+import org.mapdb.collections.api.collection.primitive.Mutable<name>Collection;
 
 /**
  * Applies a <name>Function to an object and adds the result to a target <type> collection.

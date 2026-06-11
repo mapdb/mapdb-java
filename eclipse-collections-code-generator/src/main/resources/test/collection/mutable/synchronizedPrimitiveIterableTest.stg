@@ -7,7 +7,7 @@ isTest() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/collection/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/collection/mutable/primitive"
 
 fileName(primitive) ::= "Synchronized<primitive.name>IterableTest"
 
@@ -18,17 +18,17 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.collection.mutable.primitive;
+package org.mapdb.collections.impl.collection.mutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.RichIterable;
-import org.eclipse.collections.api.iterator.<name>Iterator;
-import org.eclipse.collections.impl.list.mutable.FastList;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.primitive.Synchronized<name>Iterable;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.iterator.<name>Iterator;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.primitive.Synchronized<name>Iterable;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/list/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/list/immutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>EmptyListTest"
 
@@ -14,18 +14,18 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.list.immutable.primitive;
+package org.mapdb.collections.impl.list.immutable.primitive;
 
 import java.util.NoSuchElementException;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.collection.primitive.Immutable<name>Collection;
-import org.eclipse.collections.api.list.primitive.Immutable<name>List;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.block.factory.primitive.<name>Predicates;
-import org.eclipse.collections.impl.math.Mutable<wrapperName>;
-import org.eclipse.collections.impl.factory.primitive.<name>Lists;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.collection.primitive.Immutable<name>Collection;
+import org.mapdb.collections.api.list.primitive.Immutable<name>List;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.block.factory.primitive.<name>Predicates;
+import org.mapdb.collections.impl.math.Mutable<wrapperName>;
+import org.mapdb.collections.impl.factory.primitive.<name>Lists;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

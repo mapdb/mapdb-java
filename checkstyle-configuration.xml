@@ -403,9 +403,9 @@
             <property name="excludes" value="org.junit.Assume.*" />
             <property name="excludes" value="org.junit.jupiter.api.Assertions.*" />
             <property name="excludes" value="org.assertj.core.api.Assertions.*" />
-            <property name="excludes" value="org.eclipse.collections.impl.test.Verify.*" />
-            <property name="excludes" value="org.eclipse.collections.impl.factory.Iterables.*" />
-            <property name="excludes" value="org.eclipse.collections.test.IterableTestCase.*" />
+            <property name="excludes" value="org.mapdb.collections.impl.test.Verify.*" />
+            <property name="excludes" value="org.mapdb.collections.impl.factory.Iterables.*" />
+            <property name="excludes" value="org.mapdb.collections.test.IterableTestCase.*" />
         </module>
 
         <module name="MissingDeprecated" />

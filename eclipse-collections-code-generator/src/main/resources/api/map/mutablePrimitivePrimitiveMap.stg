@@ -4,7 +4,7 @@ skipBooleanKeys() ::= "true"
 
 hasTwoPrimitives() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/api/map/primitive"
+targetPath() ::= "org/mapdb/collections/api/map/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Mutable<primitive1.name><primitive2.name>Map"
 
@@ -15,16 +15,16 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.map.primitive;
+package org.mapdb.collections.api.map.primitive;
 
-import org.eclipse.collections.api.<name1>Iterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
-import org.eclipse.collections.api.block.function.primitive.<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name2>Function0;
-import org.eclipse.collections.api.block.function.primitive.<name2>To<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
-import org.eclipse.collections.api.block.predicate.primitive.<name1><name2>Predicate;
-import org.eclipse.collections.api.tuple.primitive.<name1><name2>Pair;
+import org.mapdb.collections.api.<name1>Iterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
+import org.mapdb.collections.api.block.function.primitive.<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function0;
+import org.mapdb.collections.api.block.function.primitive.<name2>To<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name1><name2>To<name2>Function;
+import org.mapdb.collections.api.block.predicate.primitive.<name1><name2>Predicate;
+import org.mapdb.collections.api.tuple.primitive.<name1><name2>Pair;
 
 /**
  * This file was automatically generated from template file mutablePrimitivePrimitiveMap.stg.

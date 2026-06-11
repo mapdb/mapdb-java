@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/stack/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/stack/immutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>ArrayStack"
 
@@ -14,7 +14,7 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.stack.immutable.primitive;
+package org.mapdb.collections.impl.stack.immutable.primitive;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -22,20 +22,20 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.Serializable;
 
-import org.eclipse.collections.api.<name>Iterable;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-<if(!primitive.booleanPrimitive)>import org.eclipse.collections.api.list.primitive.Mutable<name>List;<endif>
-import org.eclipse.collections.api.stack.ImmutableStack;
-import org.eclipse.collections.api.stack.primitive.<name>Stack;
-import org.eclipse.collections.api.stack.primitive.Immutable<name>Stack;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.block.procedure.checked.primitive.Checked<name>Procedure;
-import org.eclipse.collections.impl.factory.Stacks;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.stack.mutable.primitive.<name>ArrayStack;
-import org.eclipse.collections.impl.stack.primitive.Abstract<name>Stack;
+import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+<if(!primitive.booleanPrimitive)>import org.mapdb.collections.api.list.primitive.Mutable<name>List;<endif>
+import org.mapdb.collections.api.stack.ImmutableStack;
+import org.mapdb.collections.api.stack.primitive.<name>Stack;
+import org.mapdb.collections.api.stack.primitive.Immutable<name>Stack;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.block.procedure.checked.primitive.Checked<name>Procedure;
+import org.mapdb.collections.impl.factory.Stacks;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.stack.mutable.primitive.<name>ArrayStack;
+import org.mapdb.collections.impl.stack.primitive.Abstract<name>Stack;
 
 /**
  * Immutable<name>ArrayStack is the non-modifiable equivalent of {@link <name>ArrayStack}.

@@ -7,7 +7,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBooleanKeys() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Immutable<primitive1.name><primitive2.name>EmptyMap"
 
@@ -18,50 +18,50 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
 import java.io.IOException;
 import java.io.Serializable;
 <if (!primitive2.booleanPrimitive)>import java.util.NoSuchElementException;<endif>
 
-import org.eclipse.collections.api.<name1>Iterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.<name2>Iterable;<endif>
-import org.eclipse.collections.api.Lazy<name1>Iterable;
-import org.eclipse.collections.api.RichIterable;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.Lazy<name2>Iterable;<endif>
-import org.eclipse.collections.api.bag.ImmutableBag;
-import org.eclipse.collections.api.bag.primitive.Immutable<name2>Bag;
-import org.eclipse.collections.api.bag.primitive.Mutable<name2>Bag;
-import org.eclipse.collections.api.block.function.primitive.<name2>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name1><name2>Predicate;
-import org.eclipse.collections.api.block.predicate.primitive.<name2>Predicate;
-import org.eclipse.collections.api.block.procedure.primitive.<name1>Procedure;
-import org.eclipse.collections.api.block.procedure.primitive.<name1><name2>Procedure;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.procedure.primitive.<name2>Procedure;<endif>
-import org.eclipse.collections.api.collection.primitive.Mutable<name2>Collection;
-import org.eclipse.collections.api.iterator.<name2>Iterator;
-import org.eclipse.collections.api.list.primitive.Mutable<name2>List;
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.eclipse.collections.api.map.primitive.Immutable<name2><name1>Map;<endif><endif>
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.set.primitive.Mutable<name1>Set;<endif>
-import org.eclipse.collections.api.set.primitive.Mutable<name2>Set;
-import org.eclipse.collections.api.tuple.primitive.<name1><name2>Pair;
-import org.eclipse.collections.impl.bag.mutable.primitive.<name2>HashBag;
-import org.eclipse.collections.impl.collection.mutable.primitive.Unmodifiable<name2>Collection;
-import org.eclipse.collections.impl.factory.Bags;
-import org.eclipse.collections.impl.factory.Lists;
-import org.eclipse.collections.impl.factory.primitive.<name2>Bags;
-<if(!primitive2.booleanPrimitive)>import org.eclipse.collections.impl.factory.primitive.<name2><name1>Maps;<endif>
-import org.eclipse.collections.impl.iterator.ImmutableEmpty<name2>Iterator;
-import org.eclipse.collections.impl.lazy.primitive.Lazy<name2>IterableAdapter;
-import org.eclipse.collections.impl.list.mutable.primitive.<name2>ArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.<name2>HashSet;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.impl.set.mutable.primitive.<name1>HashSet;<endif>
-import org.eclipse.collections.impl.set.mutable.primitive.Unmodifiable<name1>Set;
-import org.eclipse.collections.impl.utility.LazyIterate;
-import org.eclipse.collections.impl.utility.primitive.Lazy<name1>Iterate;
+import org.mapdb.collections.api.<name1>Iterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.<name2>Iterable;<endif>
+import org.mapdb.collections.api.Lazy<name1>Iterable;
+import org.mapdb.collections.api.RichIterable;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.Lazy<name2>Iterable;<endif>
+import org.mapdb.collections.api.bag.ImmutableBag;
+import org.mapdb.collections.api.bag.primitive.Immutable<name2>Bag;
+import org.mapdb.collections.api.bag.primitive.Mutable<name2>Bag;
+import org.mapdb.collections.api.block.function.primitive.<name2>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Object<name2>ToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name1><name2>Predicate;
+import org.mapdb.collections.api.block.predicate.primitive.<name2>Predicate;
+import org.mapdb.collections.api.block.procedure.primitive.<name1>Procedure;
+import org.mapdb.collections.api.block.procedure.primitive.<name1><name2>Procedure;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.procedure.primitive.<name2>Procedure;<endif>
+import org.mapdb.collections.api.collection.primitive.Mutable<name2>Collection;
+import org.mapdb.collections.api.iterator.<name2>Iterator;
+import org.mapdb.collections.api.list.primitive.Mutable<name2>List;
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+<if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.mapdb.collections.api.map.primitive.Immutable<name2><name1>Map;<endif><endif>
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.set.primitive.Mutable<name1>Set;<endif>
+import org.mapdb.collections.api.set.primitive.Mutable<name2>Set;
+import org.mapdb.collections.api.tuple.primitive.<name1><name2>Pair;
+import org.mapdb.collections.impl.bag.mutable.primitive.<name2>HashBag;
+import org.mapdb.collections.impl.collection.mutable.primitive.Unmodifiable<name2>Collection;
+import org.mapdb.collections.impl.factory.Bags;
+import org.mapdb.collections.impl.factory.Lists;
+import org.mapdb.collections.impl.factory.primitive.<name2>Bags;
+<if(!primitive2.booleanPrimitive)>import org.mapdb.collections.impl.factory.primitive.<name2><name1>Maps;<endif>
+import org.mapdb.collections.impl.iterator.ImmutableEmpty<name2>Iterator;
+import org.mapdb.collections.impl.lazy.primitive.Lazy<name2>IterableAdapter;
+import org.mapdb.collections.impl.list.mutable.primitive.<name2>ArrayList;
+import org.mapdb.collections.impl.set.mutable.primitive.<name2>HashSet;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.impl.set.mutable.primitive.<name1>HashSet;<endif>
+import org.mapdb.collections.impl.set.mutable.primitive.Unmodifiable<name1>Set;
+import org.mapdb.collections.impl.utility.LazyIterate;
+import org.mapdb.collections.impl.utility.primitive.Lazy<name1>Iterate;
 
 /**
  * Immutable<name1><name2>EmptyMap is an optimization for {@link Immutable<name1><name2>Map} of size 0.

@@ -6,7 +6,7 @@ isTest() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/block/procedure"
+targetPath() ::= "org/mapdb/collections/impl/block/procedure"
 
 fileName(primitive) ::= "SumOf<primitive.name>ProcedureTest"
 
@@ -17,9 +17,9 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.block.procedure;
+package org.mapdb.collections.impl.block.procedure;
 
-import org.eclipse.collections.api.block.function.primitive.<name>Function;
+import org.mapdb.collections.api.block.function.primitive.<name>Function;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;

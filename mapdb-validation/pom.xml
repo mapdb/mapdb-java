@@ -4,7 +4,7 @@
   Collections fork). This module is INTERNAL / UNPUBLISHED. It is deliberately
   NOT listed in the root pom <modules> so the documented build-unblock command
   stays intact (see ../BUILD-MAPDB.md). It depends only on the locally-installed
-  STOCK, UNRENAMED Eclipse Collections artifacts (still org.eclipse.collections)
+  renamed mapdb-collections artifacts (org.mapdb.collections.* packages, org.mapdb GAVs)
   plus a JSON library (Jackson). Build it on its own with `mvn -f mapdb-validation/pom.xml ...`.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -26,20 +26,20 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
-        <eclipse.collections.version>14.0.0-SNAPSHOT</eclipse.collections.version>
+        <mapdb.collections.version>1.0.0-SNAPSHOT</mapdb.collections.version>
         <jackson.version>2.18.2</jackson.version>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections-api</artifactId>
-            <version>${eclipse.collections.version}</version>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections-api</artifactId>
+            <version>${mapdb.collections.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections</artifactId>
-            <version>${eclipse.collections.version}</version>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb-collections</artifactId>
+            <version>${mapdb.collections.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

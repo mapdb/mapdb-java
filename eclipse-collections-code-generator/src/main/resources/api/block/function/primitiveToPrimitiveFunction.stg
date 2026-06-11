@@ -2,7 +2,7 @@ import "copyright.stg"
 
 hasTwoPrimitives() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/api/block/function/primitive"
+targetPath() ::= "org/mapdb/collections/api/block/function/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name>To<primitive2.name>Function"
 
@@ -13,7 +13,7 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.api.block.function.primitive;
+package org.mapdb.collections.api.block.function.primitive;
 
 import java.io.Serializable;
 

@@ -1,7 +1,7 @@
 import "copyrightAndOthers.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/api"
+targetPath() ::= "org/mapdb/collections/api"
 
 fileName(primitive) ::= "Lazy<primitive.name>Iterable"
 
@@ -19,19 +19,19 @@ Lazy<toName>Iterable collect<toName>(<fromName>To<toName>Function function);
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api;
+package org.mapdb.collections.api;
 
-import org.eclipse.collections.api.block.function.primitive.<name>ToBooleanFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToByteFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToCharFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToDoubleFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToFloatFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToIntFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToLongFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToShortFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.block.procedure.primitive.<name>Procedure;
+import org.mapdb.collections.api.block.function.primitive.<name>ToBooleanFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToByteFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToCharFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToDoubleFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToFloatFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToIntFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToLongFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToShortFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.block.procedure.primitive.<name>Procedure;
 
 /**
  * This file was automatically generated from template file lazyPrimitiveIterable.stg.

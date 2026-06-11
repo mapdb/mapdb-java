@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/factory/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "<primitive1.name><primitive2.name>MapsTest"
 
@@ -20,12 +20,12 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.factory.primitive;
+package org.mapdb.collections.impl.factory.primitive;
 
-import org.eclipse.collections.api.factory.map.primitive.Immutable<name1><name2>MapFactory;
-import org.eclipse.collections.api.factory.map.primitive.Mutable<name1><name2>MapFactory;
-import org.eclipse.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.factory.map.primitive.Immutable<name1><name2>MapFactory;
+import org.mapdb.collections.api.factory.map.primitive.Mutable<name1><name2>MapFactory;
+import org.mapdb.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,7 +41,7 @@ public class <name1><name2>MapsTest
     public void immutables()
     {
         this.assertImmutableMapFactory(<name1><name2>Maps.immutable);
-        this.assertImmutableMapFactory(org.eclipse.collections.api.factory.primitive.<name1><name2>Maps.immutable);
+        this.assertImmutableMapFactory(org.mapdb.collections.api.factory.primitive.<name1><name2>Maps.immutable);
     }
 
     private void assertImmutableMapFactory(Immutable<name1><name2>MapFactory mapFactory)
@@ -58,7 +58,7 @@ public class <name1><name2>MapsTest
     public void mutables()
     {
         this.assertMutableMapFactory(<name1><name2>Maps.mutable);
-        this.assertMutableMapFactory(org.eclipse.collections.api.factory.primitive.<name1><name2>Maps.mutable);
+        this.assertMutableMapFactory(org.mapdb.collections.api.factory.primitive.<name1><name2>Maps.mutable);
     }
 
     private void assertMutableMapFactory(Mutable<name1><name2>MapFactory mapFactory)

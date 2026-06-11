@@ -4,7 +4,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBooleanKeys() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Mutable<primitive1.name><primitive2.name>MapFactoryImpl"
 
@@ -15,15 +15,15 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.block.function.primitive.<name1>Function;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.function.primitive.<name2>Function;<endif>
-import org.eclipse.collections.api.factory.map.primitive.Mutable<name1><name2>MapFactory;
-import org.eclipse.collections.impl.factory.primitive.<name1><name2>Maps;
-import org.eclipse.collections.api.map.primitive.Mutable<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.impl.utility.Iterate;
+import org.mapdb.collections.api.block.function.primitive.<name1>Function;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.function.primitive.<name2>Function;<endif>
+import org.mapdb.collections.api.factory.map.primitive.Mutable<name1><name2>MapFactory;
+import org.mapdb.collections.impl.factory.primitive.<name1><name2>Maps;
+import org.mapdb.collections.api.map.primitive.Mutable<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.impl.utility.Iterate;
 
 /**
  * Mutable<name1><name2>MapFactoryImpl is a factory implementation which creates instances of type {@link Mutable<name1><name2>Map}.

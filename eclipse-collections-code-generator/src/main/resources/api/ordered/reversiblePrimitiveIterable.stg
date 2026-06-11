@@ -4,7 +4,7 @@ import "primitiveHashCode.stg"
 import "primitiveAPI.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/api/ordered/primitive"
+targetPath() ::= "org/mapdb/collections/api/ordered/primitive"
 
 fileName(primitive) ::= "Reversible<primitive.name>Iterable"
 
@@ -15,15 +15,15 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.api.ordered.primitive;
+package org.mapdb.collections.api.ordered.primitive;
 
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.api.block.function.primitive.<name>IntToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
-import org.eclipse.collections.api.block.function.primitive.Object<name>IntToObjectFunction;
-import org.eclipse.collections.api.block.predicate.primitive.<name>IntPredicate;
-import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
-import org.eclipse.collections.api.ordered.ReversibleIterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.api.block.function.primitive.<name>IntToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.<name>ToObjectFunction;
+import org.mapdb.collections.api.block.function.primitive.Object<name>IntToObjectFunction;
+import org.mapdb.collections.api.block.predicate.primitive.<name>IntPredicate;
+import org.mapdb.collections.api.block.predicate.primitive.<name>Predicate;
+import org.mapdb.collections.api.ordered.ReversibleIterable;
 
 /**
  * This file was automatically generated from template file reversiblePrimitiveIterable.stg.

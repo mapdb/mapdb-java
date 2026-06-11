@@ -7,7 +7,7 @@ skipBoolean() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "Object<primitive.name>HashMapTest"
 
@@ -18,9 +18,9 @@ class(primitive) ::= <<
 body(type, name, wrapperName) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.map.primitive.MutableObject<name>Map;
+import org.mapdb.collections.api.map.primitive.MutableObject<name>Map;
 
 /**
  * JUnit test for {@link Object<name>HashMap}.

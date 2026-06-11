@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "Unmodifiable<primitive1.name><primitive2.name>MapTest"
 
@@ -20,20 +20,20 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyrightAndOthers()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.block.function.primitive.<name2>Function;
-import org.eclipse.collections.api.block.function.primitive.<name2>Function0;
-import org.eclipse.collections.api.block.function.primitive.<name2>To<name2>Function;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
-import org.eclipse.collections.api.iterator.Mutable<name2>Iterator;
-import org.eclipse.collections.impl.list.mutable.primitive.<name1>ArrayList;
-import org.eclipse.collections.api.map.primitive.Mutable<name1><name2>Map;
-import org.eclipse.collections.api.set.primitive.<name1>Set;
-import org.eclipse.collections.impl.factory.Iterables;
-import org.eclipse.collections.impl.set.mutable.primitive.<name1>HashSet;
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function;
+import org.mapdb.collections.api.block.function.primitive.<name2>Function0;
+import org.mapdb.collections.api.block.function.primitive.<name2>To<name2>Function;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.block.function.primitive.<name1>To<name2>Function;<endif>
+import org.mapdb.collections.api.iterator.Mutable<name2>Iterator;
+import org.mapdb.collections.impl.list.mutable.primitive.<name1>ArrayList;
+import org.mapdb.collections.api.map.primitive.Mutable<name1><name2>Map;
+import org.mapdb.collections.api.set.primitive.<name1>Set;
+import org.mapdb.collections.impl.factory.Iterables;
+import org.mapdb.collections.impl.set.mutable.primitive.<name1>HashSet;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

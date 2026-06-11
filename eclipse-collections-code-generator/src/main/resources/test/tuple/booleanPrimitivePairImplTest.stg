@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/tuple/primitive"
+targetPath() ::= "org/mapdb/collections/impl/tuple/primitive"
 
 fileName(primitive) ::= "Boolean<primitive.name>PairImplTest"
 
@@ -18,10 +18,10 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.tuple.primitive;
+package org.mapdb.collections.impl.tuple.primitive;
 
-import org.eclipse.collections.impl.test.Verify;
-import org.eclipse.collections.impl.tuple.Tuples;
+import org.mapdb.collections.impl.test.Verify;
+import org.mapdb.collections.impl.tuple.Tuples;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

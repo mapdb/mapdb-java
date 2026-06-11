@@ -15,9 +15,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
-import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
-import org.eclipse.collections.impl.set.mutable.primitive.FloatHashSet;
+import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
+import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
+import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

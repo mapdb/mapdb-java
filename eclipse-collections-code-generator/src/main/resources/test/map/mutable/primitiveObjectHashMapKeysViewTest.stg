@@ -5,7 +5,7 @@ skipBoolean() ::= "true"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "<primitive.name>ObjectHashMapKeysViewTest"
 
@@ -16,10 +16,10 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.mutable.primitive;
+package org.mapdb.collections.impl.map.mutable.primitive;
 
-import org.eclipse.collections.api.Lazy<name>Iterable;
-import org.eclipse.collections.impl.lazy.primitive.AbstractLazy<name>IterableTestCase;
+import org.mapdb.collections.api.Lazy<name>Iterable;
+import org.mapdb.collections.impl.lazy.primitive.AbstractLazy<name>IterableTestCase;
 
 /**
  * JUnit test for {@link <name>ObjectHashMap#keysView}.

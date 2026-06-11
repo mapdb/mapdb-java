@@ -10,7 +10,7 @@
 
 package org.mapdb.nativetests;
 
-import org.eclipse.collections.impl.list.primitive.IntInterval;
+import org.mapdb.collections.impl.list.primitive.IntInterval;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

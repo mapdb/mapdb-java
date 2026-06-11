@@ -2,7 +2,7 @@ import "primitiveImmutableKeySets.stg"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/mutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/mutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>MapKeySet"
 

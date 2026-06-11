@@ -10,8 +10,8 @@
 
 package org.mapdb.nativetests;
 
-import org.eclipse.collections.impl.map.mutable.primitive.FloatIntHashMap;
-import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

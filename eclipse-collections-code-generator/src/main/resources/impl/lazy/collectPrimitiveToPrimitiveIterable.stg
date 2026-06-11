@@ -3,7 +3,7 @@ import "primitiveEquals.stg"
 import "primitiveHashCode.stg"
 import "primitiveLiteral.stg"
 
-targetPath() ::= "org/eclipse/collections/impl/lazy/primitive"
+targetPath() ::= "org/mapdb/collections/impl/lazy/primitive"
 
 hasTwoPrimitives() ::= "true"
 
@@ -18,13 +18,13 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2, sameTwoPrimitives) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.lazy.primitive;
+package org.mapdb.collections.impl.lazy.primitive;
 
-import org.eclipse.collections.api.<name1>Iterable;
-import org.eclipse.collections.api.block.function.primitive.<name1>To<name2>Function;
-import org.eclipse.collections.api.block.procedure.primitive.<name2>Procedure;
-import org.eclipse.collections.api.iterator.<name1>Iterator;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.api.iterator.<name2>Iterator;<endif>
+import org.mapdb.collections.api.<name1>Iterable;
+import org.mapdb.collections.api.block.function.primitive.<name1>To<name2>Function;
+import org.mapdb.collections.api.block.procedure.primitive.<name2>Procedure;
+import org.mapdb.collections.api.iterator.<name1>Iterator;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.api.iterator.<name2>Iterator;<endif>
 
 /**
  * This file was automatically generated from template file collectPrimitiveToPrimitiveIterable.stg.

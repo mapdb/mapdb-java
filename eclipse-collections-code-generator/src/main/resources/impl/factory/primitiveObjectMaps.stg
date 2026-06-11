@@ -2,7 +2,7 @@ import "copyright.stg"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/factory/primitive"
+targetPath() ::= "org/mapdb/collections/impl/factory/primitive"
 
 fileName(primitive) ::= "<primitive.name>ObjectMaps"
 
@@ -13,12 +13,12 @@ class(primitive) ::= <<
 body(type, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.factory.primitive;
+package org.mapdb.collections.impl.factory.primitive;
 
-import org.eclipse.collections.api.factory.map.primitive.Immutable<name>ObjectMapFactory;
-import org.eclipse.collections.api.factory.map.primitive.Mutable<name>ObjectMapFactory;
-import org.eclipse.collections.impl.map.immutable.primitive.Immutable<name>ObjectMapFactoryImpl;
-import org.eclipse.collections.impl.map.mutable.primitive.Mutable<name>ObjectMapFactoryImpl;
+import org.mapdb.collections.api.factory.map.primitive.Immutable<name>ObjectMapFactory;
+import org.mapdb.collections.api.factory.map.primitive.Mutable<name>ObjectMapFactory;
+import org.mapdb.collections.impl.map.immutable.primitive.Immutable<name>ObjectMapFactoryImpl;
+import org.mapdb.collections.impl.map.mutable.primitive.Mutable<name>ObjectMapFactoryImpl;
 
 /**
  * <name>ObjectMaps is a static utility for creating {@link Immutable<name>ObjectMapFactory} and {@link Mutable<name>ObjectMapFactory}.

@@ -4,7 +4,7 @@ import "primitiveLiteral.stg"
 
 isTest() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/list/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/list/immutable/primitive"
 
 fileName(primitive) ::= "Immutable<primitive.name>ArrayListTest"
 
@@ -15,14 +15,14 @@ class(primitive) ::= <<
 body(type, wrapperName, name) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.list.immutable.primitive;
+package org.mapdb.collections.impl.list.immutable.primitive;
 
-import org.eclipse.collections.api.list.primitive.Immutable<name>List;
-import org.eclipse.collections.api.stack.primitive.Mutable<name>Stack;
-import org.eclipse.collections.impl.factory.primitive.<name>Lists;
-import org.eclipse.collections.impl.factory.primitive.<name>Stacks;
-import org.eclipse.collections.impl.list.mutable.primitive.<name>ArrayList;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.list.primitive.Immutable<name>List;
+import org.mapdb.collections.api.stack.primitive.Mutable<name>Stack;
+import org.mapdb.collections.impl.factory.primitive.<name>Lists;
+import org.mapdb.collections.impl.factory.primitive.<name>Stacks;
+import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 

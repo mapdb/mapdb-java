@@ -9,7 +9,7 @@ hasTwoPrimitives() ::= "true"
 
 skipBoolean() ::= "true"
 
-targetPath() ::= "org/eclipse/collections/impl/map/immutable/primitive"
+targetPath() ::= "org/mapdb/collections/impl/map/immutable/primitive"
 
 fileName(primitive1, primitive2, sameTwoPrimitives) ::= "AbstractImmutable<primitive1.name><primitive2.name>MapTestCase"
 
@@ -20,16 +20,16 @@ class(primitive1, primitive2, sameTwoPrimitives) ::= <<
 body(type1, type2, name1, name2) ::= <<
 <copyright()>
 
-package org.eclipse.collections.impl.map.immutable.primitive;
+package org.mapdb.collections.impl.map.immutable.primitive;
 
-import org.eclipse.collections.api.map.primitive.<name1><name2>Map;
-import org.eclipse.collections.api.map.primitive.Immutable<name1><name2>Map;
-import org.eclipse.collections.impl.factory.primitive.<name1><name2>Maps;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.impl.factory.primitive.<name2><name1>Maps;<endif>
-import org.eclipse.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
-<if(!sameTwoPrimitives)>import org.eclipse.collections.impl.map.mutable.primitive.<name2><name1>HashMap;<endif>
-import org.eclipse.collections.impl.map.primitive.Abstract<name1><name2>MapTestCase;
-import org.eclipse.collections.impl.test.Verify;
+import org.mapdb.collections.api.map.primitive.<name1><name2>Map;
+import org.mapdb.collections.api.map.primitive.Immutable<name1><name2>Map;
+import org.mapdb.collections.impl.factory.primitive.<name1><name2>Maps;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.impl.factory.primitive.<name2><name1>Maps;<endif>
+import org.mapdb.collections.impl.map.mutable.primitive.<name1><name2>HashMap;
+<if(!sameTwoPrimitives)>import org.mapdb.collections.impl.map.mutable.primitive.<name2><name1>HashMap;<endif>
+import org.mapdb.collections.impl.map.primitive.Abstract<name1><name2>MapTestCase;
+import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
