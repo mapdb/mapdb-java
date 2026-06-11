@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 import org.mapdb.collections.api.factory.stack.MutableStackFactory;
 import org.mapdb.collections.api.stack.MutableStack;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableStackFactory.class)
 public class MutableStackFactoryImpl implements MutableStackFactory
 {
     public static final MutableStackFactory INSTANCE = new MutableStackFactoryImpl();

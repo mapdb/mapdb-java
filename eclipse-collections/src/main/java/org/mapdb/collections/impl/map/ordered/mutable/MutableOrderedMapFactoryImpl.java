@@ -17,7 +17,6 @@ import org.mapdb.collections.api.factory.map.ordered.MutableOrderedMapFactory;
 import org.mapdb.collections.api.map.MapIterable;
 import org.mapdb.collections.api.map.MutableOrderedMap;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableOrderedMapFactory.class)
 public class MutableOrderedMapFactoryImpl implements MutableOrderedMapFactory
 {
     public static final MutableOrderedMapFactory INSTANCE = new MutableOrderedMapFactoryImpl();

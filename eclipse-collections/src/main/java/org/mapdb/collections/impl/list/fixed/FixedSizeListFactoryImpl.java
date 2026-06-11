@@ -16,7 +16,6 @@ import org.mapdb.collections.api.factory.list.FixedSizeListFactory;
 import org.mapdb.collections.api.list.FixedSizeList;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(FixedSizeListFactory.class)
 public class FixedSizeListFactoryImpl implements FixedSizeListFactory
 {
     public static final FixedSizeListFactory INSTANCE = new FixedSizeListFactoryImpl();

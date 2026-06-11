@@ -13,7 +13,6 @@ package org.mapdb.collections.impl.bimap.mutable;
 import org.mapdb.collections.api.bimap.MutableBiMap;
 import org.mapdb.collections.api.factory.bimap.MutableBiMapFactory;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableBiMapFactory.class)
 public class MutableBiMapFactoryImpl implements MutableBiMapFactory
 {
     public static final MutableBiMapFactory INSTANCE = new MutableBiMapFactoryImpl();

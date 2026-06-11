@@ -17,7 +17,6 @@ import org.mapdb.collections.api.factory.set.sorted.ImmutableSortedSetFactory;
 import org.mapdb.collections.api.set.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableSortedSetFactory.class)
 public class ImmutableSortedSetFactoryImpl implements ImmutableSortedSetFactory
 {
     public static final ImmutableSortedSetFactory INSTANCE = new ImmutableSortedSetFactoryImpl();

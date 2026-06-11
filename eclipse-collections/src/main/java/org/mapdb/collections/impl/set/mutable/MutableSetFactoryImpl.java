@@ -16,7 +16,6 @@ import java.util.stream.Stream;
 import org.mapdb.collections.api.factory.set.MutableSetFactory;
 import org.mapdb.collections.api.set.MutableSet;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableSetFactory.class)
 public class MutableSetFactoryImpl implements MutableSetFactory
 {
     public static final MutableSetFactory INSTANCE = new MutableSetFactoryImpl();

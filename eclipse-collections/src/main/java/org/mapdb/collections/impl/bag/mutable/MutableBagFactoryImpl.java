@@ -16,7 +16,6 @@ import java.util.stream.Stream;
 import org.mapdb.collections.api.bag.MutableBag;
 import org.mapdb.collections.api.factory.bag.MutableBagFactory;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableBagFactory.class)
 public class MutableBagFactoryImpl implements MutableBagFactory
 {
     public static final MutableBagFactory INSTANCE = new MutableBagFactoryImpl();

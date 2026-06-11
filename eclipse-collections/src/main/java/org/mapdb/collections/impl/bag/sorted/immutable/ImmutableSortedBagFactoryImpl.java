@@ -19,7 +19,6 @@ import org.mapdb.collections.api.factory.bag.sorted.ImmutableSortedBagFactory;
 import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableSortedBagFactory.class)
 public class ImmutableSortedBagFactoryImpl implements ImmutableSortedBagFactory
 {
     public static final ImmutableSortedBagFactory INSTANCE = new ImmutableSortedBagFactoryImpl();

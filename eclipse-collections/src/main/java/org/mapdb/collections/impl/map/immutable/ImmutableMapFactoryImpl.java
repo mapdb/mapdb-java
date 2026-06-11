@@ -16,7 +16,6 @@ import java.util.Objects;
 import org.mapdb.collections.api.factory.map.ImmutableMapFactory;
 import org.mapdb.collections.api.map.ImmutableMap;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableMapFactory.class)
 public class ImmutableMapFactoryImpl implements ImmutableMapFactory
 {
     public static final ImmutableMapFactory INSTANCE = new ImmutableMapFactoryImpl();

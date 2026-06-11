@@ -24,8 +24,6 @@ import org.mapdb.collections.api.factory.map.primitive.MutableObject<name>MapFac
  * @since 11.1.
  */
 @SuppressWarnings("ConstantNamingConvention")
-@aQute.bnd.annotation.spi.ServiceConsumer(value = ImmutableObject<name>MapFactory.class)
-@aQute.bnd.annotation.spi.ServiceConsumer(value = MutableObject<name>MapFactory.class)
 public final class Object<name>Maps
 {
     public static final ImmutableObject<name>MapFactory immutable =

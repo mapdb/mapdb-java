@@ -14,7 +14,6 @@ import org.mapdb.collections.api.factory.stack.ImmutableStackFactory;
 import org.mapdb.collections.api.stack.ImmutableStack;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableStackFactory.class)
 public class ImmutableStackFactoryImpl implements ImmutableStackFactory
 {
     public static final ImmutableStackFactory INSTANCE = new ImmutableStackFactoryImpl();

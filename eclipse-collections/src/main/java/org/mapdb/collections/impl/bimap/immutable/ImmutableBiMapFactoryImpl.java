@@ -19,7 +19,6 @@ import org.mapdb.collections.api.factory.bimap.ImmutableBiMapFactory;
 import org.mapdb.collections.api.map.ImmutableMap;
 import org.mapdb.collections.impl.utility.MapIterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableBiMapFactory.class)
 public class ImmutableBiMapFactoryImpl implements ImmutableBiMapFactory
 {
     public static final ImmutableBiMapFactory INSTANCE = new ImmutableBiMapFactoryImpl();

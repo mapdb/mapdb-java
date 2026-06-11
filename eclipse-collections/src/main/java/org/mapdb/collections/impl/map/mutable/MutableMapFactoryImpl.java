@@ -17,7 +17,6 @@ import org.mapdb.collections.api.factory.map.MutableMapFactory;
 import org.mapdb.collections.api.map.MapIterable;
 import org.mapdb.collections.api.map.MutableMap;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableMapFactory.class)
 public class MutableMapFactoryImpl implements MutableMapFactory
 {
     public static final MutableMapFactory INSTANCE = new MutableMapFactoryImpl();

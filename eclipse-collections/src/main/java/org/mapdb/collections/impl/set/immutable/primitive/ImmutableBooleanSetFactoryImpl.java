@@ -20,7 +20,6 @@ import org.mapdb.collections.api.set.primitive.ImmutableBooleanSet;
  *
  * @since 4.0.
  */
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableBooleanSetFactory.class)
 public class ImmutableBooleanSetFactoryImpl implements ImmutableBooleanSetFactory
 {
     public static final ImmutableBooleanSetFactory INSTANCE = new ImmutableBooleanSetFactoryImpl();

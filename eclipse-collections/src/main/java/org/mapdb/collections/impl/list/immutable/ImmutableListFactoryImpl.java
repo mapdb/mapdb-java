@@ -20,7 +20,6 @@ import org.mapdb.collections.api.factory.list.ImmutableListFactory;
 import org.mapdb.collections.api.list.ImmutableList;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableListFactory.class)
 public class ImmutableListFactoryImpl implements ImmutableListFactory
 {
     public static final ImmutableListFactory INSTANCE = new ImmutableListFactoryImpl();

@@ -17,7 +17,6 @@ import org.mapdb.collections.api.block.function.Function0;
 import org.mapdb.collections.api.factory.list.MultiReaderListFactory;
 import org.mapdb.collections.api.list.MultiReaderList;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MultiReaderListFactory.class)
 public class MultiReaderMutableListFactory implements MultiReaderListFactory
 {
     public static final MultiReaderListFactory INSTANCE = new MultiReaderMutableListFactory();

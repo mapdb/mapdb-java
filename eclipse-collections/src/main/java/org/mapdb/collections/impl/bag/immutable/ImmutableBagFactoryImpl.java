@@ -15,7 +15,6 @@ import org.mapdb.collections.api.bag.ImmutableBag;
 import org.mapdb.collections.api.factory.bag.ImmutableBagFactory;
 import org.mapdb.collections.impl.utility.Iterate;
 
-@aQute.bnd.annotation.spi.ServiceProvider(ImmutableBagFactory.class)
 public class ImmutableBagFactoryImpl implements ImmutableBagFactory
 {
     public static final ImmutableBagFactory INSTANCE = new ImmutableBagFactoryImpl();

@@ -14,8 +14,6 @@ import org.mapdb.collections.api.factory.stack.ImmutableStackFactory;
 import org.mapdb.collections.api.factory.stack.MutableStackFactory;
 
 @SuppressWarnings("ConstantNamingConvention")
-@aQute.bnd.annotation.spi.ServiceConsumer(value = ImmutableStackFactory.class)
-@aQute.bnd.annotation.spi.ServiceConsumer(value = MutableStackFactory.class)
 public final class Stacks
 {
     public static final ImmutableStackFactory immutable = ServiceLoaderUtils.loadServiceClass(ImmutableStackFactory.class);

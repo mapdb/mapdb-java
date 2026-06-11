@@ -1,8 +1,0 @@
-package-version=${versionmask;===;${Bundle-Version}}
-
--jpms-module-info: org.eclipse.collections.api;version="${package-version}"
-Bundle-SymbolicName: org.eclipse.collections.api
-Export-Package: \
-  org.eclipse.collections.api.*;version="${package-version}"
-Import-Package: \
-  *

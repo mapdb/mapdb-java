@@ -15,7 +15,6 @@ import java.util.Objects;
 import org.mapdb.collections.api.factory.map.FixedSizeMapFactory;
 import org.mapdb.collections.api.map.FixedSizeMap;
 
-@aQute.bnd.annotation.spi.ServiceProvider(FixedSizeMapFactory.class)
 public class FixedSizeMapFactoryImpl implements FixedSizeMapFactory
 {
     public static final FixedSizeMapFactory INSTANCE = new FixedSizeMapFactoryImpl();

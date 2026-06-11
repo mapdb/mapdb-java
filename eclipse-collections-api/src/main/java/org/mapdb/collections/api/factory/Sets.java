@@ -51,10 +51,6 @@ import org.mapdb.collections.api.factory.set.MutableSetFactory;
  * </pre>
  */
 @SuppressWarnings("ConstantNamingConvention")
-@aQute.bnd.annotation.spi.ServiceConsumer(value = ImmutableSetFactory.class)
-@aQute.bnd.annotation.spi.ServiceConsumer(value = MutableSetFactory.class)
-@aQute.bnd.annotation.spi.ServiceConsumer(value = FixedSizeSetFactory.class)
-@aQute.bnd.annotation.spi.ServiceConsumer(value = MultiReaderSetFactory.class)
 public final class Sets
 {
     public static final ImmutableSetFactory immutable =

@@ -17,7 +17,6 @@ import org.mapdb.collections.api.block.function.Function0;
 import org.mapdb.collections.api.factory.list.MutableListFactory;
 import org.mapdb.collections.api.list.MutableList;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MutableListFactory.class)
 public class MutableListFactoryImpl implements MutableListFactory
 {
     public static final MutableListFactory INSTANCE = new MutableListFactoryImpl();

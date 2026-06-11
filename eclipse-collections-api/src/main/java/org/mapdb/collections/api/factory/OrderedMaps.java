@@ -16,7 +16,6 @@ import org.mapdb.collections.api.factory.map.ordered.MutableOrderedMapFactory;
  * @since 14.0
  */
 @SuppressWarnings("ConstantNamingConvention")
-@aQute.bnd.annotation.spi.ServiceConsumer(value = MutableOrderedMapFactory.class)
 public final class OrderedMaps
 {
     public static final MutableOrderedMapFactory mutable = ServiceLoaderUtils.loadServiceClass(MutableOrderedMapFactory.class);

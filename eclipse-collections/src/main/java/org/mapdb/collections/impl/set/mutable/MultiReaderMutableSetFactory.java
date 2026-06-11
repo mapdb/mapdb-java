@@ -16,7 +16,6 @@ import java.util.stream.Stream;
 import org.mapdb.collections.api.factory.set.MultiReaderSetFactory;
 import org.mapdb.collections.api.set.MultiReaderSet;
 
-@aQute.bnd.annotation.spi.ServiceProvider(MultiReaderSetFactory.class)
 public class MultiReaderMutableSetFactory implements MultiReaderSetFactory
 {
     public static final MultiReaderSetFactory INSTANCE = new MultiReaderMutableSetFactory();
