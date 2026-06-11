@@ -307,7 +307,7 @@ public final class ServiceLoaderUtils
         {
             String message = "Could not find any implementations of "
                     + serviceClass.getSimpleName()
-                    + ". Check that eclipse-collections.jar is on the classpath and that its META-INF/services directory is intact.";
+                    + ". Check that mapdb-collections.jar is on the classpath and that its META-INF/services directory is intact.";
             result = ServiceLoaderUtils.createProxyInstance(serviceClass, message);
         }
         return result;
@@ -327,7 +327,7 @@ public final class ServiceLoaderUtils
         if (factories.size() > 1)
         {
             String message = String.format(
-                    "Found multiple implementations of %s on the classpath. Check that there is only one copy of eclipse-collections.jar on the classpath. Found implementations: %s.",
+                    "Found multiple implementations of %s on the classpath. Check that there is only one copy of mapdb-collections.jar on the classpath. Found implementations: %s.",
                     serviceClass.getSimpleName(),
                     factories.stream()
                             .map(T::getClass)
