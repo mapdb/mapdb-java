@@ -2,16 +2,24 @@
 
 Internal, unpublished Maven module. It runs the
 `mapdb-collection-spec/cross-language-validation` scenarios (every `*.json`
-under the scenarios root) against **stock, unrenamed Eclipse Collections**
-(still `org.mapdb.collections`, version `14.0.0-SNAPSHOT` installed in the
-local `~/.m2`) and prints a red/green conformance list.
+under the scenarios root) against the built **mapdb-collections** artifacts
+(`org.mapdb:mapdb-collections-*`, version `1.0.0-SNAPSHOT`, installed in the
+local `~/.m2`) and prints a red/green conformance list. After the behavioral
+fixes + rename, this runner is GREEN (57/57).
+
+> Historical note: the type-mapping table and the "expected RED" float
+> discussion below were written during the *stock Eclipse Collections* probe
+> phase (step 2), where signed-zero/NaN scenarios were RED because stock EC
+> canonicalizes NaN and uses `Float.compare`. The fork's raw-bit float identity
+> and IEEE totalOrder changes turn those scenarios GREEN; the table is retained
+> for provenance.
 
 This module is deliberately **NOT** in the root pom `<modules>`, so the
-documented build-unblock command (`../BUILD-MAPDB.md`) is unaffected.
+documented build command (`../BUILD-MAPDB.md`) is unaffected.
 
 ## Prerequisites
 
-1. Eclipse Collections artifacts installed locally per `../BUILD-MAPDB.md`:
+1. mapdb-collections artifacts installed locally per `../BUILD-MAPDB.md`:
 
    ```
    cd ..
@@ -20,7 +28,10 @@ documented build-unblock command (`../BUILD-MAPDB.md`) is unaffected.
      -am
    ```
 
-2. JDK 25 / Maven 3.9.16 (release target 17). Jackson is pulled from Maven Central.
+   (Module directory names are still `eclipse-collections-*`; the produced
+   artifacts are `org.mapdb:mapdb-collections-*`.)
+
+2. JDK 17+ / Maven 3.9.16 (release target 17). Jackson is pulled from Maven Central.
 
 ## Build
 
