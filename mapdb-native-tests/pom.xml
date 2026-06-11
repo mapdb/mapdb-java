@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Standalone native (port-specific) test module for mapdb-java (the Eclipse
+  Collections fork). This module is INTERNAL / UNPUBLISHED. It is deliberately
+  NOT listed in the root pom <modules> so the documented build-unblock command
+  stays intact (see ../BUILD-MAPDB.md).
+
+  It depends on the locally-installed eclipse-collections-api and
+  eclipse-collections (impl) SNAPSHOT artifacts, so those must be `mvn install`ed
+  first (see ../BUILD-MAPDB.md). It runs the native-test obligations from
+  spec/style/java.md and spec/algorithms.md that the shared cross-language
+  scenario suite does not exercise: raw-bit float identity (NaN payloads,
+  signed zero, infinity), the IEEE totalOrder comparator, sentinel boundary
+  keys, the 64-bit Fibonacci hash spread regression, serialization smoke, and
+  IntInterval boundary behavior.
+
+  Build/run on its own with:
+    mvn -f mapdb-native-tests/pom.xml test
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.mapdb</groupId>
+    <artifactId>mapdb-native-tests</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>mapdb-java native (port-specific) tests</name>
+    <description>
+        Native test obligations for the mapdb-java port: raw-bit float identity,
+        IEEE totalOrder, sentinel boundaries, Fibonacci hash spread,
+        serialization smoke, IntInterval boundaries. Internal, unpublished.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <eclipse.collections.version>14.0.0-SNAPSHOT</eclipse.collections.version>
+        <junit.version>5.11.3</junit.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections-api</artifactId>
+            <version>${eclipse.collections.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+            <version>${eclipse.collections.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
