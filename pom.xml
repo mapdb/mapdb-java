@@ -111,18 +111,10 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <slf4j.version>2.0.17</slf4j.version>
-        <clover.version>4.4.1</clover.version>
-        <scala.version>2.13.15</scala.version>
-        <guava.version>33.5.0-jre</guava.version>
-        <trove4j.version>3.1.0</trove4j.version>
-        <koloboke.version>1.0.0</koloboke.version>
-        <hppc.version>0.10.0</hppc.version>
-        <commons.lang.version>3.14.0</commons.lang.version>
         <checkstyle.version>10.18.2</checkstyle.version>
         <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
         <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
         <junit.version>4.13.2</junit.version>
-        <jmh.version>1.37</jmh.version>
         <jol.version>0.17</jol.version>
 
         <maven.compiler.release>17</maven.compiler.release>
@@ -190,12 +182,6 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
             </dependency>
 
             <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
                 <version>3.27.7</version>
@@ -210,80 +196,6 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
 
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>eu.stamp-project</groupId>
-                    <artifactId>pitmp-maven-plugin</artifactId>
-                    <version>1.3.7</version>
-                    <configuration>
-                        <verbose>false</verbose>
-                        <timestampedReports>false</timestampedReports>
-                        <targetModules>
-                            <param>unit-tests</param>
-                        </targetModules>
-                        <skippedModules>
-                            <param>eclipse-collections-code-generator</param>
-                            <param>eclipse-collections-code-generator-maven-plugin</param>
-                        </skippedModules>
-                        <avoidCallsTo>
-                            <avoidCallsTo>java.util.logging</avoidCallsTo>
-                            <avoidCallsTo>org.apache.log4j</avoidCallsTo>
-                            <avoidCallsTo>org.slf4j</avoidCallsTo>
-                            <avoidCallsTo>org.apache.commons.logging</avoidCallsTo>
-                        </avoidCallsTo>
-                        <maxMutationsPerClass>1</maxMutationsPerClass>
-                        <additionalClasspathElements>target/generated-sources/java/*</additionalClasspathElements>
-                        <excludedClasses>
-                            <param>org.eclipse.collections.impl.lazy.parallel*</param>
-                            <param>org.eclipse.collections.impl.parallel*</param>
-                            <param>org.eclipse.collections.impl.map.mutable.Concurrent*</param>
-                            <param>org.eclipse.collections.impl.collector.Collectors2</param>
-                            <param>java.util.stream.*</param>
-                            <param>org.eclipse.collections.impl.*Char*</param>
-                            <param>org.eclipse.collections.impl.*Float*</param>
-                            <param>org.eclipse.collections.impl.*Long*</param>
-                            <param>org.eclipse.collections.impl.*Double*</param>
-                            <param>org.eclipse.collections.impl.*Byte*</param>
-                            <param>org.eclipse.collections.impl.*Short*</param>
-                            <param>org.eclipse.collections.impl.*Iterable*</param>
-                            <param>org.eclipse.collections.impl.*Multimap*</param>
-                            <param>org.eclipse.collections.impl.*Composite*</param>
-                            <param>org.eclipse.collections.impl.*Interval*</param>
-                            <param>org.eclipse.collections.impl.*Adapter*</param>
-                            <param>org.eclipse.collections.impl.*Concurrent*</param>
-                            <param>org.eclipse.collections.impl.*Parallel*</param>
-                            <param>org.eclipse.collections.impl.*Synchronized*</param>
-                            <param>org.eclipse.collections.impl.*Unmodifiable*</param>
-                            <param>org.eclipse.collections.impl.*Immutable*</param>
-                            <param>org.eclipse.collections.impl.*MultiReader*</param>
-                            <param>org.eclipse.collections.impl.*FixedSize*</param>
-                            <param>org.eclipse.collections.impl.*Collectors*</param>
-                        </excludedClasses>
-                        <excludedTestClasses>
-                            <param>org.eclipse.collections.impl.lazy.parallel*</param>
-                            <param>org.eclipse.collections.impl.parallel*</param>
-                            <param>org.eclipse.collections.impl.*Char*</param>
-                            <param>org.eclipse.collections.impl.*Float*</param>
-                            <param>org.eclipse.collections.impl.*Long*</param>
-                            <param>org.eclipse.collections.impl.*Double*</param>
-                            <param>org.eclipse.collections.impl.*Byte*</param>
-                            <param>org.eclipse.collections.impl.*Short*</param>
-                            <param>org.eclipse.collections.impl.*Iterable*</param>
-                            <param>org.eclipse.collections.impl.*Multimap*</param>
-                            <param>org.eclipse.collections.impl.*Composite*</param>
-                            <param>org.eclipse.collections.impl.*Interval*</param>
-                            <param>org.eclipse.collections.impl.*Adapter*</param>
-                            <param>org.eclipse.collections.impl.*Concurrent*</param>
-                            <param>org.eclipse.collections.impl.*Parallel*</param>
-                            <param>org.eclipse.collections.impl.*Synchronized*</param>
-                            <param>org.eclipse.collections.impl.*Unmodifiable*</param>
-                            <param>org.eclipse.collections.impl.*Immutable*</param>
-                            <param>org.eclipse.collections.impl.*MultiReader*</param>
-                            <param>org.eclipse.collections.impl.*FixedSize*</param>
-                            <param>org.eclipse.collections.impl.*Collectors*</param>
-                        </excludedTestClasses>
-                    </configuration>
-                </plugin>
-
                 <plugin>
                     <artifactId>maven-assembly-plugin</artifactId>
                     <version>3.8.0</version>
@@ -362,23 +274,6 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
                 </plugin>
 
                 <plugin>
-                    <groupId>net.alchim31.maven</groupId>
-                    <artifactId>scala-maven-plugin</artifactId>
-                    <version>4.9.2</version>
-                    <configuration>
-                        <scalaVersion>${scala.version}</scalaVersion>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>compile</goal>
-                                <goal>testCompile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.5</version>
@@ -439,11 +334,6 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
                     </dependencies>
                 </plugin>
 
-                <plugin>
-                    <groupId>org.eclipse.cbi.maven.plugins</groupId>
-                    <artifactId>eclipse-jarsigner-plugin</artifactId>
-                    <version>1.5.3</version>
-                </plugin>
                 <!--This plugin's configuration is used to store Eclipse m2e
                     settings only. It has no influence on the Maven build itself. -->
                 <plugin>
@@ -593,21 +483,6 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
 
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.eclipse.cbi.maven.plugins</groupId>
-                        <artifactId>eclipse-jarsigner-plugin</artifactId>
-                        <version>1.5.3</version>
-                        <executions>
-                            <execution>
-                                <id>jarsign</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-
                     <!--region Phase 21: verify-->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -703,7 +578,7 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
                                     <rules>
                                         <dependencyConvergence />
                                         <requireJavaVersion>
-                                            <version>17</version>
+                                            <version>[17,)</version>
                                         </requireJavaVersion>
                                         <requirePluginVersions>
                                             <banLatest>true</banLatest>
