@@ -13,6 +13,18 @@ package org.eclipse.collections.impl.list;
 /**
  * This is a utility class for common behaviors between Interval and IntInterval. It is
  * a public class only because Interval and IntInterval are in different packages.
+ *
+ * <p>Per spec/algorithms.md "Interval over signed integers", size/contains/get
+ * must use wider-than-element arithmetic to avoid overflow at numeric bounds
+ * (e.g. {@code (to - from) / step} and {@code from + step * i} both wrap in
+ * naive int arithmetic for ranges like {@code [Int.MIN, Int.MAX]}). Here every
+ * parameter is widened to {@code long} before any arithmetic. Since IntInterval
+ * is {@code int}-typed, {@code long} is the uint64-equivalent the spec calls
+ * for: {@code to - from}, {@code step * index} and {@code value - from} all have
+ * magnitude bounded by ~2^32 and cannot overflow a 64-bit {@code long}, so the
+ * boundary cases (e.g. {@code [126, 127]}) do not wrap. The one operation that
+ * still overflows is negating {@code Integer.MIN_VALUE} in {@code toReversed},
+ * which IntInterval guards explicitly.
  */
 public final class IntervalUtils
 {
