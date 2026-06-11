@@ -57,7 +57,7 @@ import org.eclipse.collections.api.set.primitive.BooleanSet;
 import org.eclipse.collections.api.set.primitive.<name>Set;
 import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
 import org.eclipse.collections.api.tuple.primitive.<name>BooleanPair;
-<if(!primitive.bytePrimitive)>import org.eclipse.collections.impl.SpreadFunctions;<endif>
+<if(!primitive.bytePrimitive)>import org.eclipse.collections.impl.Fibonacci;<endif>
 import org.eclipse.collections.impl.bag.mutable.primitive.<name>HashBag;
 import org.eclipse.collections.impl.factory.primitive.<name>BooleanMaps;
 import org.eclipse.collections.impl.iterator.Unmodifiable<name>Iterator;
@@ -2040,8 +2040,8 @@ int probeTwo(<type> element, int removedIndex)
 
 int probeThree(<type> element, int removedIndex)
 {
-    int nextIndex = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadOne(element));
-    int spreadTwo = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadTwo(element)) | 1;
+    int nextIndex = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadOne(element));
+    int spreadTwo = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadTwo(element)) | 1;
 
     while (true)
     {

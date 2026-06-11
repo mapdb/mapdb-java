@@ -44,7 +44,7 @@ import org.eclipse.collections.api.set.primitive.Mutable<name>Set;
 import org.eclipse.collections.api.set.primitive.<name>Set;
 import org.eclipse.collections.impl.set.immutable.primitive.Immutable<name>SetSerializationProxy;
 import org.eclipse.collections.impl.set.mutable.UnifiedSet;
-import org.eclipse.collections.impl.SpreadFunctions;
+import org.eclipse.collections.impl.Fibonacci;
 import org.eclipse.collections.impl.set.immutable.primitive.AbstractImmutable<name>Set;
 import org.eclipse.collections.impl.set.primitive.Abstract<name>Set;
 
@@ -1063,8 +1063,8 @@ public class <name>HashSet extends Abstract<name>Set implements Mutable<name>Set
 
     int probeThree(<type> element, int removedIndex)
     {
-        int nextIndex = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadOne(element));
-        int spreadTwo = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadTwo(element)) | 1;
+        int nextIndex = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadOne(element));
+        int spreadTwo = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadTwo(element)) | 1;
 
         while (true)
         {
@@ -1566,8 +1566,8 @@ public class <name>HashSet extends Abstract<name>Set implements Mutable<name>Set
 
         int probeThree(<type> element, int removedIndex)
         {
-            int nextIndex = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadOne(element));
-            int spreadTwo = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadTwo(element)) | 1;
+            int nextIndex = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadOne(element));
+            int spreadTwo = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadTwo(element)) | 1;
 
             while (true)
             {

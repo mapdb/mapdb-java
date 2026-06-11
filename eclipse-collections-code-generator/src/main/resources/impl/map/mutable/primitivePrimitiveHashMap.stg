@@ -64,7 +64,7 @@ import org.eclipse.collections.api.block.procedure.Procedure2;
 import org.eclipse.collections.api.block.procedure.primitive.<name1>Procedure;
 import org.eclipse.collections.api.block.procedure.primitive.<name1><name2>Procedure;
 import org.eclipse.collections.api.block.procedure.primitive.ObjectIntProcedure;
-<if(!primitive1.bytePrimitive)>import org.eclipse.collections.impl.SpreadFunctions;<endif>
+<if(!primitive1.bytePrimitive)>import org.eclipse.collections.impl.Fibonacci;<endif>
 import org.eclipse.collections.api.collection.primitive.Mutable<name2>Collection;
 import org.eclipse.collections.api.factory.primitive.<name1><name2>Maps;
 <if(!primitive2.booleanPrimitive)><if(!sameTwoPrimitives)>import org.eclipse.collections.api.factory.primitive.<name2><name1>Maps;<endif><endif>
@@ -1782,8 +1782,8 @@ int probeTwo(<type1> element, int removedIndex)
 
 int probeThree(<type1> element, int removedIndex)
 {
-    int nextIndex = (int) SpreadFunctions.<type1>SpreadOne(element)<if(sameTwoPrimitives)> \<\< 1<endif>;
-    int spreadTwo = <(reverseSpread.(type1))()>(SpreadFunctions.<type1>SpreadTwo(element)) | 1;
+    int nextIndex = (int) Fibonacci.<type1>SpreadOne(element)<if(sameTwoPrimitives)> \<\< 1<endif>;
+    int spreadTwo = <(reverseSpread.(type1))()>(Fibonacci.<type1>SpreadTwo(element)) | 1;
 
     while (true)
     {

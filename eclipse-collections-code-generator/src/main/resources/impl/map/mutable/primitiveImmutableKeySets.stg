@@ -11,7 +11,7 @@ package org.eclipse.collections.impl.map.mutable.primitive;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
-<if(!primitive.bytePrimitive)>import org.eclipse.collections.impl.SpreadFunctions;<endif>
+<if(!primitive.bytePrimitive)>import org.eclipse.collections.impl.Fibonacci;<endif>
 import org.eclipse.collections.api.block.function.primitive.<name>ToObjectFunction;
 import org.eclipse.collections.api.block.function.primitive.Object<name>ToObjectFunction;
 import org.eclipse.collections.api.block.predicate.primitive.<name>Predicate;
@@ -598,8 +598,8 @@ int probeTwo(<type> element, int removedIndex)
 
 int probeThree(<type> element, int removedIndex)
 {
-    int nextIndex = (int) SpreadFunctions.<type>SpreadOne(element)<if(sameTwoPrimitiveMapKeySet)> \<\< 1<endif>;
-    int spreadTwo = <(reverseSpread.(type))()>(SpreadFunctions.<type>SpreadTwo(element)) | 1;
+    int nextIndex = (int) Fibonacci.<type>SpreadOne(element)<if(sameTwoPrimitiveMapKeySet)> \<\< 1<endif>;
+    int spreadTwo = <(reverseSpread.(type))()>(Fibonacci.<type>SpreadTwo(element)) | 1;
 
     while (true)
     {

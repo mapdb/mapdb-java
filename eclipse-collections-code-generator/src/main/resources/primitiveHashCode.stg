@@ -105,7 +105,7 @@ spread28(type) ::= <<
 spread32(type) ::= <<
 int spreadAndMask(<type> element)
 {
-    int code = SpreadFunctions.<type>SpreadOne(element);
+    int code = Fibonacci.<type>SpreadOne(element);
     return this.mask(code);
 }
 
@@ -114,7 +114,7 @@ int spreadAndMask(<type> element)
 spread232(type) ::= <<
 int spreadTwoAndMask(<type> element)
 {
-    int code = SpreadFunctions.<type>SpreadTwo(element);
+    int code = Fibonacci.<type>SpreadTwo(element);
     return this.mask(code);
 }
 
@@ -123,7 +123,7 @@ int spreadTwoAndMask(<type> element)
 spread64(type) ::= <<
 int spreadAndMask(<type> element)
 {
-    long code = SpreadFunctions.<type>SpreadOne(element);
+    long code = Fibonacci.<type>SpreadOne(element);
     return this.mask((int) code);
 }
 
@@ -132,7 +132,7 @@ int spreadAndMask(<type> element)
 spread264(type) ::= <<
 int spreadTwoAndMask(<type> element)
 {
-    long code = SpreadFunctions.<type>SpreadTwo(element);
+    long code = Fibonacci.<type>SpreadTwo(element);
     return this.mask((int) code);
 }
 
