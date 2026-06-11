@@ -27,11 +27,11 @@ longHashCode(item) ::= <<
 >>
 
 floatHashCode(item) ::= <<
-Float.floatToIntBits(<item>)
+Float.floatToRawIntBits(<item>)
 >>
 
 doubleHashCode(item) ::= <<
-(int) (Double.doubleToLongBits(<item>) ^ Double.doubleToLongBits(<item>) >\>> 32)
+(int) (Double.doubleToRawLongBits(<item>) ^ Double.doubleToRawLongBits(<item>) >\>> 32)
 >>
 
 bits ::= [

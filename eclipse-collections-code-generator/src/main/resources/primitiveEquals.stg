@@ -15,11 +15,11 @@ operatorEquals(left, right) ::= <<
 >>
 
 doubleEquals(left, right) ::= <<
-    Double.compare(<left>, <right>) == 0
+    Double.doubleToRawLongBits(<left>) == Double.doubleToRawLongBits(<right>)
 >>
 
 floatEquals(left, right) ::= <<
-    Float.compare(<left>, <right>) == 0
+    Float.floatToRawIntBits(<left>) == Float.floatToRawIntBits(<right>)
 >>
 
 notEquals ::= [
@@ -39,11 +39,11 @@ operatorNotEquals(left, right) ::= <<
 >>
 
 doubleNotEquals(left, right) ::= <<
-    Double.compare(<left>, <right>) != 0
+    Double.doubleToRawLongBits(<left>) != Double.doubleToRawLongBits(<right>)
 >>
 
 floatNotEquals(left, right) ::= <<
-    Float.compare(<left>, <right>) != 0
+    Float.floatToRawIntBits(<left>) != Float.floatToRawIntBits(<right>)
 >>
 
 lessThan ::= [
