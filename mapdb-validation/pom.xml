@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Standalone cross-language validation runner for mapdb-java (the Eclipse
+  Collections fork). This module is INTERNAL / UNPUBLISHED. It is deliberately
+  NOT listed in the root pom <modules> so the documented build-unblock command
+  stays intact (see ../BUILD-MAPDB.md). It depends only on the locally-installed
+  STOCK, UNRENAMED Eclipse Collections artifacts (still org.eclipse.collections)
+  plus a JSON library (Jackson). Build it on its own with `mvn -f mapdb-validation/pom.xml ...`.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.mapdb</groupId>
+    <artifactId>mapdb-validation</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>mapdb-java cross-language validation runner</name>
+    <description>
+        Conformance runner that executes the mapdb cross-language validation
+        scenarios against stock Eclipse Collections. Internal, unpublished.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <eclipse.collections.version>14.0.0-SNAPSHOT</eclipse.collections.version>
+        <jackson.version>2.18.2</jackson.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections-api</artifactId>
+            <version>${eclipse.collections.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+            <version>${eclipse.collections.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>mapdb-validation</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <!-- Build a fat jar so the runner can be launched without assembling a classpath. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>org.mapdb.validation.ValidationRunner</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

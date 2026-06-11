@@ -110,5 +110,10 @@ will need attention eventually but are out of scope for build-unblock.
 
 **None.** This is a flags-only solution. The root pom `<modules>` list and
 every module pom are unchanged from upstream. No directories were deleted.
-</content>
-</invoke>
+
+## Cross-language validation runner
+
+The standalone, unpublished `mapdb-validation/` module (not in the root
+`<modules>`) runs the cross-language conformance scenarios against this stock
+EC build; see [`mapdb-validation/README.md`](mapdb-validation/README.md) for
+build and run commands.
