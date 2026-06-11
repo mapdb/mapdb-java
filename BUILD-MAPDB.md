@@ -117,3 +117,24 @@ The standalone, unpublished `mapdb-validation/` module (not in the root
 `<modules>`) runs the cross-language conformance scenarios against this stock
 EC build; see [`mapdb-validation/README.md`](mapdb-validation/README.md) for
 build and run commands.
+
+## Native (port-specific) tests
+
+The standalone, unpublished `mapdb-native-tests/` module (also NOT in the root
+`<modules>`) runs the port's native-test obligations (raw-bit float identity,
+IEEE totalOrder, sentinel boundaries, 64-bit Fibonacci hash spread,
+serialization smoke, IntInterval boundaries) — the spec-required tests that the
+shared cross-language scenario suite does not exercise.
+
+It depends on the locally-installed `eclipse-collections-api` and
+`eclipse-collections` SNAPSHOT artifacts, so run the core install command above
+first, then:
+
+```
+mvn -f mapdb-native-tests/pom.xml test
+```
+
+Expected: `Tests run: 45, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+The distinct-NaN-payload tests are the headline proof of the raw-bit float
+identity change — they FAIL on stock (unmodified) Eclipse Collections, which
+canonicalizes every NaN to `0x7FC00000` via `Float.floatToIntBits`.
