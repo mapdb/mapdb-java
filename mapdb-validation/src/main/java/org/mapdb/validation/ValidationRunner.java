@@ -855,7 +855,9 @@ public final class ValidationRunner {
                     computed = map.isEmpty() ? "null" : String.valueOf(map.keySet().getLast());
                     break;
                 case "sorted_keys":
-                    computed = "[" + map.keySet().collect(String::valueOf).makeString(",") + "]";
+                    // keysView() preserves the tree's key order; keySet().collect()
+                    // would route through an unordered UnifiedSet and scramble it.
+                    computed = "[" + map.keysView().collect(String::valueOf).makeString(",") + "]";
                     break;
                 case "sorted_values":
                     // Values in key-ascending order (TreeSortedMap iterates by key).
@@ -1126,7 +1128,16 @@ public final class ValidationRunner {
             for (JsonNode el : v) {
                 switch (mode) {
                     case NONE:
-                        parts.add(el.isNull() ? "null" : el.asText());
+                        // i64 sorted_keys arrays are quoted decimal STRINGS in the
+                        // JSON; integer arrays are bare numbers. Preserve quoting so
+                        // the rendered form matches the runner's quoted i64 output.
+                        if (el.isNull()) {
+                            parts.add("null");
+                        } else if (el.isTextual()) {
+                            parts.add("\"" + el.asText() + "\"");
+                        } else {
+                            parts.add(el.asText());
+                        }
                         break;
                     case F32_KEYED:
                         parts.add("\"" + FloatCodec.format(elementToF32(el)) + "\"");
