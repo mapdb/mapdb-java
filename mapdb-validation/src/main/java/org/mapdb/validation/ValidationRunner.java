@@ -21,6 +21,7 @@ import org.eclipse.collections.impl.multimap.set.UnifiedSetMultimap;
 import org.eclipse.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 import org.eclipse.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.eclipse.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -993,11 +994,14 @@ public final class ValidationRunner {
     // ---- TreeSet<f32> (object TreeSortedSet<Float>, Float::compare) -------
 
     private void runF32TreeSet(JsonNode scenario, ScenarioResult r) {
-        // Stock-EC fallback: no primitive sorted set, no IEEE total-order float
-        // comparator. Float::compare is the natural stock surface (collapses
-        // +-0.0 and treats every NaN equal) -> expected RED for total-order
-        // scenarios. Recorded in README; this is an honest stock-EC probe.
-        MutableSortedSet<Float> set = TreeSortedSet.newSet(Float::compare);
+        // mapdb-java fallback type (no primitive sorted set yet), but ordered by
+        // the IEEE 754 totalOrder comparator FloatTotalOrder.FLOAT_COMPARATOR
+        // (sign-flip construction, Rust total_cmp equivalent) rather than
+        // Float::compare. The portable subset asserted by the shared suite
+        // (signed-zero split, +NaN at top) is unchanged by construction; the
+        // non-portable parts (-NaN below -Inf, distinct NaN payloads) are
+        // covered by native tests, not the shared suite.
+        MutableSortedSet<Float> set = TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR);
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "add":
