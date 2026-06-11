@@ -1,0 +1,60 @@
+name: build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mapdb-java
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # Build + install the core modules (new GAVs) into the local repo.
+      # Sources are generated from the .stg templates on every build, so a
+      # clean build is inherently a clean-generate. Checkstyle stays
+      # skip-by-default per the v1 decision.
+      - name: Build core modules
+        run: |
+          mvn clean install -DskipTests -Dcheckstyle.skip=true \
+            -pl eclipse-collections-api,eclipse-collections,eclipse-collections-forkjoin,eclipse-collections-testutils \
+            -am
+
+      # The cross-language conformance scenarios live in a SIBLING repo
+      # (mapdb/mapdb-collection-spec). Clone it next to the checkout; if the
+      # clone fails (repo unavailable/private), skip the validator step with a
+      # warning rather than failing the build.
+      - name: Clone spec scenarios
+        id: spec
+        run: |
+          if git clone --depth 1 https://github.com/mapdb/mapdb-collection-spec.git "${{ runner.temp }}/mapdb-collection-spec"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::mapdb-collection-spec not available; skipping the cross-language validator step"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build + run cross-language validator (57 scenarios)
+        if: steps.spec.outputs.available == 'true'
+        run: |
+          mvn -f mapdb-validation/pom.xml clean package
+          java -jar mapdb-validation/target/mapdb-validation.jar \
+            "${{ runner.temp }}/mapdb-collection-spec/cross-language-validation/scenarios"
+
+      # Native (port-specific) tests depend on the locally-installed core
+      # SNAPSHOTs from the "Build core modules" step.
+      - name: Run native (port-specific) tests
+        run: mvn -f mapdb-native-tests/pom.xml test
