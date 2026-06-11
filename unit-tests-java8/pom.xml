@@ -24,7 +24,7 @@
 
     <artifactId>unit-tests-java8</artifactId>
 
-    <name>Eclipse Collections Java 8 Unit Test Suite</name>
+    <name>mapdb-collections Java 8 Unit Test Suite</name>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>

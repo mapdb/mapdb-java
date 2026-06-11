@@ -1,3 +1,19 @@
+# Notices for mapdb-collections
+
+`mapdb-collections` (the `org.mapdb.collections.*` Java port) is a **fork of
+Eclipse Collections**. The fork retains all upstream copyright notices in
+source-file headers, as required by the Eclipse Public License. The upstream
+project's notice is reproduced below unchanged.
+
+* This fork: https://github.com/mapdb/mapdb-java
+* Spec / contract: https://github.com/mapdb/mapdb-collection-spec
+
+mapdb-collections is not affiliated with or endorsed by the Eclipse Foundation.
+"Eclipse" and "Eclipse Collections" are trademarks of the Eclipse Foundation and
+are used here only to identify the upstream project this work is derived from.
+
+---
+
 # Notices for Eclipse Collections
 
 This content is produced and maintained by the Project Leads and Committers of the Eclipse Collections project.

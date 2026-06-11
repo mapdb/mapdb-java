@@ -26,7 +26,7 @@
     <artifactId>mapdb-collections-testutils</artifactId>
     <packaging>jar</packaging>
 
-    <name>Eclipse Collections Test Utilities</name>
+    <name>mapdb-collections Test Utilities</name>
 
     <properties>
         <sonar.jacoco.reportPaths>
@@ -128,8 +128,8 @@
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <configuration>
                             <source>17</source>
-                            <doctitle>Eclipse Collections Test Utilities - ${project.version}</doctitle>
-                            <windowtitle>Eclipse Collections Test Utilities - ${project.version}</windowtitle>
+                            <doctitle>mapdb-collections Test Utilities - ${project.version}</doctitle>
+                            <windowtitle>mapdb-collections Test Utilities - ${project.version}</windowtitle>
                             <show>public</show>
                             <links>
                                 <link>https://docs.oracle.com/en/java/javase/17/docs/api</link>

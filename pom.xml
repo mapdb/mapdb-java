@@ -22,16 +22,15 @@
 
     <packaging>pom</packaging>
 
-    <name>Eclipse Collections Parent Project</name>
+    <name>mapdb-collections Parent Project</name>
 
-    <description>Eclipse Collections is a collections framework for Java. It has JDK-compatible List, Set and Map
-implementations with a rich API and set of utility classes that work with any JDK compatible Collections,
-Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk collection framework.
+    <description>mapdb-collections is the Java port of the mapdb primitive-collections family,
+forked from Eclipse Collections and made conformant to the mapdb-collection-spec.
     </description>
 
-    <url>https://github.com/eclipse-collections/eclipse-collections</url>
+    <url>https://github.com/mapdb/mapdb-java</url>
 
-    <inceptionYear>2004</inceptionYear>
+    <inceptionYear>2026</inceptionYear>
 
     <licenses>
         <license>
@@ -47,30 +46,20 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
     </licenses>
 
     <scm>
-        <url>https://github.com/eclipse-collections/eclipse-collections</url>
-        <connection>scm:git:https://github.com/eclipse-collections/eclipse-collections.git</connection>
-        <developerConnection>scm:git:https://github.com/eclipse-collections/eclipse-collections.git</developerConnection>
+        <url>https://github.com/mapdb/mapdb-java</url>
+        <connection>scm:git:https://github.com/mapdb/mapdb-java.git</connection>
+        <developerConnection>scm:git:https://github.com/mapdb/mapdb-java.git</developerConnection>
     </scm>
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/eclipse-collections/eclipse-collections/issues</url>
+        <url>https://github.com/mapdb/mapdb-java/issues</url>
     </issueManagement>
 
     <ciManagement>
         <system>GitHub Actions</system>
-        <url>https://github.com/eclipse-collections/eclipse-collections/actions</url>
+        <url>https://github.com/mapdb/mapdb-java/actions</url>
     </ciManagement>
-
-    <mailingLists>
-        <mailingList>
-            <name>collections-dev</name>
-            <subscribe>https://dev.eclipse.org/mailman/listinfo/collections-dev</subscribe>
-            <unsubscribe>https://dev.eclipse.org/mailman/listinfo/collections-dev</unsubscribe>
-            <post>collections-dev@eclipse.org</post>
-            <archive>https://dev.eclipse.org/mhonarc/lists/collections-dev</archive>
-        </mailingList>
-    </mailingLists>
 
     <developers>
         <developer>
@@ -161,11 +150,6 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </pluginRepository>
-
-        <pluginRepository>
-            <id>repo.eclipse.org</id>
-            <url>https://repo.eclipse.org/content/repositories/cbi-releases/</url>
         </pluginRepository>
 
     </pluginRepositories>
@@ -543,8 +527,8 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <source>17</source>
-                    <doctitle>Eclipse Collections - ${project.version}</doctitle>
-                    <windowtitle>Eclipse Collections - ${project.version}</windowtitle>
+                    <doctitle>mapdb-collections - ${project.version}</doctitle>
+                    <windowtitle>mapdb-collections - ${project.version}</windowtitle>
                     <show>public</show>
                     <detectJavaApiLink>true</detectJavaApiLink>
                     <links>
@@ -654,8 +638,8 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <configuration>
                             <source>17</source>
-                            <doctitle>Eclipse Collections - ${project.version}</doctitle>
-                            <windowtitle>Eclipse Collections - ${project.version}</windowtitle>
+                            <doctitle>mapdb-collections - ${project.version}</doctitle>
+                            <windowtitle>mapdb-collections - ${project.version}</windowtitle>
                             <show>public</show>
                             <detectJavaApiLink>true</detectJavaApiLink>
                             <links>
@@ -1013,8 +997,8 @@ Arrays, Maps or Strings. The iteration protocol was inspired by the Smalltalk co
                         <version>3.11.2</version>
                         <configuration>
                             <source>17</source>
-                            <doctitle>Eclipse Collections - ${project.version}</doctitle>
-                            <windowtitle>Eclipse Collections - ${project.version}</windowtitle>
+                            <doctitle>mapdb-collections - ${project.version}</doctitle>
+                            <windowtitle>mapdb-collections - ${project.version}</windowtitle>
                             <show>public</show>
                             <detectJavaApiLink>true</detectJavaApiLink>
                             <links>

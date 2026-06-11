@@ -24,7 +24,7 @@
 
     <packaging>maven-plugin</packaging>
 
-    <name>Eclipse Collections Code Generator Maven Plugin</name>
+    <name>mapdb-collections Code Generator Maven Plugin</name>
 
     <prerequisites>
         <maven>3.1.1</maven>
@@ -173,8 +173,8 @@
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <configuration>
                             <source>17</source>
-                            <doctitle>Eclipse Collections - ${project.version}</doctitle>
-                            <windowtitle>Eclipse Collections - ${project.version}</windowtitle>
+                            <doctitle>mapdb-collections - ${project.version}</doctitle>
+                            <windowtitle>mapdb-collections - ${project.version}</windowtitle>
                             <show>public</show>
                             <links>
                                 <link>https://docs.oracle.com/en/java/javase/17/docs/api</link>

@@ -23,7 +23,7 @@
 
     <artifactId>unit-tests-thread-safety</artifactId>
 
-    <name>Eclipse Collections Thread Safety Unit Test Suite</name>
+    <name>mapdb-collections Thread Safety Unit Test Suite</name>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>

@@ -23,7 +23,7 @@
 
     <artifactId>unit-tests</artifactId>
 
-    <name>Eclipse Collections Unit Test Suite</name>
+    <name>mapdb-collections Unit Test Suite</name>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
