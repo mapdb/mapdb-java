@@ -1,109 +1,69 @@
-Contributor License
--------------------
+Contributing to mapdb-java
+==========================
 
-If this is your first time contributing to an Eclipse Foundation project, you'll need to sign the [Eclipse Contributor Agreement][ECA].
-
-- [Create an account](https://accounts.eclipse.org/user/register?destination=/user/login) on accounts.eclipse.org
-- Open your [Account Settings tab](https://dev.eclipse.org/site_login/myaccount.php#open_tab_accountsettings), enter your GitHub ID and click Update Account
-- Read and [sign the ECA](https://dev.eclipse.org/site_login/myaccount.php#open_tab_cla)
-- Use the exact same email address for your Eclipse account and your commit author.
+`mapdb-java` (the `org.mapdb.collections.*` Java port) is a fork of
+[Eclipse Collections](https://github.com/eclipse-collections/eclipse-collections),
+maintained by Jan Kotek as one of the language ports governed by the
+[mapdb collection spec](https://github.com/mapdb/mapdb-collection-spec). It is
+**not** an Eclipse Foundation project; there is no Eclipse Contributor
+Agreement and no `collections-dev@eclipse.org` involvement.
 
 Issues
 ------
 
-Search the [issue tracker](https://github.com/eclipse-collections/eclipse-collections/issues) for a relevant issue or create a new one.
+Search the [issue tracker](https://github.com/mapdb/mapdb-java/issues) for a
+relevant issue or open a new one.
 
-Making changes
---------------
-
-Fork the repository in GitHub and make changes in your fork.
-
-Please add a description of your changes to the [draft release notes](RELEASE_NOTE_DRAFT.md).
-
-Finally, submit a pull request.
-
-Details on [working with GitHub for Eclipse Collections](https://github.com/eclipse-collections/eclipse-collections/wiki/Working-with-GitHub) is located at the Wiki.
-
-Contact us
-----------
-
-[Join the mailing list][mailing-list] and email the community at collections-dev@eclipse.org to discuss your ideas and get help.
-
-Build
------
-The Eclipse Collections build requires below as dependencies.
-
-- Java 17+
-- Maven 3.9.6+
-
-The Eclipse Collections build performs code generation to create primitive collections. Run the full build once before opening your IDE.
-
-```bash
-mvn install -DskipTests=true
-```
-
-Now you can open the project in your IDE and it won't complain about missing files. You'll be able to use the IDE to perform incremental builds and run tests. You should rarely need to run the maven build, except when:
-
-- you want to force a clean build
-- you work on [JMH][jmh] tests
-- your changes affect code generation
-- you want to see if your changes will pass [the same builds that GitHub Actions runs][github]
-
-Semantic Versioning
--------------------
-
-Eclipse Collections version numbers follow [Semantic Versioning][semver]. This means we increment the major version when we make incompatible API changes. This includes any changes which
-
-- break binary compatibility
-- break source compatibility
-- break serialization compatibility
-
-Normally, collections will have the same serialized form across major releases, indefinitely. But if we have to break serialization for some reason, it will be in a major release. Eclipse Collections includes a suite of serialization tests to prevent accidental changes.
-
-While preparing a minor release, the master branch won't contain any compatibility breaking changes. Feel free to work on major, compatibility-breaking changes whenever you'd like. However, if you submit a pull request to master while we're preparing a minor release, you'll have to be patient and you'll need to rebase your changes once the release is complete.
-
-Coding Style
+The contract
 ------------
 
-Eclipse Collections follows a coding style that is similar to [Google's Style Guide for Java][style-guide], but with curly braces on their own lines. Many aspects of the style guide are enforced by CheckStyle, but not all, so please take care.
+Observable behaviour is defined by the cross-language spec, not by this repo in
+isolation. Before changing behaviour, read
+[`BUILD-MAPDB.md`](BUILD-MAPDB.md) and the spec's
+[`style/java.md`](https://github.com/mapdb/mapdb-collection-spec/blob/main/spec/style/java.md),
+which records the fork's carve-outs (raw-bit float identity, 64-bit Fibonacci
+hash, IntInterval-only Interval, object-fallback trees/multimaps). A change that
+alters observable behaviour must come with a matching update to the
+cross-language validation scenarios in the spec repo.
+
+Building
+--------
+
+- Java 17+ (release target 17), Maven 3.9.6+.
+- The build performs StringTemplate code generation to create the primitive
+  collections; generated sources are a build product and are not checked in, so
+  run the full build once before opening your IDE:
 
 ```bash
-mvn clean install checkstyle:check --projects "!scala-unit-tests,!jmh-scala-tests,!jmh-tests" -DskipTests=true
+mvn clean install -DskipTests=true
 ```
 
-Avoid changing whitespace on lines that are unrelated to your pull request. This helps preserve the accuracy of the git blame view, and makes code reviews easier.
+`BUILD-MAPDB.md` documents the exact build, the cross-language validator, and
+the native test suite. All three are run in CI
+([`.github/workflows/build.yml`](.github/workflows/build.yml)) and must stay
+green:
 
-Commit messages
----------------
+- `mvn clean install` of the core plus the inherited unit-test suites,
+- the `mapdb-validation` runner (57 cross-language scenarios),
+- the `mapdb-native-tests` suite (the port-specific battery).
 
-- [Use the imperative mood][imperative-mood] as in "Fix bug" or "Add feature" rather than "Fixed bug" or "Added feature"
-- [Mention the GitHub issue][github-issue] when relevant
-- It's a good idea to follow the [advice in Pro Git](https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project)
+Coding style
+------------
 
-Pull requests
--------------
+Match the surrounding code. The inherited Eclipse Collections checkstyle config
+is present but **off by default** (style policy, not a build gate); you can run
+it locally for a style pass. Avoid whitespace-only changes on unrelated lines so
+`git blame` stays accurate.
 
-Excessive branching and merging can make git history confusing. With that in mind
+Commits and pull requests
+-------------------------
 
-- Squash your commits down to a few commits, or one commit, before submitting a pull request
-- [Rebase your pull request changes on top of the current master][rebase]. Pull requests shouldn't include merge commits.
+- [Use the imperative mood][imperative-mood] ("Fix bug", "Add feature").
+- Reference the GitHub issue when relevant.
+- Squash to a small number of clean commits and rebase on the base branch before
+  opening a pull request; no merge commits.
+- Make sure CI is green. A maintainer will review and merge.
 
-Submit your pull request when ready. Three checks will be kicked off automatically.
+Thanks for contributing!
 
-- IP Validation: Checks that all committers signed the Eclipse CLA and signed their commits.
-- Continuous integration: [GitHub Actions][github] that run JUnit tests, CheckStyle, and FindBugs.
-- The standard GitHub check that the pull request has no conflicts with the base branch.
-
-Make sure all the checks pass. One of the committers will take a look and provide feedback or merge your contribution.
-
-That's it! Thanks for contributing to Eclipse Collections!
-
-[ECA]:             https://www.eclipse.org/legal/ECA.php
-[jmh]:             http://openjdk.java.net/projects/code-tools/jmh/
-[semver]:          http://semver.org/
-[style-guide]:     https://google.github.io/styleguide/javaguide.html
-[rebase]:          https://github.com/edx/edx-solutions-edx-platform/wiki/How-to-Rebase-a-Pull-Request
-[github]:          https://github.com/eclipse-collections/eclipse-collections/actions
 [imperative-mood]: https://github.com/git/git/blob/master/Documentation/SubmittingPatches
-[github-issue]:    https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue
-[mailing-list]:    https://accounts.eclipse.org/mailing-list/collections-dev

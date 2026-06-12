@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jan Kotek.
-// Internal cross-language validation runner for the Eclipse Collections fork
-// (mapdb-java). Routes scenarios through STOCK, UNRENAMED Eclipse Collections
-// (org.mapdb.collections) production collections and emits a red/green list.
+// Internal cross-language validation runner for mapdb-java (the renamed
+// Eclipse Collections fork). Routes scenarios through the fork's production
+// collections under org.mapdb.collections and emits a red/green list.
 package org.mapdb.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -37,7 +37,7 @@ import java.util.stream.Stream;
 
 /**
  * Reads cross-language validation scenarios and checks every assertion key
- * against stock Eclipse Collections. Output is the canonical per-line
+ * against the mapdb-java production collections. Output is the canonical per-line
  * {@code key: value} format plus a PASS/FAIL line per scenario and a summary.
  * Exit code is non-zero if any scenario fails or cannot be run.
  */
@@ -55,6 +55,7 @@ public final class ValidationRunner {
 
     private boolean anyFail = false;
     private int scenariosRun = 0;
+    private int skippedAssertions = 0;
 
     // Per-dir tallies for the summary table.
     private final Map<String, int[]> dirStats = new java.util.TreeMap<>(); // dir -> [pass, fail, skipUnsupported]
@@ -161,12 +162,17 @@ public final class ValidationRunner {
         }
 
         /**
-         * Emit a computed assertion. Unknown keys are skipped silently (no print,
-         * no fail). Otherwise print {@code key: value} and compare to expected.
+         * Emit a computed assertion. A key the runner has no evaluator for is
+         * loudly reported as SKIP and fails the scenario -- a silent skip is what
+         * once let the {@code product} assertion pass vacuously. Otherwise print
+         * {@code key: value} and compare to expected.
          */
         void emit(String key, String computed, JsonNode expected, FloatMode mode) {
             if (computed == null) {
-                return; // unknown assertion key -> skip
+                System.out.println("SKIP " + name + " " + key + ": no evaluator for this assertion key");
+                skippedAssertions++;
+                failed = true;
+                return;
             }
             System.out.println(key + ": " + computed);
             String expectedStr = renderExpected(expected, key, mode);
@@ -533,6 +539,10 @@ public final class ValidationRunner {
                 // injectInto with + accumulates in the i32 seed and wraps.
                 return String.valueOf(list.injectInto(0, (a, v) -> a + v));
             case "inject_into_product":
+            case "inject_into_wrapping_product":
+            case "product":
+                // Wrapping i32 product: the seed-1 accumulator multiplies and wraps
+                // (mirrors Rust/Go/TS runners). Drives 06-overflow/i32_multiply_overflow.
                 return String.valueOf(list.injectInto(1, (a, v) -> a * v));
             case "count_even":
                 return String.valueOf(list.count(v -> v % 2 == 0));
@@ -1242,6 +1252,7 @@ public final class ValidationRunner {
         System.out.println("-----------------------------------------");
         System.out.printf("%-22s %6d %6d %6d%n", "TOTAL", tp, tf, tu);
         System.out.println("(unsup = scenarios that could not run: no stock-EC type; counted as FAIL)");
+        System.out.println("assertions skipped (no evaluator; each fails its scenario): " + skippedAssertions);
         System.out.println("scenarios run: " + scenariosRun + ", result: " + (anyFail ? "RED (failures present)" : "GREEN"));
     }
 }

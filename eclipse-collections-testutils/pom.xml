@@ -29,6 +29,8 @@
     <name>mapdb-collections Test Utilities</name>
 
     <properties>
+        <!-- Test utilities are an internal, unpublished module. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
         <sonar.jacoco.reportPaths>
             ../unit-tests/target/jacoco.exec,../unit-tests-java8/target/jacoco.exec,../eclipse-collections-testutils/target/jacoco.exec
         </sonar.jacoco.reportPaths>

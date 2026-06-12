@@ -1544,12 +1544,21 @@ differentNaNs() ::= <<
 @Test
 public void contains_different_NaNs()
 {
+    // mapdb-java fork: primitive float/double collections use RAW-BIT identity
+    // (spec/algorithms.md "NaN must hash and compare by bit pattern"), so two
+    // distinct NaN bit patterns are distinct elements. Boxed <wrapperName>
+    // canonicalizes every NaN, so a java.util.HashSet treats nan1 and nan2 as
+    // equal -- the primitive collection deliberately does NOT.
     <bitsType.(type)> nan1 = <NaNBits1.(type)>;
+    <bitsType.(type)> nan2 = <NaNBits2.(type)>;
     <name>Iterable primitiveIterable = this.newWith(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan1));
     Set\<<wrapperName>\> hashSet = new HashSet\<>();
     hashSet.add(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan1));
-    <bitsType.(type)> nan2 = <NaNBits2.(type)>;
-    assertEquals(hashSet.contains(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan2)), primitiveIterable.contains(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan2)));
+    // Boxed canonicalization: the JDK HashSet reports the other NaN as present.
+    assertTrue(hashSet.contains(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan2)));
+    // Raw-bit identity: the primitive collection finds nan1 but not nan2.
+    assertTrue(primitiveIterable.contains(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan1)));
+    assertFalse(primitiveIterable.contains(<wrapperName>.<bitsType.(type)>BitsTo<name>(nan2)));
 }
 
 >>

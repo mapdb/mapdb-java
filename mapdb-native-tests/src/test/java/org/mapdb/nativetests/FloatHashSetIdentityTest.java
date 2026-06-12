@@ -55,6 +55,17 @@ public class FloatHashSetIdentityTest
     }
 
     @Test
+    public void floatNaNKey_Replaces()
+    {
+        // Adding the same NaN bit pattern twice dedupes to a single key.
+        FloatHashSet set = new FloatHashSet();
+        set.add(NAN_CANON);
+        set.add(NAN_CANON);
+        assertEquals(1, set.size());
+        assertTrue(set.contains(NAN_CANON));
+    }
+
+    @Test
     public void floatNegativeZeroDistinct()
     {
         FloatHashSet set = new FloatHashSet();
@@ -106,6 +117,26 @@ public class FloatHashSetIdentityTest
         set.add(DNAN_CANON);
         assertTrue(set.contains(DNAN_CANON));
         assertEquals(1, set.size());
+    }
+
+    @Test
+    public void doubleNaNKey_Replaces()
+    {
+        DoubleHashSet set = new DoubleHashSet();
+        set.add(DNAN_CANON);
+        set.add(DNAN_CANON);
+        assertEquals(1, set.size());
+        assertTrue(set.contains(DNAN_CANON));
+    }
+
+    @Test
+    public void doubleNaNKey_Remove()
+    {
+        DoubleHashSet set = new DoubleHashSet();
+        set.add(DNAN_CANON);
+        assertTrue(set.remove(DNAN_CANON));
+        assertFalse(set.contains(DNAN_CANON));
+        assertEquals(0, set.size());
     }
 
     @Test

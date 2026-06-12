@@ -686,7 +686,10 @@ public class FastListTest extends AbstractListTestCase
         assertEquals(194L, stream2.size());
 
         ByteArrayOutputStream stream1 = SerializeTestHelper.getByteArrayOutputStream(mutableArrayList);
-        assertEquals(182L, stream1.size());
+        // 180, not upstream's 182: the serialized stream embeds the FastList class
+        // name, and "org.mapdb.collections" is 2 bytes shorter than
+        // "org.eclipse.collections" after the package rename.
+        assertEquals(180L, stream1.size());
     }
 
     @Override

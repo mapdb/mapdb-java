@@ -756,6 +756,14 @@ public final class Interval
      */
     public Interval reverseThis()
     {
+        // Negating Integer.MIN_VALUE silently overflows back to Integer.MIN_VALUE
+        // (unrepresentable as a positive int), which would build a wrong interval.
+        // Per spec/algorithms.md "Reversed() panics at minimum step", reject it
+        // explicitly rather than letting -this.step wrap (mirrors IntInterval).
+        if (this.step == Integer.MIN_VALUE)
+        {
+            throw new ArithmeticException("Cannot reverse an Interval with the minimum step value");
+        }
         return Interval.fromToBy(this.to, this.from, -this.step);
     }
 

@@ -7,9 +7,12 @@ pom.xml.versionsBackup
 .mvn/wrapper/
 mvnw
 mvnw.cmd
-jmh-scala-tests/.cache-main
-scala-unit-tests/.cache-tests
-test-coverage/**
+
+# IDE module files and inherited-upstream IDE cruft (JMH/Scala configs, the
+# upstream copyright profile) are not tracked in the fork.
+*.iml
+.idea/runConfigurations/JMH*.xml
+.idea/copyright/Eclipse.xml
 
 # https://raw.githubusercontent.com/github/gitignore/master/Global/JetBrains.gitignore
 

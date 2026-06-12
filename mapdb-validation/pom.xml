@@ -20,7 +20,7 @@
     <name>mapdb-java cross-language validation runner</name>
     <description>
         Conformance runner that executes the mapdb cross-language validation
-        scenarios against stock Eclipse Collections. Internal, unpublished.
+        scenarios against the mapdb-java collections. Internal, unpublished.
     </description>
 
     <properties>

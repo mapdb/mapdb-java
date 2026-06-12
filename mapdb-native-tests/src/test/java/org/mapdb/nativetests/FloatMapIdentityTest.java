@@ -32,6 +32,7 @@ public class FloatMapIdentityTest
     private static final float NAN_NEG = Float.intBitsToFloat(0xFFC00000);
 
     private static final double DNAN_CANON = Double.longBitsToDouble(0x7FF8000000000000L);
+    private static final double DNAN_PAYLOAD = Double.longBitsToDouble(0x7FF8000000000001L);
 
     // ---- Float-keyed map: NaN key contract ----
 
@@ -109,6 +110,48 @@ public class FloatMapIdentityTest
         map.put(DNAN_CANON, 7);
         assertTrue(map.containsKey(DNAN_CANON));
         assertEquals(7, map.get(DNAN_CANON));
+    }
+
+    @Test
+    public void doubleNaNKey_Replaces()
+    {
+        DoubleIntHashMap map = new DoubleIntHashMap();
+        map.put(DNAN_CANON, 1);
+        map.put(DNAN_CANON, 2);
+        assertEquals(2, map.get(DNAN_CANON));
+        assertEquals(1, map.size());
+    }
+
+    @Test
+    public void doubleNaNKey_Remove()
+    {
+        DoubleIntHashMap map = new DoubleIntHashMap();
+        map.put(DNAN_CANON, 1);
+        map.remove(DNAN_CANON);
+        assertFalse(map.containsKey(DNAN_CANON));
+        assertEquals(0, map.size());
+    }
+
+    @Test
+    public void doubleInfinityKeys()
+    {
+        DoubleIntHashMap map = new DoubleIntHashMap();
+        map.put(Double.POSITIVE_INFINITY, 1);
+        map.put(Double.NEGATIVE_INFINITY, 2);
+        assertEquals(2, map.size());
+        assertEquals(1, map.get(Double.POSITIVE_INFINITY));
+        assertEquals(2, map.get(Double.NEGATIVE_INFINITY));
+    }
+
+    @Test
+    public void doubleDistinctNaNPayloadKeys()
+    {
+        DoubleIntHashMap map = new DoubleIntHashMap();
+        map.put(DNAN_CANON, 1);
+        map.put(DNAN_PAYLOAD, 2);
+        assertEquals(2, map.size());
+        assertEquals(1, map.get(DNAN_CANON));
+        assertEquals(2, map.get(DNAN_PAYLOAD));
     }
 
     @Test

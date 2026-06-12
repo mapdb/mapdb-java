@@ -89,14 +89,15 @@ Expected: `scenarios run: 57, result: GREEN` (exit code 0).
 The standalone, unpublished `mapdb-native-tests/` module (also not in the root
 `<modules>`) runs the spec-required tests the shared scenario suite does not
 exercise (raw-bit float identity, IEEE totalOrder, sentinel boundaries, 64-bit
-Fibonacci hash spread, serialization smoke, IntInterval boundaries). It depends
+Fibonacci hash spread, capacity/resize threshold, serialization smoke,
+IntInterval boundaries). It depends
 on the locally-installed core SNAPSHOTs, so run step 1 first, then:
 
 ```
 mvn -f mapdb-native-tests/pom.xml test
 ```
 
-Expected: `Tests run: 45, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+Expected: `Tests run: 53, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
 The distinct-NaN-payload tests are the headline proof of the raw-bit float
 identity change.
 

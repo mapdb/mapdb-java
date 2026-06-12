@@ -63,37 +63,55 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
 
     <developers>
         <developer>
-            <name>Craig P. Motlin</name>
-        </developer>
-
-        <developer>
-            <name>Donald Raab</name>
-        </developer>
-
-        <developer>
-            <name>Mohammad A. Rezaei</name>
-        </developer>
-
-        <developer>
-            <name>Hiroshi Ito</name>
-        </developer>
-
-        <developer>
-            <name>Nikhil J. Nanivadekar</name>
-        </developer>
-
-        <developer>
-            <name>Sirisha Pratha</name>
-        </developer>
-
-        <developer>
-            <name>Vladimir Zakharov</name>
-        </developer>
-
-        <developer>
-            <name>Desislav Petrov</name>
+            <id>jankotek</id>
+            <name>Jan Kotek</name>
+            <email>jan@kotek.net</email>
+            <roles>
+                <role>mapdb-java fork maintainer</role>
+            </roles>
         </developer>
     </developers>
+
+    <!--
+        mapdb-java is a fork of Eclipse Collections. The original authors are
+        credited as upstream contributors (not as current developers of this
+        fork); their attribution is preserved in source-file headers and in
+        NOTICE.md per the Eclipse Public License.
+    -->
+    <contributors>
+        <contributor>
+            <name>Craig P. Motlin</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Donald Raab</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Mohammad A. Rezaei</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Hiroshi Ito</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Nikhil J. Nanivadekar</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Sirisha Pratha</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Vladimir Zakharov</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+        <contributor>
+            <name>Desislav Petrov</name>
+            <organization>Eclipse Collections (upstream)</organization>
+        </contributor>
+    </contributors>
 
     <modules>
         <module>eclipse-collections-code-generator</module>
@@ -126,7 +144,16 @@ forked from Eclipse Collections and made conformant to the mapdb-collection-spec
 
         <argLine></argLine>
 
-        <project.previous.version>12.0.0</project.previous.version>
+        <!--
+            API-compatibility baseline. mapdb-collections has no released
+            predecessor yet (this is the first release under org.mapdb), so
+            clirr is skipped until a 1.0.0 baseline exists; the inherited
+            upstream "12.0.0" was never published under these coordinates and
+            any clirr:check against it fails. Set clirr.skip=false once 1.0.0
+            is out to start tracking binary compatibility from there.
+        -->
+        <project.previous.version>1.0.0</project.previous.version>
+        <clirr.skip>true</clirr.skip>
     </properties>
 
     <pluginRepositories>
