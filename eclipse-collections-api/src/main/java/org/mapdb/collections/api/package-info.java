@@ -9,7 +9,7 @@
  */
 
 /**
- * This package contains interfaces for Eclipse Collections API.
+ * This package contains interfaces for the mapdb-collections API.
  * <p>
  *     This package contains interfaces for object collections, primitive collections and lazy iterables.
  */

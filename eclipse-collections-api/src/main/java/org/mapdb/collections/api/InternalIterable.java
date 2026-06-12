@@ -18,8 +18,8 @@ import org.mapdb.collections.api.block.procedure.primitive.ObjectIntProcedure;
 import org.mapdb.collections.api.ordered.OrderedIterable;
 
 /**
- * The base interface for all Eclipse Collections. All Eclipse Collections are internally iterable, and this interface provides
- * the base set of internal iterators that every Eclipse collection should implement.
+ * The base interface for all mapdb-collections. All mapdb-collections are internally iterable, and this interface provides
+ * the base set of internal iterators that every collection should implement.
  */
 public interface InternalIterable<T>
         extends Iterable<T>

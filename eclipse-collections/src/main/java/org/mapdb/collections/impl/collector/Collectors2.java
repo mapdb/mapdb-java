@@ -98,7 +98,7 @@ import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 import org.mapdb.collections.impl.utility.Iterate;
 
 /**
- * <p>A set of Collectors for Eclipse Collections types and algorithms.</p>
+ * <p>A set of Collectors for mapdb-collections types and algorithms.</p>
  *
  * <p>Includes converter Collectors to{Immutable}{Sorted}{List/Set/Bag/Map/BiMap/Multimap}.<br>
  * Includes Collectors for select, reject, partition.<br>

@@ -49,7 +49,7 @@ import org.mapdb.collections.impl.lazy.primitive.CollectLongToObjectIterable;
 import org.mapdb.collections.impl.lazy.primitive.LazyLongIterableAdapter;
 import org.mapdb.collections.impl.lazy.primitive.ReverseLongIterable;
 import org.mapdb.collections.impl.lazy.primitive.SelectLongIterable;
-import org.mapdb.collections.impl.list.IntervalUtils;
+import org.mapdb.collections.impl.list.LongIntervalUtils;
 import org.mapdb.collections.impl.tuple.primitive.PrimitiveTuples;
 import org.mapdb.collections.impl.utility.Iterate;
 
@@ -74,7 +74,7 @@ public final class LongInterval
         this.to = to;
         this.step = step;
 
-        this.size = IntervalUtils.intSize(this.from, this.to, this.step);
+        this.size = LongIntervalUtils.intSize(this.from, this.to, this.step);
     }
 
     /**
@@ -249,7 +249,7 @@ public final class LongInterval
      */
     public static LongInterval fromToBy(long from, long to, long stepBy)
     {
-        IntervalUtils.checkArguments(from, to, stepBy);
+        LongIntervalUtils.checkArguments(from, to, stepBy);
         return new LongInterval(from, to, stepBy);
     }
 
@@ -303,52 +303,28 @@ public final class LongInterval
     @Override
     public boolean contains(long value)
     {
-        return IntervalUtils.contains(value, this.from, this.to, this.step);
+        return LongIntervalUtils.contains(value, this.from, this.to, this.step);
     }
 
     @Override
     public void forEachWithIndex(LongIntProcedure procedure)
     {
-        int index = 0;
-        if (this.goForward())
+        // Drive by index, not by post-increment boundary comparison: for a
+        // full-domain long range `i += step` wraps and a signed `i <= to`/`i >= to`
+        // test never terminates. The element count fits in an int (checkSize).
+        for (int idx = 0; idx < this.size; idx++)
         {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                procedure.value(i, index++);
-            }
-        }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                procedure.value(i, index++);
-            }
+            procedure.value(LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step), idx);
         }
     }
 
     @Deprecated(forRemoval = true)
     public void forEachWithLongIndex(LongLongProcedure procedure)
     {
-        long index = 0;
-        if (this.goForward())
+        for (int idx = 0; idx < this.size; idx++)
         {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                procedure.value(i, index++);
-            }
+            procedure.value(LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step), idx);
         }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                procedure.value(i, index++);
-            }
-        }
-    }
-
-    private boolean goForward()
-    {
-        return this.from <= this.to && this.step > 0;
     }
 
     /**
@@ -357,19 +333,9 @@ public final class LongInterval
     @Override
     public void each(LongProcedure procedure)
     {
-        if (this.goForward())
+        for (int idx = 0; idx < this.size; idx++)
         {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                procedure.value(i);
-            }
-        }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                procedure.value(i);
-            }
+            procedure.value(LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
         }
     }
 
@@ -433,34 +399,16 @@ public final class LongInterval
         {
             return this.from == list.get(0);
         }
-
-        if (otherList instanceof LongInterval otherInterval)
+        // Element-by-element, matching IntInterval's semantics. We deliberately
+        // do NOT add a LongInterval-vs-LongInterval fast path comparing step:
+        // two single-element intervals with the same element but different step
+        // (e.g. fromToBy(1, 5, 10) and fromToBy(1, 100, 1000), both [1]) are
+        // equal as lists, so a step comparison would wrongly report inequality.
+        for (int idx = 0; idx < this.size; idx++)
         {
-            return (this.getFirst() == otherInterval.getFirst())
-                    && (this.getLast() == otherInterval.getLast())
-                    && (this.step == otherInterval.step);
-        }
-
-        if (this.from < this.to)
-        {
-            int listIndex = 0;
-            for (long i = this.from; i <= this.to; i += this.step)
+            if (LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step) != list.get(idx))
             {
-                if (i != list.get(listIndex++))
-                {
-                    return false;
-                }
-            }
-        }
-        else
-        {
-            int listIndex = 0;
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                if (i != list.get(listIndex++))
-                {
-                    return false;
-                }
+                return false;
             }
         }
         return true;
@@ -470,23 +418,10 @@ public final class LongInterval
     public int hashCode()
     {
         int hashCode = 1;
-        if (this.from == this.to)
+        for (int idx = 0; idx < this.size; idx++)
         {
-            hashCode = 31 * hashCode + (int) (this.from ^ this.from >>> 32);
-        }
-        else if (this.from < this.to)
-        {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                hashCode = 31 * hashCode + (int) (i ^ i >>> 32);
-            }
-        }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                hashCode = 31 * hashCode + (int) (i ^ i >>> 32);
-            }
+            long i = LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step);
+            hashCode = 31 * hashCode + (int) (i ^ i >>> 32);
         }
         return hashCode;
     }
@@ -497,6 +432,14 @@ public final class LongInterval
     @Override
     public LongInterval toReversed()
     {
+        // Negating Long.MIN_VALUE silently overflows back to Long.MIN_VALUE
+        // (it is unrepresentable as a positive long), which would build a wrong
+        // interval. Per spec/algorithms.md "Reversed() panics at minimum step",
+        // reject it explicitly rather than letting -this.step wrap.
+        if (this.step == Long.MIN_VALUE)
+        {
+            throw new ArithmeticException("Cannot reverse a LongInterval with the minimum step value");
+        }
         return LongInterval.fromToBy(this.to, this.from, -this.step);
     }
 
@@ -634,19 +577,9 @@ public final class LongInterval
     public <T> T injectInto(T injectedValue, ObjectLongToObjectFunction<? super T, ? extends T> function)
     {
         T result = injectedValue;
-        if (this.goForward())
+        for (int idx = 0; idx < this.size; idx++)
         {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                result = function.valueOf(result, i);
-            }
-        }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                result = function.valueOf(result, i);
-            }
+            result = function.valueOf(result, LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
         }
         return result;
     }
@@ -655,23 +588,9 @@ public final class LongInterval
     public <T> T injectIntoWithIndex(T injectedValue, ObjectLongIntToObjectFunction<? super T, ? extends T> function)
     {
         T result = injectedValue;
-        int index = 0;
-
-        if (this.goForward())
+        for (int idx = 0; idx < this.size; idx++)
         {
-            for (long i = this.from; i <= this.to; i += this.step)
-            {
-                result = function.valueOf(result, i, index);
-                index++;
-            }
-        }
-        else
-        {
-            for (long i = this.from; i >= this.to; i += this.step)
-            {
-                result = function.valueOf(result, i, index);
-                index++;
-            }
+            result = function.valueOf(result, LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step), idx);
         }
         return result;
     }
@@ -686,35 +605,17 @@ public final class LongInterval
         MutableList<LongIterable> result = Lists.mutable.empty();
         if (this.notEmpty())
         {
-            long innerFrom = this.from;
-            long lastUpdated = this.from;
-            if (this.from <= this.to)
+            // Index-driven so the chunk boundaries cannot wrap at the full long
+            // domain (a value-based `i += step` / `i <= to` walk wraps there).
+            int idx = 0;
+            while (idx < this.size)
             {
-                while ((lastUpdated + this.step) <= this.to)
+                MutableLongList batch = LongLists.mutable.empty();
+                for (int batchEnd = Math.min(idx + size, this.size); idx < batchEnd; idx++)
                 {
-                    MutableLongList batch = LongLists.mutable.empty();
-                    for (long i = innerFrom; i <= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add(i);
-                        lastUpdated = i;
-                    }
-                    result.add(batch);
-                    innerFrom = lastUpdated + this.step;
+                    batch.add(LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
                 }
-            }
-            else
-            {
-                while ((lastUpdated + this.step) >= this.to)
-                {
-                    MutableLongList batch = LongLists.mutable.empty();
-                    for (long i = innerFrom; i >= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add(i);
-                        lastUpdated = i;
-                    }
-                    result.add(batch);
-                    innerFrom = lastUpdated + this.step;
-                }
+                result.add(batch);
             }
         }
         return result;
@@ -741,14 +642,14 @@ public final class LongInterval
     @Override
     public long getLast()
     {
-        return IntervalUtils.valueAtIndex(this.size() - 1, this.from, this.to, this.step);
+        return LongIntervalUtils.valueAtIndex(this.size() - 1, this.from, this.to, this.step);
     }
 
     @Override
     public long get(int index)
     {
         this.checkBounds("index", index);
-        return IntervalUtils.valueAtIndex(index, this.from, this.to, this.step);
+        return LongIntervalUtils.valueAtIndex(index, this.from, this.to, this.step);
     }
 
     private void checkBounds(String name, int index)
@@ -762,7 +663,7 @@ public final class LongInterval
     @Override
     public int indexOf(long value)
     {
-        return IntervalUtils.indexOf(value, this.from, this.to, this.step);
+        return LongIntervalUtils.indexOf(value, this.from, this.to, this.step);
     }
 
     @Override
@@ -871,7 +772,7 @@ public final class LongInterval
     @Override
     public int binarySearch(long value)
     {
-        return IntervalUtils.binarySearch(value, this.from, this.to, this.step);
+        return LongIntervalUtils.binarySearch(value, this.from, this.to, this.step);
     }
 
     @Override
@@ -975,7 +876,8 @@ public final class LongInterval
     @Override
     public Spliterator.OfLong spliterator()
     {
-        return new LongIntervalSpliterator(this.from, this.to, this.step);
+        return new LongIntervalSpliterator(
+                this.from, this.step, LongIntervalUtils.longSize(this.from, this.to, this.step));
     }
 
     @Override
@@ -986,16 +888,15 @@ public final class LongInterval
 
     private class LongIntervalIterator implements LongIterator
     {
-        private long current = LongInterval.this.from;
+        // Index-driven so the iterator cannot wrap past the end for a
+        // full-domain interval (a value-based `current += step` walk with a
+        // signed `current <= to`/`current >= to` test wraps and over-runs).
+        private int index;
 
         @Override
         public boolean hasNext()
         {
-            if (LongInterval.this.from <= LongInterval.this.to)
-            {
-                return this.current <= LongInterval.this.to;
-            }
-            return this.current >= LongInterval.this.to;
+            return this.index < LongInterval.this.size;
         }
 
         @Override
@@ -1003,8 +904,9 @@ public final class LongInterval
         {
             if (this.hasNext())
             {
-                long result = this.current;
-                this.current += LongInterval.this.step;
+                long result = LongIntervalUtils.valueAtIndex(
+                        this.index, LongInterval.this.from, LongInterval.this.to, LongInterval.this.step);
+                this.index++;
                 return result;
             }
             throw new NoSuchElementException();
@@ -1013,17 +915,22 @@ public final class LongInterval
 
     private static final class LongIntervalSpliterator implements Spliterator.OfLong
     {
+        // Index/remaining-count driven so production and splitting cannot wrap
+        // or over-run at the full long domain: `current += step` plus a signed
+        // `current <= to`/`current >= to` test wraps there. `current` is the
+        // next value to emit and `remaining` is how many elements are still to
+        // be produced (a genuine element count, which fits in a long).
         private long current;
-        private final long to;
+        private long remaining;
         private final long step;
         private final boolean isAscending;
 
-        private LongIntervalSpliterator(long from, long to, long step)
+        private LongIntervalSpliterator(long current, long step, long remaining)
         {
-            this.current = from;
-            this.to = to;
+            this.current = current;
             this.step = step;
-            this.isAscending = from <= to;
+            this.remaining = remaining;
+            this.isAscending = step > 0L;
         }
 
         @Override
@@ -1039,34 +946,27 @@ public final class LongInterval
         @Override
         public OfLong trySplit()
         {
-            OfLong leftSpliterator = null;
-            long numberOfStepsToMid = (int) (this.estimateSize() / 2);
-            long mid = this.current + this.step * numberOfStepsToMid;
-
-            if (this.isAscending)
+            // Split by element count, not by a signed midpoint value comparison
+            // (which can wrap). The left half covers the first `leftCount`
+            // elements; this spliterator keeps the rest.
+            long leftCount = this.remaining / 2L;
+            if (leftCount == 0L)
             {
-                if (this.current < mid)
-                {
-                    leftSpliterator = new LongIntervalSpliterator(this.current, mid - 1, this.step);
-                    this.current = mid;
-                }
+                return null;
             }
-            else
-            {
-                if (this.current > mid)
-                {
-                    leftSpliterator = new LongIntervalSpliterator(this.current, mid + 1, this.step);
-                    this.current = mid;
-                }
-            }
-
-            return leftSpliterator;
+            long leftStart = this.current;
+            // The new start value after the left half. `step * leftCount` may
+            // overflow in isolation, but the two's-complement sum wraps back to
+            // the correct in-range value (same contract as valueAtIndex).
+            this.current += this.step * leftCount;
+            this.remaining -= leftCount;
+            return new LongIntervalSpliterator(leftStart, this.step, leftCount);
         }
 
         @Override
         public long estimateSize()
         {
-            return ((long) this.to - (long) this.current) / (long) this.step + 1;
+            return this.remaining;
         }
 
         @Override
@@ -1078,19 +978,35 @@ public final class LongInterval
         @Override
         public boolean tryAdvance(LongConsumer action)
         {
+            if (this.remaining <= 0L)
+            {
+                return false;
+            }
             action.accept(this.current);
             this.current += this.step;
-            if (this.isAscending)
+            this.remaining--;
+            return true;
+        }
+
+        @Override
+        public void forEachRemaining(LongConsumer action)
+        {
+            while (this.remaining > 0L)
             {
-                return this.current <= this.to;
+                action.accept(this.current);
+                this.current += this.step;
+                this.remaining--;
             }
-            return this.current >= this.to;
         }
     }
 
     private static long calculateAdjustedStep(long from, long to, long stepBy)
     {
-        int direction = Long.signum(to - from);
+        // Use a signed comparison rather than Long.signum(to - from): the
+        // subtraction wraps for a full-domain direction (e.g. from MIN to MAX),
+        // flipping the step sign and getting the interval wrongly rejected.
+        // Multiplying by direction in {-1, 0, 1} cannot overflow stepBy.
+        int direction = Long.compare(to, from);
         return direction == 0 ? stepBy : (long) direction * stepBy;
     }
 }

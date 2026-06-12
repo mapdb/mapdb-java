@@ -9,6 +9,6 @@
  */
 
 /**
- * This package contains implementations for Eclipse Collections API.
+ * This package contains implementations for the mapdb-collections API.
  */
 package org.mapdb.collections.impl;

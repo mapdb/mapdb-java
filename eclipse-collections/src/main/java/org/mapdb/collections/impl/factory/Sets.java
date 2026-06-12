@@ -101,7 +101,7 @@ public final class Sets
      * changes made to the returned set will affect the original set and vice versa.
      * <p>
      * This method does not create a copy of the provided set, making it a lightweight
-     * way to use the Eclipse Collections API with existing JDK sets.
+     * way to use the mapdb-collections API with existing JDK sets.
      *
      * @param set the set to adapt
      * @param <T> the element type
