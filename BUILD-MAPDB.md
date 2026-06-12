@@ -62,6 +62,23 @@ in v1.
   `performRelease`.
 - OSGi/bnd machinery was removed entirely (no `bnd.bnd`, no bnd profile).
 
+### Publishing — explicit deferred debt
+
+The root `pom.xml` carries a `release-artifacts` profile (id `release-artifacts`,
+activated by `-DperformRelease=true`): it GPG-signs artifacts, builds the
+aggregate Javadoc, and points `distributionManagement` at the legacy OSSRH
+staging repo (`oss.sonatype.org`). **No publication workflow currently drives
+it** — there is no CI release job, no executed `mvn deploy`, and the fork has
+never been published. This is intentional, deferred debt (Jan's call,
+2026-06-12), not an oversight.
+
+Driving an actual Maven Central release would still require: namespace /
+`groupId` verification for `org.mapdb` (and OSSRH→Central Portal migration, since
+the configured `oss.sonatype.org` endpoint is the sunset legacy host), a real
+GPG signing key in CI, and a deliberate `1.0.0` (non-SNAPSHOT) version call. None
+of that is in scope until an actual release is wanted; the profile is kept so the
+plumbing is ready when that decision is made.
+
 ## 2. Code generation (StringTemplate)
 
 Generation runs every build; the generated `.java` sources are a build product,
