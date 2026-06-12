@@ -10,9 +10,16 @@
 
 package org.mapdb.nativetests;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.ByteIterable;
+import org.mapdb.collections.api.iterator.ByteIterator;
 import org.mapdb.collections.impl.list.primitive.ByteInterval;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -96,5 +103,96 @@ public class ByteIntervalBoundaryTest
         assertEquals((byte) 10, rev.get(0));
         assertEquals((byte) 1, rev.get(rev.size() - 1));
         assertEquals(iv.size(), rev.size());
+    }
+
+    @Test
+    @Timeout(10)
+    public void fullDomainTraversalDoesNotWrapOrOverRun()
+    {
+        // The literal full byte domain [MIN, MAX] step 1 == 256 elements.
+        ByteInterval iv = ByteInterval.fromToBy(Byte.MIN_VALUE, Byte.MAX_VALUE, (byte) 1);
+        assertEquals(256, iv.size());
+
+        byte[] expected = new byte[256];
+        for (int i = 0; i < 256; i++)
+        {
+            expected[i] = (byte) (Byte.MIN_VALUE + i);
+        }
+
+        byte[] array = iv.toArray();
+        assertEquals(iv.size(), array.length);
+        assertArrayEquals(expected, array);
+
+        AtomicInteger eachCount = new AtomicInteger();
+        iv.each(value -> eachCount.incrementAndGet());
+        assertEquals(iv.size(), eachCount.get());
+
+        byte[] seen = new byte[iv.size()];
+        AtomicInteger fewiCount = new AtomicInteger();
+        iv.forEachWithIndex((value, index) ->
+        {
+            seen[index] = value;
+            fewiCount.incrementAndGet();
+        });
+        assertEquals(iv.size(), fewiCount.get());
+        assertArrayEquals(expected, seen);
+
+        ByteIterator iterator = iv.byteIterator();
+        int iterCount = 0;
+        while (iterator.hasNext())
+        {
+            assertEquals(expected[iterCount], iterator.next());
+            iterCount++;
+        }
+        assertEquals(iv.size(), iterCount);
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    @Timeout(10)
+    public void descendingFullDomainTraversalDoesNotWrapOrOverRun()
+    {
+        ByteInterval iv = ByteInterval.fromToBy(Byte.MAX_VALUE, Byte.MIN_VALUE, (byte) -1);
+        assertEquals(256, iv.size());
+
+        byte[] expected = new byte[256];
+        for (int i = 0; i < 256; i++)
+        {
+            expected[i] = (byte) (Byte.MAX_VALUE - i);
+        }
+        assertArrayEquals(expected, iv.toArray());
+
+        AtomicInteger eachCount = new AtomicInteger();
+        iv.each(value -> eachCount.incrementAndGet());
+        assertEquals(iv.size(), eachCount.get());
+    }
+
+    @Test
+    public void chunkAtExtremePartitionsAllElements()
+    {
+        ByteInterval iv = ByteInterval.fromToBy((byte) (Byte.MAX_VALUE - 2), Byte.MAX_VALUE, (byte) 1);
+        assertEquals(3, iv.size());
+        RichIterable<ByteIterable> chunks = iv.chunk(2);
+        assertEquals(2, chunks.size());
+        assertArrayEquals(new byte[] {(byte) (Byte.MAX_VALUE - 2), (byte) (Byte.MAX_VALUE - 1)},
+                chunks.getFirst().toArray());
+        assertArrayEquals(new byte[] {Byte.MAX_VALUE}, chunks.getLast().toArray());
+    }
+
+    @Test
+    public void chunkOfSingletonReturnsSingleBatch()
+    {
+        // Pre-fix this returns [] (element dropped); must be [[5]].
+        RichIterable<ByteIterable> chunks = ByteInterval.fromToBy((byte) 5, (byte) 5, (byte) 1).chunk(2);
+        assertEquals(1, chunks.size());
+        assertArrayEquals(new byte[] {5}, chunks.getFirst().toArray());
+    }
+
+    @Test
+    public void chunkSizeNotLessThanIntervalReturnsSingleBatch()
+    {
+        RichIterable<ByteIterable> chunks = ByteInterval.fromToBy((byte) 1, (byte) 3, (byte) 1).chunk(10);
+        assertEquals(1, chunks.size());
+        assertArrayEquals(new byte[] {1, 2, 3}, chunks.getFirst().toArray());
     }
 }

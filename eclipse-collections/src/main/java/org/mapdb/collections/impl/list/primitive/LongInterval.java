@@ -285,7 +285,7 @@ public final class LongInterval
     /**
      * Returns true if the LongInterval contains none of the specified long values.
      */
-    public boolean containsNone(int... values)
+    public boolean containsNone(long... values)
     {
         for (long value : values)
         {
@@ -611,7 +611,10 @@ public final class LongInterval
             while (idx < this.size)
             {
                 MutableLongList batch = LongLists.mutable.empty();
-                for (int batchEnd = Math.min(idx + size, this.size); idx < batchEnd; idx++)
+                // idx + Math.min(size, this.size - idx) — never `idx + size`, which
+                // overflows int once idx > 0 and the chunk size is large (the
+                // remaining count this.size - idx is always a safe non-negative int).
+                for (int batchEnd = idx + Math.min(size, this.size - idx); idx < batchEnd; idx++)
                 {
                     batch.add(LongIntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
                 }
@@ -710,18 +713,20 @@ public final class LongInterval
             return this.getFirst();
         }
 
-        long fl = this.getFirst() + this.getLast();
-        long s = this.size();
+        int n = this.size();
 
-        if (s % 2 == 0)
+        if (n % 2 == 0)
         {
-            s /= 2L;
+            // Even n: (n / 2) is exact, so (n / 2) * (first + last) is the
+            // arithmetic-series sum computed mod 2^64 (exact for substitutability
+            // with LongArrayList even when the true sum overflows).
+            return (long) (n / 2) * (this.getFirst() + this.getLast());
         }
-        else
-        {
-            fl /= 2L;
-        }
-        return s * fl;
+        // Odd n: the sum equals n * (middle element). Halving first+last before
+        // multiplying (the old code) does not commute with mod 2^64 and gives a
+        // wrong result once the true sum overflows; multiplying by the middle
+        // element is mod-2^64-exact.
+        return (long) n * LongIntervalUtils.valueAtIndex(n / 2, this.from, this.to, this.step);
     }
 
     @Override

@@ -10,8 +10,12 @@
 
 package org.mapdb.nativetests;
 
+import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.StreamSupport;
 
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.LongIterable;
 import org.mapdb.collections.api.iterator.LongIterator;
 import org.mapdb.collections.impl.list.primitive.LongInterval;
 import org.junit.jupiter.api.Test;
@@ -221,5 +225,77 @@ public class LongIntervalBoundaryTest
         assertEquals(a, c);
         assertEquals(a.hashCode(), b.hashCode());
         assertEquals(a.hashCode(), c.hashCode());
+    }
+
+    @Test
+    public void sumMatchesElementwiseAccumulationWhenTrueSumOverflows()
+    {
+        // MINOR 1 regression: for odd size the old code halved the WRAPPED
+        // (first + last) before multiplying, which does not commute with mod
+        // 2^64 once the mathematical sum overflows. sum() must equal the plain
+        // element-wise accumulation (substitutability with LongArrayList).
+        LongInterval iv = LongInterval.fromToBy(Long.MAX_VALUE - 2, Long.MAX_VALUE, 1L);
+        assertEquals(3, iv.size());
+
+        long elementwise = 0L;
+        for (long value : iv.toArray())
+        {
+            elementwise += value;
+        }
+        assertEquals(elementwise, iv.sum());
+        // And it equals n * middle element.
+        assertEquals(3L * (Long.MAX_VALUE - 1L), iv.sum());
+    }
+
+    @Test
+    public void containsNoneAcceptsLongRangeValues()
+    {
+        // MINOR 2 regression: containsNone now takes long..., so values outside
+        // the int range are testable on a long-typed interval.
+        LongInterval iv = LongInterval.fromToBy(Long.MAX_VALUE - 2, Long.MAX_VALUE, 1L);
+        assertFalse(iv.containsNone(Long.MAX_VALUE));
+        assertTrue(iv.containsNone(Long.MIN_VALUE, 0L));
+    }
+
+    @Test
+    public void chunkAtExtremeTerminatesAndPartitionsAllElements()
+    {
+        LongInterval iv = LongInterval.fromToBy(Long.MAX_VALUE - 2, Long.MAX_VALUE, 1L);
+        assertEquals(3, iv.size());
+        RichIterable<LongIterable> chunks = iv.chunk(2);
+        assertEquals(2, chunks.size());
+        assertArrayEquals(new long[] {Long.MAX_VALUE - 2, Long.MAX_VALUE - 1},
+                chunks.getFirst().toArray());
+        assertArrayEquals(new long[] {Long.MAX_VALUE}, chunks.getLast().toArray());
+    }
+
+    @Test
+    public void chunkOfSingletonReturnsSingleBatch()
+    {
+        RichIterable<LongIterable> chunks = LongInterval.fromToBy(5L, 5L, 1L).chunk(2);
+        assertEquals(1, chunks.size());
+        assertArrayEquals(new long[] {5L}, chunks.getFirst().toArray());
+    }
+
+    @Test
+    public void spliteratorAtExtremeTerminatesWithExactElements()
+    {
+        LongInterval iv = LongInterval.fromToBy(Long.MAX_VALUE - 1, Long.MAX_VALUE, 1L);
+        assertEquals(2, iv.size());
+        long[] streamed = StreamSupport.longStream(iv.spliterator(), false).toArray();
+        assertArrayEquals(new long[] {Long.MAX_VALUE - 1, Long.MAX_VALUE}, streamed);
+    }
+
+    @Test
+    public void exhaustedSpliteratorReturnsFalseWithoutInvokingAction()
+    {
+        Spliterator.OfLong s = LongInterval.fromToBy(1L, 2L, 1L).spliterator();
+        AtomicInteger count = new AtomicInteger();
+        java.util.function.LongConsumer counter = value -> count.incrementAndGet();
+        assertTrue(s.tryAdvance(counter));
+        assertTrue(s.tryAdvance(counter));
+        assertFalse(s.tryAdvance(counter));
+        assertFalse(s.tryAdvance(counter));
+        assertEquals(2, count.get());
     }
 }

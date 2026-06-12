@@ -664,35 +664,23 @@ public final class IntInterval
         MutableList<IntIterable> result = Lists.mutable.empty();
         if (this.notEmpty())
         {
-            int innerFrom = this.from;
-            int lastUpdated = this.from;
-            if (this.from <= this.to)
+            // Index-driven so the chunk boundaries cannot wrap at the full int
+            // domain (a value-based `i += step` / `i <= to` walk wraps there,
+            // running away when the last element is Integer.MAX/MIN_VALUE) and
+            // so a singleton (or any size <= chunkSize) interval still yields
+            // one batch containing every element.
+            int idx = 0;
+            while (idx < this.size)
             {
-                while ((lastUpdated + this.step) <= this.to)
+                MutableIntList batch = IntLists.mutable.empty();
+                // idx + Math.min(size, this.size - idx) — never `idx + size`, which
+                // overflows int once idx > 0 and the chunk size is large (the
+                // remaining count this.size - idx is always a safe non-negative int).
+                for (int batchEnd = idx + Math.min(size, this.size - idx); idx < batchEnd; idx++)
                 {
-                    MutableIntList batch = IntLists.mutable.empty();
-                    for (long i = innerFrom; i <= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add((int) i);
-                        lastUpdated = (int) i;
-                    }
-                    result.add(batch);
-                    innerFrom = lastUpdated + this.step;
+                    batch.add((int) IntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
                 }
-            }
-            else
-            {
-                while ((lastUpdated + this.step) >= this.to)
-                {
-                    MutableIntList batch = IntLists.mutable.empty();
-                    for (long i = innerFrom; i >= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add((int) i);
-                        lastUpdated = (int) i;
-                    }
-                    result.add(batch);
-                    innerFrom = lastUpdated + this.step;
-                }
+                result.add(batch);
             }
         }
         return result;
@@ -937,7 +925,7 @@ public final class IntInterval
     @Override
     public Spliterator.OfInt spliterator()
     {
-        return new IntIntervalSpliterator(this.from, this.to, this.step);
+        return new IntIntervalSpliterator(this.from, this.step, this.size);
     }
 
     @Override
@@ -975,17 +963,23 @@ public final class IntInterval
 
     private static final class IntIntervalSpliterator implements Spliterator.OfInt
     {
+        // Index/remaining-count driven so production and splitting cannot wrap
+        // or over-run at the full int domain: `current += step` plus a signed
+        // `current <= to`/`current >= to` test wraps there (after emitting
+        // Integer.MAX_VALUE the test stays true forever). `current` is the next
+        // value to emit and `remaining` is how many elements are still to be
+        // produced (a genuine element count, which fits in a long).
         private int current;
-        private final int to;
+        private long remaining;
         private final int step;
         private final boolean isAscending;
 
-        private IntIntervalSpliterator(int from, int to, int step)
+        private IntIntervalSpliterator(int current, int step, long remaining)
         {
-            this.current = from;
-            this.to = to;
+            this.current = current;
             this.step = step;
-            this.isAscending = from <= to;
+            this.remaining = remaining;
+            this.isAscending = step > 0;
         }
 
         @Override
@@ -1001,34 +995,27 @@ public final class IntInterval
         @Override
         public OfInt trySplit()
         {
-            OfInt leftSpliterator = null;
-            int numberOfStepsToMid = (int) (this.estimateSize() / 2);
-            int mid = this.current + this.step * numberOfStepsToMid;
-
-            if (this.isAscending)
+            // Split by element count, not by a signed midpoint value comparison
+            // (which can wrap). The left half covers the first `leftCount`
+            // elements; this spliterator keeps the rest.
+            long leftCount = this.remaining / 2L;
+            if (leftCount == 0L)
             {
-                if (this.current < mid)
-                {
-                    leftSpliterator = new IntIntervalSpliterator(this.current, mid - 1, this.step);
-                    this.current = mid;
-                }
+                return null;
             }
-            else
-            {
-                if (this.current > mid)
-                {
-                    leftSpliterator = new IntIntervalSpliterator(this.current, mid + 1, this.step);
-                    this.current = mid;
-                }
-            }
-
-            return leftSpliterator;
+            int leftStart = this.current;
+            // The new start value after the left half. `step * leftCount` may
+            // overflow in isolation, but the two's-complement sum wraps back to
+            // the correct in-range value (same contract as valueAtIndex).
+            this.current += (int) (this.step * leftCount);
+            this.remaining -= leftCount;
+            return new IntIntervalSpliterator(leftStart, this.step, leftCount);
         }
 
         @Override
         public long estimateSize()
         {
-            return ((long) this.to - (long) this.current) / (long) this.step + 1;
+            return this.remaining;
         }
 
         @Override
@@ -1040,13 +1027,25 @@ public final class IntInterval
         @Override
         public boolean tryAdvance(IntConsumer action)
         {
+            if (this.remaining <= 0L)
+            {
+                return false;
+            }
             action.accept(this.current);
             this.current += this.step;
-            if (this.isAscending)
+            this.remaining--;
+            return true;
+        }
+
+        @Override
+        public void forEachRemaining(IntConsumer action)
+        {
+            while (this.remaining > 0L)
             {
-                return this.current <= this.to;
+                action.accept(this.current);
+                this.current += this.step;
+                this.remaining--;
             }
-            return this.current >= this.to;
         }
     }
 

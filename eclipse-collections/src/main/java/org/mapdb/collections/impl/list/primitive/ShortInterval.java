@@ -621,35 +621,22 @@ public final class ShortInterval
         MutableList<ShortIterable> result = Lists.mutable.empty();
         if (this.notEmpty())
         {
-            short innerFrom = this.from;
-            short lastUpdated = this.from;
-            if (this.from <= this.to)
+            // Index-driven so a singleton (or any size <= chunkSize) interval
+            // still yields one batch containing every element; the old
+            // value-based `(lastUpdated + step) <= to` guard dropped the sole
+            // element of a size-1 interval, diverging from LongInterval.chunk.
+            int idx = 0;
+            while (idx < this.size)
             {
-                while ((lastUpdated + this.step) <= this.to)
+                MutableShortList batch = ShortLists.mutable.empty();
+                // idx + Math.min(size, this.size - idx) — never `idx + size`, which
+                // overflows int once idx > 0 and the chunk size is large (the
+                // remaining count this.size - idx is always a safe non-negative int).
+                for (int batchEnd = idx + Math.min(size, this.size - idx); idx < batchEnd; idx++)
                 {
-                    MutableShortList batch = ShortLists.mutable.empty();
-                    for (long i = innerFrom; i <= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add((short) i);
-                        lastUpdated = (short) i;
-                    }
-                    result.add(batch);
-                    innerFrom = (short) (lastUpdated + this.step);
+                    batch.add((short) IntervalUtils.valueAtIndex(idx, this.from, this.to, this.step));
                 }
-            }
-            else
-            {
-                while ((lastUpdated + this.step) >= this.to)
-                {
-                    MutableShortList batch = ShortLists.mutable.empty();
-                    for (long i = innerFrom; i >= this.to && batch.size() < size; i += this.step)
-                    {
-                        batch.add((short) i);
-                        lastUpdated = (short) i;
-                    }
-                    result.add(batch);
-                    innerFrom = (short) (lastUpdated + this.step);
-                }
+                result.add(batch);
             }
         }
         return result;

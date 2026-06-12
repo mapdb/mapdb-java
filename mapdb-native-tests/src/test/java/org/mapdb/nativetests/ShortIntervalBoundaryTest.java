@@ -10,9 +10,16 @@
 
 package org.mapdb.nativetests;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.mapdb.collections.api.RichIterable;
+import org.mapdb.collections.api.ShortIterable;
+import org.mapdb.collections.api.iterator.ShortIterator;
 import org.mapdb.collections.impl.list.primitive.ShortInterval;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -97,5 +104,96 @@ public class ShortIntervalBoundaryTest
         assertEquals((short) 10, rev.get(0));
         assertEquals((short) 1, rev.get(rev.size() - 1));
         assertEquals(iv.size(), rev.size());
+    }
+
+    @Test
+    @Timeout(10)
+    public void fullDomainTraversalDoesNotWrapOrOverRun()
+    {
+        // The literal full short domain [MIN, MAX] step 1 == 65536 elements.
+        ShortInterval iv = ShortInterval.fromToBy(Short.MIN_VALUE, Short.MAX_VALUE, (short) 1);
+        assertEquals(65536, iv.size());
+
+        short[] expected = new short[65536];
+        for (int i = 0; i < 65536; i++)
+        {
+            expected[i] = (short) (Short.MIN_VALUE + i);
+        }
+
+        short[] array = iv.toArray();
+        assertEquals(iv.size(), array.length);
+        assertArrayEquals(expected, array);
+
+        AtomicInteger eachCount = new AtomicInteger();
+        iv.each(value -> eachCount.incrementAndGet());
+        assertEquals(iv.size(), eachCount.get());
+
+        short[] seen = new short[iv.size()];
+        AtomicInteger fewiCount = new AtomicInteger();
+        iv.forEachWithIndex((value, index) ->
+        {
+            seen[index] = value;
+            fewiCount.incrementAndGet();
+        });
+        assertEquals(iv.size(), fewiCount.get());
+        assertArrayEquals(expected, seen);
+
+        ShortIterator iterator = iv.shortIterator();
+        int iterCount = 0;
+        while (iterator.hasNext())
+        {
+            assertEquals(expected[iterCount], iterator.next());
+            iterCount++;
+        }
+        assertEquals(iv.size(), iterCount);
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    @Timeout(10)
+    public void descendingFullDomainTraversalDoesNotWrapOrOverRun()
+    {
+        ShortInterval iv = ShortInterval.fromToBy(Short.MAX_VALUE, Short.MIN_VALUE, (short) -1);
+        assertEquals(65536, iv.size());
+
+        short[] expected = new short[65536];
+        for (int i = 0; i < 65536; i++)
+        {
+            expected[i] = (short) (Short.MAX_VALUE - i);
+        }
+        assertArrayEquals(expected, iv.toArray());
+
+        AtomicInteger eachCount = new AtomicInteger();
+        iv.each(value -> eachCount.incrementAndGet());
+        assertEquals(iv.size(), eachCount.get());
+    }
+
+    @Test
+    public void chunkAtExtremePartitionsAllElements()
+    {
+        ShortInterval iv = ShortInterval.fromToBy((short) (Short.MAX_VALUE - 2), Short.MAX_VALUE, (short) 1);
+        assertEquals(3, iv.size());
+        RichIterable<ShortIterable> chunks = iv.chunk(2);
+        assertEquals(2, chunks.size());
+        assertArrayEquals(new short[] {(short) (Short.MAX_VALUE - 2), (short) (Short.MAX_VALUE - 1)},
+                chunks.getFirst().toArray());
+        assertArrayEquals(new short[] {Short.MAX_VALUE}, chunks.getLast().toArray());
+    }
+
+    @Test
+    public void chunkOfSingletonReturnsSingleBatch()
+    {
+        // Pre-fix this returns [] (element dropped); must be [[5]].
+        RichIterable<ShortIterable> chunks = ShortInterval.fromToBy((short) 5, (short) 5, (short) 1).chunk(2);
+        assertEquals(1, chunks.size());
+        assertArrayEquals(new short[] {5}, chunks.getFirst().toArray());
+    }
+
+    @Test
+    public void chunkSizeNotLessThanIntervalReturnsSingleBatch()
+    {
+        RichIterable<ShortIterable> chunks = ShortInterval.fromToBy((short) 1, (short) 3, (short) 1).chunk(10);
+        assertEquals(1, chunks.size());
+        assertArrayEquals(new short[] {1, 2, 3}, chunks.getFirst().toArray());
     }
 }

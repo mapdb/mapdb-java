@@ -128,7 +128,10 @@ public final class IntervalUtils
 
     public static int calculateAdjustedStep(int from, int to, int stepBy)
     {
-        int direction = Integer.signum(to - from);
+        // Integer.compare, not signum(to - from): the subtraction wraps across the
+        // full int domain (e.g. from MIN_VALUE to MAX_VALUE), flipping the inferred
+        // direction. Mirrors LongInterval's Long.compare-based builder.
+        int direction = Integer.compare(to, from);
         return direction == 0 ? stepBy : direction * stepBy;
     }
 }
