@@ -26,6 +26,7 @@ import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.Hash;
+import org.mapdb.collections.impl.Bloom;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -253,6 +254,9 @@ public final class ValidationRunner {
                 break;
             case "HashPipeline":
                 runHashPipeline(scenario, r);
+                break;
+            case "Bloom":
+                runBloom(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1990,5 +1994,205 @@ public final class ValidationRunner {
             }
             r.emit(key, computed, e.getValue(), FloatMode.NONE);
         }
+    }
+
+    // ---- Bloom (spec/features/bloom.md) -----------------------------------
+    //
+    // A new collection kind: "collection": "Bloom". Exactly ONE with_params op
+    // builds the filter (zero/multiple -> SKIP, the from_sorted/HashPipeline
+    // rule); subsequent ops are `add`. A union scenario carries a second filter
+    // in the top-level "other" block. Bytes are emitted as a lower-case
+    // 0x-prefixed hex string (byte 0 first, bytes formatted unsigned); set_bits
+    // are sorted ascending. contains_<v>/union_contains_<v> parse a signed i32
+    // suffix. Unknown ops/keys/kinds SKIP (forward-compat); m=0/range/union
+    // mismatch guard to SKIP.
+
+    private static final Pattern BLOOM_CONTAINS = Pattern.compile("^contains_(-?[0-9]+)$");
+    private static final Pattern BLOOM_UNION_CONTAINS = Pattern.compile("^union_contains_(-?[0-9]+)$");
+
+    /**
+     * Strictly read an integral JSON field as a signed i32. A missing,
+     * non-integral, or out-of-i32-range value is malformed for the Java port and
+     * SKIPs (rather than silently coercing via {@link JsonNode#asInt()}).
+     */
+    private static int bloomI32Field(JsonNode op, String field)
+    {
+        JsonNode n = op.get(field);
+        if (n == null || !n.isIntegralNumber() || !n.canConvertToInt())
+        {
+            throw new ScenarioSkipException(
+                    "Bloom " + field + " must be an i32 integer (forward-compat skip)");
+        }
+        return n.asInt();
+    }
+
+    /** Strictly parse a signed-i32 assertion-key suffix, SKIPping if out of range. */
+    private static int bloomI32Suffix(String suffix)
+    {
+        try
+        {
+            return Integer.parseInt(suffix);
+        }
+        catch (NumberFormatException ex)
+        {
+            throw new ScenarioSkipException(
+                    "Bloom contains suffix out of i32 range (forward-compat skip): " + suffix);
+        }
+    }
+
+    /**
+     * Build a Bloom filter from an operations array: exactly one {@code
+     * with_params} op (else malformed -> SKIP), then {@code add} ops. Unknown
+     * ops SKIP (forward-compat). Guards {@code m = 0} / out-of-range -> SKIP.
+     */
+    private Bloom buildBloom(JsonNode ops)
+    {
+        if (ops == null || !ops.isArray())
+        {
+            throw new ScenarioSkipException("Bloom scenario must have an operations array");
+        }
+        int withParamsCount = 0;
+        for (JsonNode op : ops)
+        {
+            if (op.path("op").asText().equals("with_params"))
+            {
+                withParamsCount++;
+            }
+        }
+        if (withParamsCount != 1)
+        {
+            throw new ScenarioSkipException(
+                    "Bloom scenario must have exactly one with_params op (forward-compat): got "
+                            + withParamsCount);
+        }
+        Bloom bloom = null;
+        for (JsonNode op : ops)
+        {
+            String name = op.path("op").asText();
+            switch (name)
+            {
+                case "with_params":
+                {
+                    int m = bloomI32Field(op, "m");
+                    int k = bloomI32Field(op, "k");
+                    try
+                    {
+                        // m=0/negative or negative k -> withParams throws; guard
+                        // it to SKIP (malformed for the Java subset) rather than
+                        // letting it FAIL the scenario.
+                        bloom = Bloom.withParams(m, k);
+                    }
+                    catch (IllegalArgumentException ex)
+                    {
+                        throw new ScenarioSkipException("Bloom with_params invalid: " + ex.getMessage());
+                    }
+                    break;
+                }
+                case "add":
+                    if (bloom == null)
+                    {
+                        throw new ScenarioSkipException("Bloom add before with_params");
+                    }
+                    bloom.add(bloomI32Field(op, "value"));
+                    break;
+                default:
+                    // Unknown op -> SKIP (forward-compat).
+                    throw new ScenarioSkipException("unknown Bloom op (forward-compat skip): " + name);
+            }
+        }
+        return bloom;
+    }
+
+    private void runBloom(JsonNode scenario, ScenarioResult r)
+    {
+        Bloom bloom = buildBloom(scenario.path("operations"));
+        Bloom other = scenario.has("other")
+                ? buildBloom(scenario.path("other").path("operations"))
+                : null;
+        Bloom union = null;
+        if (other != null)
+        {
+            try
+            {
+                union = bloom.union(other);
+            }
+            catch (IllegalArgumentException ex)
+            {
+                // Mismatched (m, k) -> guard to SKIP (the shared suite only
+                // asserts a matching union; a mismatch is malformed here).
+                throw new ScenarioSkipException("Bloom union param mismatch: " + ex.getMessage());
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            r.emit(key, evalBloom(key, bloom, union), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    /**
+     * Render a byte array as a lower-case {@code 0x}-prefixed hex string, byte 0
+     * first, two hex digits per byte (formatted unsigned).
+     */
+    private static String bloomHex(byte[] bytes)
+    {
+        StringBuilder sb = new StringBuilder("0x");
+        for (byte b : bytes)
+        {
+            sb.append(String.format("%02x", b & 0xFF));
+        }
+        return sb.toString();
+    }
+
+    private String evalBloom(String key, Bloom bloom, Bloom union)
+    {
+        switch (key)
+        {
+            case "m_bits":
+                return String.valueOf(bloom.mBits());
+            case "k":
+                return String.valueOf(bloom.k());
+            case "bit_count":
+                return String.valueOf(bloom.bitCount());
+            case "is_empty":
+                return String.valueOf(bloom.isEmpty());
+            case "set_bits":
+                return formatIntArray(bloom.setBits());
+            case "bytes":
+                return bloomHex(bloom.toBytes());
+            default:
+                break;
+        }
+        Matcher cm = BLOOM_CONTAINS.matcher(key);
+        if (cm.matches())
+        {
+            return String.valueOf(bloom.mightContain(bloomI32Suffix(cm.group(1))));
+        }
+        // Union keys require "other"; absent -> null (SKIP via emit).
+        if (union == null)
+        {
+            return null;
+        }
+        switch (key)
+        {
+            case "union_bit_count":
+                return String.valueOf(union.bitCount());
+            case "union_set_bits":
+                return formatIntArray(union.setBits());
+            case "union_bytes":
+                return bloomHex(union.toBytes());
+            default:
+                break;
+        }
+        Matcher um = BLOOM_UNION_CONTAINS.matcher(key);
+        if (um.matches())
+        {
+            return String.valueOf(union.mightContain(bloomI32Suffix(um.group(1))));
+        }
+        return null;
     }
 }
