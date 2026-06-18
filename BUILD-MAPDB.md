@@ -99,7 +99,9 @@ java -jar mapdb-validation/target/mapdb-validation.jar \
   ../mapdb-collection-spec/cross-language-validation/scenarios
 ```
 
-Expected: `scenarios run: 57, result: GREEN` (exit code 0).
+Expected: `scenarios run: 103, result: GREEN` (exit code 0). This includes the
+23 `04-ordering` NavigableMap/NavigableSet scenarios and the 23 `10-range`
+scenarios.
 
 ## 4. Native (port-specific) tests
 
@@ -114,7 +116,9 @@ on the locally-installed core SNAPSHOTs, so run step 1 first, then:
 mvn -f mapdb-native-tests/pom.xml test
 ```
 
-Expected: `Tests run: 53, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+Expected: `Tests run: 133, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`
+(includes the boxed-tree NavigableMap/NavigableSet battery —
+`NavigableTreeMapTest`, `NavigableTreeSetTest`).
 The distinct-NaN-payload tests are the headline proof of the raw-bit float
 identity change.
 
