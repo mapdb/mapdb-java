@@ -20,6 +20,8 @@ import org.mapdb.collections.impl.multimap.list.FastListMultimap;
 import org.mapdb.collections.impl.multimap.set.UnifiedSetMultimap;
 import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
+import org.mapdb.collections.impl.range.BoundType;
+import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
@@ -32,6 +34,9 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -229,6 +234,9 @@ public final class ValidationRunner {
                 break;
             case "ArrayList<f32>":
                 runF32List(scenario, r);
+                break;
+            case "Range<i32>":
+                runRange(scenario, r);
                 break;
             default:
                 throw new UnsupportedCollectionException("no stock-EC production type for: " + collection);
@@ -1125,6 +1133,152 @@ public final class ValidationRunner {
                     computed = null;
             }
             r.emit(key, computed, e.getValue(), FloatMode.F32_LIST);
+        }
+    }
+
+    // ---- Range<i32> (boxed Range<Integer>) --------------------------------
+
+    private static final Pattern CONTAINS_N = Pattern.compile("^contains_(-?\\d+)$");
+
+    /**
+     * The Bound/Range value model (spec/features/bound-range.md). Exactly ONE
+     * constructor op builds the range under test; an optional {@code "other"}
+     * block (same single-builder shape) supplies the second range for the
+     * binary ops. The i32 universe is boxed as {@code Range<Integer>}.
+     */
+    private void runRange(JsonNode scenario, ScenarioResult r) {
+        Range<Integer> range = buildRange(scenario.path("operations"));
+        Range<Integer> other = scenario.has("other")
+                ? buildRange(scenario.path("other").path("operations"))
+                : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            r.emit(key, evalRange(key, range, other), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private Range<Integer> buildRange(JsonNode ops) {
+        if (ops == null || !ops.isArray() || ops.size() != 1) {
+            throw new IllegalArgumentException(
+                    "Range<i32> scenario must have exactly one constructor op");
+        }
+        JsonNode op = ops.get(0);
+        String name = op.path("op").asText();
+        switch (name) {
+            case "closed":
+                return Range.closed(op.get("lower").asInt(), op.get("upper").asInt());
+            case "open":
+                return Range.open(op.get("lower").asInt(), op.get("upper").asInt());
+            case "closed_open":
+                return Range.closedOpen(op.get("lower").asInt(), op.get("upper").asInt());
+            case "open_closed":
+                return Range.openClosed(op.get("lower").asInt(), op.get("upper").asInt());
+            case "at_least":
+                return Range.atLeast(op.get("lower").asInt());
+            case "greater_than":
+                return Range.greaterThan(op.get("lower").asInt());
+            case "at_most":
+                return Range.atMost(op.get("upper").asInt());
+            case "less_than":
+                return Range.lessThan(op.get("upper").asInt());
+            case "all":
+                return Range.all();
+            case "singleton":
+                return Range.singleton(op.get("value").asInt());
+            default:
+                throw new IllegalArgumentException("unknown range op: " + name);
+        }
+    }
+
+    private static String boundTypeStr(BoundType bt) {
+        if (bt == BoundType.OPEN) {
+            return "open";
+        }
+        if (bt == BoundType.CLOSED) {
+            return "closed";
+        }
+        return "null";
+    }
+
+    private static String optIntStr(Integer v) {
+        return v == null ? "null" : String.valueOf(v);
+    }
+
+    /**
+     * Evaluate a single Range assertion key. Returns {@code null} for an
+     * unrecognised key, which the shared {@code emit} reports as SKIP and fails
+     * the scenario (no silent vacuous pass). Binary-op keys require an
+     * {@code other} range; when it is absent they fall through to {@code null}.
+     */
+    private String evalRange(String key, Range<Integer> range, Range<Integer> other) {
+        switch (key) {
+            case "is_empty":
+                return String.valueOf(range.isEmpty());
+            case "has_lower_bound":
+                return String.valueOf(range.hasLowerBound());
+            case "has_upper_bound":
+                return String.valueOf(range.hasUpperBound());
+            case "lower_bound_type":
+                return boundTypeStr(range.lowerBoundType());
+            case "upper_bound_type":
+                return boundTypeStr(range.upperBoundType());
+            case "lower_endpoint":
+                return optIntStr(range.lowerEndpoint());
+            case "upper_endpoint":
+                return optIntStr(range.upperEndpoint());
+            default:
+                break;
+        }
+        Matcher m = CONTAINS_N.matcher(key);
+        if (m.matches()) {
+            return String.valueOf(range.contains(Integer.parseInt(m.group(1))));
+        }
+        // Binary-op keys below require "other".
+        if (other == null) {
+            return null;
+        }
+        switch (key) {
+            case "encloses_other":
+                return String.valueOf(range.encloses(other));
+            case "is_connected_other":
+                return String.valueOf(range.isConnected(other));
+            case "span_lower":
+                return optIntStr(range.span(other).lowerEndpoint());
+            case "span_upper":
+                return optIntStr(range.span(other).upperEndpoint());
+            case "span_lower_type":
+                return boundTypeStr(range.span(other).lowerBoundType());
+            case "span_upper_type":
+                return boundTypeStr(range.span(other).upperBoundType());
+            default:
+                break;
+        }
+        // Intersection: empty Optional = disjoint; present (possibly cut-empty)
+        // = abut/overlap. The disjoint-case fallback (spec §"Disjoint-case
+        // fallback") is exactly what these null/false branches emit.
+        Optional<Range<Integer>> inter = range.intersection(other);
+        switch (key) {
+            case "intersection_is_none":
+                return String.valueOf(inter.isEmpty());
+            case "intersection_is_empty":
+                return String.valueOf(inter.isPresent() && inter.get().isEmpty());
+            case "intersection_lower":
+                return optIntStr(inter.map(Range::lowerEndpoint).orElse(null));
+            case "intersection_upper":
+                return optIntStr(inter.map(Range::upperEndpoint).orElse(null));
+            case "intersection_lower_type":
+                return boundTypeStr(inter.map(Range::lowerBoundType).orElse(null));
+            case "intersection_upper_type":
+                return boundTypeStr(inter.map(Range::upperBoundType).orElse(null));
+            case "intersection_has_lower_bound":
+                return String.valueOf(inter.isPresent() && inter.get().hasLowerBound());
+            case "intersection_has_upper_bound":
+                return String.valueOf(inter.isPresent() && inter.get().hasUpperBound());
+            default:
+                return null;
         }
     }
 
