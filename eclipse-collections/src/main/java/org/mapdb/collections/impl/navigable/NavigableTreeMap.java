@@ -6,6 +6,7 @@
 
 package org.mapdb.collections.impl.navigable;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -282,7 +283,7 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         {
             if (range.contains(e.getKey()))
             {
-                out.add(Map.entry(e.getKey(), e.getValue()));
+                out.add(new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue()));
             }
         }
         return out;
@@ -310,7 +311,7 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         {
             if (range.contains(e.getKey()))
             {
-                out.add(Map.entry(e.getKey(), e.getValue()));
+                out.add(new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue()));
             }
         }
         return out;
@@ -328,7 +329,7 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         List<Map.Entry<K, V>> out = new ArrayList<>();
         for (Map.Entry<K, V> e : this.nav.descendingMap().entrySet())
         {
-            out.add(Map.entry(e.getKey(), e.getValue()));
+            out.add(new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue()));
         }
         return out;
     }

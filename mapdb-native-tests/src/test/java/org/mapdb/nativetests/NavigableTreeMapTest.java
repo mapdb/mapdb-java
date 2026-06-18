@@ -130,6 +130,24 @@ public class NavigableTreeMapTest
     }
 
     @Test
+    public void rangeEntriesTolerateNullValues()
+    {
+        // The generic value surface allows null values; range-entry snapshots
+        // must not reject them (Map.entry would NPE — use a null-tolerant entry).
+        NavigableTreeMap<Integer, String> m = NavigableTreeMap.newMap();
+        m.put(10, "a");
+        m.put(20, null);
+        m.put(30, "c");
+        List<Map.Entry<Integer, String>> entries = m.rangeEntries(Range.closed(10, 30));
+        assertEquals(3, entries.size());
+        assertEquals(Integer.valueOf(20), entries.get(1).getKey());
+        assertNull(entries.get(1).getValue());
+        // descending forms too
+        assertEquals(3, m.descendingRangeEntries(Range.closed(10, 30)).size());
+        assertEquals(3, m.descendingEntries().size());
+    }
+
+    @Test
     public void rangeOpenNoIntegerIsEmptyNotCutEmpty()
     {
         // open(1,2) over Integer matches NOTHING (membership = contains) but the
