@@ -216,6 +216,43 @@ public final class Range<C extends Comparable<? super C>>
         return this.upper.isFinite();
     }
 
+    // ---- range bracketing over a sorted backing (cut semantics) -----------
+
+    /**
+     * Bracket the contiguous {@code [start, end)} index window of a
+     * <strong>strictly ascending</strong> list whose elements fall inside this
+     * range. Membership over a sorted slice is contiguous (the range is convex),
+     * so two binary searches suffice: {@code start} is the first index whose key
+     * is strictly above the lower cut, {@code end} is one past the last in-range
+     * key.
+     *
+     * <p>The brackets are derived purely from the cut comparison —
+     * {@code Below(v)} vs {@code Above(v)} vs the unbounded sentinels — so
+     * open/closed bounds at {@code INT_MIN}/{@code INT_MAX} never compute a
+     * predecessor/successor ({@code v ± 1}) and never overflow (the
+     * {@code sorted-table-map} signed-edge trap). {@code start == end} is an
+     * empty (possibly cut-empty, or discrete-empty such as {@code open(1, 2)}
+     * over {@code Integer}) result, never an error.
+     *
+     * @param sorted a strictly-ascending list under the natural order of {@code C}
+     * @return a two-element {@code [start, end)} window into {@code sorted}
+     */
+    public int[] bracket(java.util.List<C> sorted)
+    {
+        int n = sorted.size();
+        // start: first index whose key is strictly ABOVE the lower cut.
+        int start = this.lower.lowerBracket(sorted, n);
+        // end: first index whose key is NOT below the upper cut (one past the
+        // last in-range key).
+        int end = this.upper.upperBracket(sorted, n);
+        // A fully-disjoint range can yield start > end; normalise to empty.
+        if (start > end)
+        {
+            return new int[] {end, end};
+        }
+        return new int[] {start, end};
+    }
+
     // ---- algebra (all via cut comparison) ---------------------------------
 
     /**
@@ -353,6 +390,50 @@ public final class Range<C extends Comparable<? super C>>
         /** The upper-side {@code contains} predicate for this cut. */
         abstract boolean upperOk(C x);
 
+        /**
+         * As a LOWER cut: index of the first element of {@code sorted} that is
+         * strictly above this cut (the start of the in-range window). Computed by
+         * binary search over {@code sorted} using only value comparison — never
+         * {@code v ± 1} — so it is overflow-safe at the signed extremes.
+         */
+        abstract int lowerBracket(java.util.List<C> sorted, int n);
+
+        /**
+         * As an UPPER cut: index one past the last element of {@code sorted} not
+         * above this cut (the end of the in-range window). Same overflow-safe
+         * binary-search basis as {@link #lowerBracket}.
+         */
+        abstract int upperBracket(java.util.List<C> sorted, int n);
+
+        /**
+         * Partition point: the first index {@code i} in {@code [0, n)} for which
+         * {@code sorted[i]} fails {@code predicateBelow} (the prefix where the
+         * predicate holds is contiguous because {@code sorted} is ascending).
+         * {@code strictBelowV} selects {@code key < v} (true) vs {@code key <= v}
+         * (false). Overflow-safe midpoint {@code lo + (hi - lo) / 2}.
+         */
+        static <C extends Comparable<? super C>> int partitionPoint(
+                java.util.List<C> sorted, int n, C v, boolean strictBelowV)
+        {
+            int lo = 0;
+            int hi = n;
+            while (lo < hi)
+            {
+                int mid = lo + (hi - lo) / 2;
+                int c = sorted.get(mid).compareTo(v);
+                boolean below = strictBelowV ? c < 0 : c <= 0;
+                if (below)
+                {
+                    lo = mid + 1;
+                }
+                else
+                {
+                    hi = mid;
+                }
+            }
+            return lo;
+        }
+
         /** {@link BoundType} when this cut is a lower endpoint; {@code null} if unbounded. */
         abstract BoundType boundTypeAsLower();
 
@@ -412,6 +493,19 @@ public final class Range<C extends Comparable<? super C>>
             {
                 // BelowAll is never an upper cut.
                 return false;
+            }
+
+            @Override
+            int lowerBracket(java.util.List<C> sorted, int n)
+            {
+                return 0;
+            }
+
+            @Override
+            int upperBracket(java.util.List<C> sorted, int n)
+            {
+                // BelowAll is never an upper cut (factory invariant); empty.
+                return 0;
             }
 
             @Override
@@ -482,6 +576,19 @@ public final class Range<C extends Comparable<? super C>>
             boolean upperOk(C x)
             {
                 return true;
+            }
+
+            @Override
+            int lowerBracket(java.util.List<C> sorted, int n)
+            {
+                // AboveAll is never a lower cut (factory invariant); empty.
+                return n;
+            }
+
+            @Override
+            int upperBracket(java.util.List<C> sorted, int n)
+            {
+                return n;
             }
 
             @Override
@@ -569,6 +676,20 @@ public final class Range<C extends Comparable<? super C>>
             }
 
             @Override
+            int lowerBracket(java.util.List<C> sorted, int n)
+            {
+                // Closed lower [v: include v -> first key >= v (first !(key < v)).
+                return partitionPoint(sorted, n, this.value, true);
+            }
+
+            @Override
+            int upperBracket(java.util.List<C> sorted, int n)
+            {
+                // Open upper v): exclude v -> first key >= v (first !(key < v)).
+                return partitionPoint(sorted, n, this.value, true);
+            }
+
+            @Override
             BoundType boundTypeAsLower()
             {
                 return BoundType.CLOSED;
@@ -650,6 +771,20 @@ public final class Range<C extends Comparable<? super C>>
             {
                 // closed upper v] : x <= v.
                 return x.compareTo(this.value) <= 0;
+            }
+
+            @Override
+            int lowerBracket(java.util.List<C> sorted, int n)
+            {
+                // Open lower (v: exclude v -> first key > v (first !(key <= v)).
+                return partitionPoint(sorted, n, this.value, false);
+            }
+
+            @Override
+            int upperBracket(java.util.List<C> sorted, int n)
+            {
+                // Closed upper v]: include v -> first key > v (first !(key <= v)).
+                return partitionPoint(sorted, n, this.value, false);
             }
 
             @Override

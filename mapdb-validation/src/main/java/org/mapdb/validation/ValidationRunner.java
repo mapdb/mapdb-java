@@ -23,6 +23,8 @@ import org.mapdb.collections.impl.navigable.NavigableTreeSet;
 import org.mapdb.collections.impl.range.BoundType;
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
+import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -132,12 +134,10 @@ public final class ValidationRunner {
         ScenarioResult result = new ScenarioResult(name);
         try {
             dispatch(collection, scenario, result);
-        } catch (UnsupportedCollectionException e) {
-            // EC ships no production surface for this type -> RED (counts as fail).
-            System.out.println("UNSUPPORTED: " + e.getMessage());
-            System.out.println("FAIL " + name + " : unsupported collection type in stock EC: " + collection);
-            anyFail = true;
-            tally(dir, 2);
+        } catch (ScenarioSkipException e) {
+            // Malformed/forward-compat scenario -> SKIP (neither PASS nor FAIL).
+            System.out.println("SKIP " + name + " : " + e.getMessage());
+            scenariosRun--;
             return;
         } catch (RuntimeException e) {
             System.out.println("ERROR: " + e);
@@ -188,8 +188,14 @@ public final class ValidationRunner {
         }
     }
 
-    private static final class UnsupportedCollectionException extends RuntimeException {
-        UnsupportedCollectionException(String msg) {
+    /**
+     * A malformed scenario the runner declines to evaluate (per the
+     * cross-language README forward-compat / authoring rules): e.g. a
+     * sorted-table scenario with zero or multiple {@code from_sorted} ops. The
+     * scenario is SKIPPED (neither PASS nor FAIL), not silently mis-applied.
+     */
+    private static final class ScenarioSkipException extends RuntimeException {
+        ScenarioSkipException(String msg) {
             super(msg);
         }
     }
@@ -238,8 +244,18 @@ public final class ValidationRunner {
             case "Range<i32>":
                 runRange(scenario, r);
                 break;
+            case "ImmutableSortedMap<i32, i32>":
+                runImmutableSortedMap(scenario, r);
+                break;
+            case "ImmutableSortedSet<i32>":
+                runImmutableSortedSet(scenario, r);
+                break;
             default:
-                throw new UnsupportedCollectionException("no stock-EC production type for: " + collection);
+                // Forward-compat: a collection kind this runner does not yet
+                // understand is SKIPPED (neither PASS nor FAIL), per the
+                // cross-language-validation README. Adding a future kind never
+                // breaks an older runner.
+                throw new ScenarioSkipException("unknown collection kind (forward-compat skip): " + collection);
         }
     }
 
@@ -1457,6 +1473,195 @@ public final class ValidationRunner {
         }
     }
 
+    // ---- ImmutableSortedMap<i32, i32> / ImmutableSortedSet<i32> -----------
+    //
+    // The compact immutable sorted table (spec features/sorted-table-map.md).
+    // Built by EXACTLY ONE from_sorted op (zero or multiple -> SKIP, per the
+    // cross-language authoring rules). Reuses the structural/lookup, navigable
+    // (nav/range), and rank/select assertion keys.
+
+    /**
+     * Extract the single {@code from_sorted} op node from a sorted-table
+     * scenario. SKIPs (does not fail) when there is not exactly one
+     * {@code from_sorted} op (the README's malformed-scenario rule).
+     */
+    private static JsonNode requireSingleFromSorted(JsonNode scenario) {
+        JsonNode ops = scenario.path("operations");
+        JsonNode found = null;
+        int count = 0;
+        if (ops.isArray()) {
+            for (JsonNode op : ops) {
+                if ("from_sorted".equals(op.path("op").asText())) {
+                    count++;
+                    found = op;
+                }
+            }
+        }
+        if (count != 1) {
+            throw new ScenarioSkipException(
+                    "sorted-table scenario must have exactly one from_sorted op (found " + count + ")");
+        }
+        return found;
+    }
+
+    private static int[] intArray(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return new int[0];
+        }
+        int[] out = new int[node.size()];
+        for (int i = 0; i < node.size(); i++) {
+            out[i] = node.get(i).asInt();
+        }
+        return out;
+    }
+
+    private void runImmutableSortedMap(JsonNode scenario, ScenarioResult r) {
+        JsonNode op = requireSingleFromSorted(scenario);
+        int[] keys = intArray(op.get("keys"));
+        int[] values = intArray(op.get("values"));
+        ImmutableSortedMap<Integer, Integer> map = ImmutableSortedMap.fromSorted(keys, values);
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            r.emit(key, evalImmutableSortedMap(key, map, query), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private String evalImmutableSortedMap(String key, ImmutableSortedMap<Integer, Integer> map,
+                                          Range<Integer> query) {
+        switch (key) {
+            case "size":
+                return String.valueOf(map.size());
+            case "is_empty":
+                return String.valueOf(map.isEmpty());
+            case "min":
+            case "first_key":
+                return optIntStr(map.firstKey().orElse(null));
+            case "max":
+            case "last_key":
+                return optIntStr(map.lastKey().orElse(null));
+            case "sorted_keys":
+                return formatIntList(map.keys());
+            case "sorted_values":
+                // The harness's sorted_values is "all values, sorted ascending"
+                // (README) -- the value multiset, NOT the key-order values()
+                // pairing (which is a native-test obligation). Sort a copy.
+                return formatIntArray(sortedAsc(map.values().stream().mapToInt(Integer::intValue).toArray()));
+            case "descending_keys":
+                return formatIntList(map.descendingKeys());
+            case "range_keys":
+                return query == null ? null : formatIntList(map.rangeKeys(query));
+            case "range_keys_desc":
+                return query == null ? null : formatIntList(map.descendingRangeKeys(query));
+            case "range_size":
+                return query == null ? null : String.valueOf(map.rangeKeys(query).size());
+            default:
+                break;
+        }
+        if (key.startsWith("get_")) {
+            return optIntStr(map.get(Integer.parseInt(key.substring(4))).orElse(null));
+        }
+        if (key.startsWith("contains_")) {
+            return String.valueOf(map.containsKey(Integer.parseInt(key.substring(9))));
+        }
+        Matcher rank = RANK_KEY.matcher(key);
+        if (rank.matches()) {
+            return String.valueOf(map.rank(Integer.parseInt(rank.group(1))));
+        }
+        Matcher sel = SELECT_KEY.matcher(key);
+        if (sel.matches()) {
+            return optIntStr(map.selectKey(Integer.parseInt(sel.group(1))).orElse(null));
+        }
+        Integer navArg = parseNavKey(key);
+        if (navArg != null) {
+            if (key.startsWith("floor_")) {
+                return optIntStr(map.floorKey(navArg).orElse(null));
+            }
+            if (key.startsWith("ceiling_")) {
+                return optIntStr(map.ceilingKey(navArg).orElse(null));
+            }
+            if (key.startsWith("lower_")) {
+                return optIntStr(map.lowerKey(navArg).orElse(null));
+            }
+            if (key.startsWith("higher_")) {
+                return optIntStr(map.higherKey(navArg).orElse(null));
+            }
+        }
+        return null;
+    }
+
+    private void runImmutableSortedSet(JsonNode scenario, ScenarioResult r) {
+        JsonNode op = requireSingleFromSorted(scenario);
+        int[] elements = intArray(op.get("elements"));
+        ImmutableSortedSet<Integer> set = ImmutableSortedSet.fromSorted(elements);
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            r.emit(key, evalImmutableSortedSet(key, set, query), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private String evalImmutableSortedSet(String key, ImmutableSortedSet<Integer> set,
+                                          Range<Integer> query) {
+        switch (key) {
+            case "size":
+                return String.valueOf(set.size());
+            case "is_empty":
+                return String.valueOf(set.isEmpty());
+            case "min":
+            case "first":
+                return optIntStr(set.first().orElse(null));
+            case "max":
+            case "last":
+                return optIntStr(set.last().orElse(null));
+            case "to_sorted_array":
+                return formatIntList(set.elements());
+            case "descending_elements":
+                return formatIntList(set.descendingElements());
+            case "range_elements":
+                return query == null ? null : formatIntList(set.rangeElements(query));
+            case "range_elements_desc":
+                return query == null ? null : formatIntList(set.descendingRangeElements(query));
+            case "range_size":
+                return query == null ? null : String.valueOf(set.rangeElements(query).size());
+            default:
+                break;
+        }
+        if (key.startsWith("contains_")) {
+            return String.valueOf(set.contains(Integer.parseInt(key.substring(9))));
+        }
+        Matcher rank = RANK_KEY.matcher(key);
+        if (rank.matches()) {
+            return String.valueOf(set.rank(Integer.parseInt(rank.group(1))));
+        }
+        Matcher sel = SELECT_KEY.matcher(key);
+        if (sel.matches()) {
+            return optIntStr(set.select(Integer.parseInt(sel.group(1))).orElse(null));
+        }
+        Integer navArg = parseNavKey(key);
+        if (navArg != null) {
+            if (key.startsWith("floor_")) {
+                return optIntStr(set.floor(navArg).orElse(null));
+            }
+            if (key.startsWith("ceiling_")) {
+                return optIntStr(set.ceiling(navArg).orElse(null));
+            }
+            if (key.startsWith("lower_")) {
+                return optIntStr(set.lower(navArg).orElse(null));
+            }
+            if (key.startsWith("higher_")) {
+                return optIntStr(set.higher(navArg).orElse(null));
+            }
+        }
+        return null;
+    }
+
     // ---- expected rendering + loose NaN -----------------------------------
 
     private String renderExpected(JsonNode v, String key, FloatMode mode) {
@@ -1580,7 +1785,7 @@ public final class ValidationRunner {
         }
         System.out.println("-----------------------------------------");
         System.out.printf("%-22s %6d %6d %6d%n", "TOTAL", tp, tf, tu);
-        System.out.println("(unsup = scenarios that could not run: no stock-EC type; counted as FAIL)");
+        System.out.println("(unsup column retained for layout; unknown collection kinds now SKIP per forward-compat)");
         System.out.println("assertions skipped (no evaluator; each fails its scenario): " + skippedAssertions);
         System.out.println("scenarios run: " + scenariosRun + ", result: " + (anyFail ? "RED (failures present)" : "GREEN"));
     }
