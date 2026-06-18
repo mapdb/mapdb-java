@@ -45,6 +45,7 @@ import org.mapdb.collections.api.set.primitive.<name>Set;
 import org.mapdb.collections.impl.set.immutable.primitive.Immutable<name>SetSerializationProxy;
 import org.mapdb.collections.impl.set.mutable.UnifiedSet;
 import org.mapdb.collections.impl.Fibonacci;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.set.immutable.primitive.AbstractImmutable<name>Set;
 import org.mapdb.collections.impl.set.primitive.Abstract<name>Set;
 
@@ -132,6 +133,84 @@ public class <name>HashSet extends Abstract<name>Set implements Mutable<name>Set
     public static <name>HashSet newSetWith(<type>... source)
     {
         return new <name>HashSet(source);
+    }
+
+    /**
+     * Bulk-import (data pump) factory: builds a fresh set, pre-sizing the
+     * open-addressing table once so the load runs in a single O(n) pass. The
+     * {@code expectedSize} is a hint; this overload may grow if the source is
+     * larger (no zero-rehash guarantee -- use {@link #bulkLoadExact}). Duplicate
+     * elements are handled per {@code policy}
+     * ({@link Pump.DuplicatePolicy#ERROR} throws {@link Pump.PumpSourceDuplicate};
+     * {@link Pump.DuplicatePolicy#IGNORE} keeps the first). See the mapdb spec
+     * data-pump feature.
+     */
+    public static <name>HashSet bulkLoad(int expectedSize, <name>Iterable elements, Pump.DuplicatePolicy policy)
+    {
+        <name>HashSet set = new <name>HashSet();
+        set.allocateTableForBulk(expectedSize);
+        set.bulkAdd(elements, policy, -1);
+        return set;
+    }
+
+    /**
+     * Exact bulk-import (data pump) factory: pre-sizes for exactly
+     * {@code exactSize} elements with a GUARANTEED zero mid-load rehash and throws
+     * {@link IllegalArgumentException} if the source yields more than
+     * {@code exactSize} elements.
+     */
+    public static <name>HashSet bulkLoadExact(int exactSize, <name>Iterable elements, Pump.DuplicatePolicy policy)
+    {
+        <name>HashSet set = new <name>HashSet();
+        set.allocateTableForBulk(exactSize);
+        set.bulkAdd(elements, policy, exactSize);
+        return set;
+    }
+
+    private void bulkAdd(<name>Iterable elements, Pump.DuplicatePolicy policy, int maxElements)
+    {
+        <name>Iterator it = elements.<type>Iterator();
+        int consumed = 0;
+        while (it.hasNext())
+        {
+            <type> element = it.next();
+            consumed++;
+            if (maxElements >= 0 && consumed > maxElements)
+            {
+                throw new IllegalArgumentException("bulkLoadExact: source exceeds exactSize " + maxElements);
+            }
+            boolean added = this.add(element);
+            if (!added && policy == Pump.DuplicatePolicy.ERROR)
+            {
+                throw new Pump.PumpSourceDuplicate(element);
+            }
+        }
+    }
+
+    /**
+     * Allocate the backing table once so it can hold {@code expectedSize} elements
+     * with no rehash during a bulk load. Mirrors the EC ~50%-occupancy growth
+     * rule: capacity nextPow2(2 * expectedSize) keeps occupiedWithData at or below
+     * capacity / 2 for the whole load. Values 0..31 live in the side bitmask and
+     * do not consume table slots, so this is a (safe) upper-bound sizing. See
+     * spec/features/data-pump.md.
+     */
+    private void allocateTableForBulk(int expectedSize)
+    {
+        if (expectedSize \< 0)
+        {
+            throw new IllegalArgumentException("expectedSize cannot be less than 0");
+        }
+        if (expectedSize == 0)
+        {
+            return;
+        }
+        long needed = 2L * expectedSize;
+        if (needed > (1L \<\< 30))
+        {
+            throw new IllegalArgumentException("expectedSize too large for a single bulk allocation: " + expectedSize);
+        }
+        this.allocateTable(this.smallestPowerOfTwoGreaterThan((int) needed));
     }
 
     private static boolean isBetweenZeroAndThirtyOne(<type> value)
