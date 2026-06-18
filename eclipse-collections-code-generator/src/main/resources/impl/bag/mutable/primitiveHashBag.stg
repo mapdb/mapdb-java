@@ -42,6 +42,7 @@ import org.mapdb.collections.api.set.primitive.<name>Set;
 import org.mapdb.collections.api.tuple.primitive.<name>IntPair;
 import org.mapdb.collections.api.list.MutableList;
 import org.mapdb.collections.impl.Counter;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.bag.mutable.HashBag;
 import org.mapdb.collections.impl.block.factory.primitive.IntToIntFunctions;
 import org.mapdb.collections.impl.factory.primitive.<name>Bags;
@@ -128,6 +129,12 @@ public class <name>HashBag
      * {@code DuplicatePolicy}. {@code expectedDistinct} is the number of DISTINCT
      * elements expected; over-counting it is safe (just allocates more). See the
      * mapdb spec data-pump feature.
+     *
+     * \<p>Counts are overflow-checked: the data-pump spec requires bag run counts
+     * to be checked (bulk construction is where huge runs are expected), so a
+     * per-element occurrence count or the total bag size crossing
+     * {@code Integer.MAX_VALUE} throws {@link Pump.PumpSourceOverflow} instead of
+     * silently wrapping into a negative count.
      */
     public static <name>HashBag bulkLoad(int expectedDistinct, <name>Iterable elements)
     {
@@ -140,10 +147,27 @@ public class <name>HashBag
         // no rehash under EC's ~50% growth rule -- the bag's zero-rehash pump.
         <name>HashBag bag = new <name>HashBag(expectedDistinct);
         <name>Iterator it = elements.<type>Iterator();
+        long total = 0L;
         while (it.hasNext())
         {
-            bag.add(it.next());
+            <type> each = it.next();
+            // Overflow-checked per-element count: updateValue throws if the new
+            // count would exceed Integer.MAX_VALUE (wrapping negative otherwise).
+            bag.items.updateValue(each, 0, (int current) ->
+            {
+                if (current == Integer.MAX_VALUE)
+                {
+                    throw new Pump.PumpSourceOverflow(each);
+                }
+                return current + 1;
+            });
+            total++;
+            if (total > Integer.MAX_VALUE)
+            {
+                throw new Pump.PumpSourceOverflow(each);
+            }
         }
+        bag.size = (int) total;
         return bag;
     }
 

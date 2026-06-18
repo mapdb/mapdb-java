@@ -21,13 +21,13 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.SortedSet;
 
+import org.mapdb.collections.api.bag.sorted.MutableSortedBag;
 import org.mapdb.collections.api.list.MutableList;
 import org.mapdb.collections.api.map.sorted.MutableSortedMap;
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
 import org.mapdb.collections.api.set.MutableSet;
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
-import org.mapdb.collections.api.bag.sorted.MutableSortedBag;
 import org.mapdb.collections.api.tuple.Pair;
 import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
 import org.mapdb.collections.impl.list.mutable.FastList;
@@ -118,6 +118,28 @@ public final class Pump
         public PumpSourceDuplicate(Object key)
         {
             super("Pump source contains a duplicate key: " + key);
+        }
+    }
+
+    /**
+     * Thrown (unchecked) when a bag pump would overflow a 32-bit count -- either a
+     * single element's occurrence count or the bag's total {@code size} crosses
+     * {@code Integer.MAX_VALUE}. The data-pump spec requires bag run counts to be
+     * overflow-checked (bulk construction is exactly where huge runs are expected),
+     * so the pump fails loudly instead of silently wrapping into a negative count.
+     */
+    public static class PumpSourceOverflow extends IllegalStateException
+    {
+        private static final long serialVersionUID = 1L;
+
+        public PumpSourceOverflow()
+        {
+            super("Pump bag count or size overflows Integer.MAX_VALUE");
+        }
+
+        public PumpSourceOverflow(Object key)
+        {
+            super("Pump bag count or size overflows Integer.MAX_VALUE at element: " + key);
         }
     }
 
@@ -307,26 +329,66 @@ public final class Pump
     {
         return new Sink<T, MutableSortedBag<T>>()
         {
-            private final TreeBag<T> bag = comparator == null ? TreeBag.newBag() : TreeBag.newBag(comparator);
-            private boolean has;
-            private T last;
+            // Parallel sorted runs: distinct elements ascending + their counts.
+            private final List<T> elements = new ArrayList<>();
+            private final List<Counter> counts = new ArrayList<>();
+            // Running total bag size, overflow-checked against Integer.MAX_VALUE.
+            private long totalSize;
 
             @Override
             protected void doPut(T e)
             {
-                if (this.has && compare(comparator, this.last, e) > 0)
+                if (!this.elements.isEmpty())
                 {
-                    throw new PumpSourceNotSorted(e);
+                    int cmp = compare(comparator, this.elements.get(this.elements.size() - 1), e);
+                    if (cmp > 0)
+                    {
+                        throw new PumpSourceNotSorted(e);
+                    }
+                    if (cmp == 0)
+                    {
+                        // Continue the current run: count the duplicate, checked.
+                        Counter counter = this.counts.get(this.counts.size() - 1);
+                        if (counter.getCount() == Integer.MAX_VALUE)
+                        {
+                            throw new PumpSourceOverflow(e);
+                        }
+                        counter.increment();
+                        this.bumpTotal(e);
+                        return;
+                    }
                 }
-                this.bag.add(e);
-                this.last = e;
-                this.has = true;
+                // Start a new run for a strictly-greater element.
+                this.elements.add(e);
+                this.counts.add(new Counter(1));
+                this.bumpTotal(e);
+            }
+
+            private void bumpTotal(T e)
+            {
+                this.totalSize++;
+                if (this.totalSize > Integer.MAX_VALUE)
+                {
+                    throw new PumpSourceOverflow(e);
+                }
             }
 
             @Override
             protected MutableSortedBag<T> doCreate()
             {
-                return this.bag;
+                // Build the underlying TreeSortedMap (element -> Counter) in one
+                // O(n) pass via the JDK TreeMap(SortedMap) bulk constructor, then
+                // wrap it as a TreeBag -- no per-element add()/rebalance.
+                SortedMap<T, Counter> sorted = new SortedEntriesMap<>(comparator, this.elements, this.counts);
+                MutableSortedMap<T, Counter> map = new TreeSortedMap<>(sorted);
+                try
+                {
+                    return TreeBag.fromSortedCounts(map);
+                }
+                catch (ArithmeticException ex)
+                {
+                    throw new PumpSourceOverflow();
+                }
             }
         };
     }
@@ -507,6 +569,243 @@ public final class Pump
         {
             consumer.accept(runKey, run);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Multimap source contracts -- explicit per the data-pump spec:
+    //   fromSortedKeys      : grouped by key (equal keys contiguous), value
+    //                         order within a key NOT validated.
+    //   fromSortedKeyValues : sorted by key THEN value; value order within a
+    //                         key is validated, and SetMultimap dedupes values.
+    //   bulkLoad            : unsorted; hash/group accumulation (no sort claim).
+    // A streaming Sink mirrors each sorted variant.
+    // ------------------------------------------------------------------
+
+    /**
+     * Streaming list-multimap builder over input <b>grouped by key</b> (equal keys
+     * contiguous, ascending under {@code keyComparator}). Value order within a key
+     * is preserved but not validated. Out-of-order keys throw
+     * {@link PumpSourceNotSorted}.
+     */
+    public static <K, V> Sink<Pair<K, V>, MutableListMultimap<K, V>> listMultimapSink(
+            Comparator<? super K> keyComparator)
+    {
+        FastListMultimap<K, V> result = new FastListMultimap<>();
+        return new MultimapRunSink<>(keyComparator, null, false,
+                (key, run) -> result.putAll(key, run), () -> result);
+    }
+
+    /**
+     * Streaming set-multimap builder over input grouped by key. Each key's values
+     * are deduped (set semantics). Value order within a key is not validated.
+     */
+    public static <K, V> Sink<Pair<K, V>, MutableSetMultimap<K, V>> setMultimapSink(
+            Comparator<? super K> keyComparator)
+    {
+        UnifiedSetMultimap<K, V> result = new UnifiedSetMultimap<>();
+        return new MultimapRunSink<>(keyComparator, null, false,
+                (key, run) ->
+                {
+                    MutableSet<V> values = UnifiedSet.newSet(run.size());
+                    values.addAllIterable(run);
+                    result.putAll(key, values);
+                },
+                () -> result);
+    }
+
+    /**
+     * Streaming list-multimap builder over input <b>sorted by key then value</b>.
+     * Value order within each key is validated against {@code valueComparator}
+     * (descending values throw {@link PumpSourceNotSorted}); equal values are kept
+     * (list semantics).
+     */
+    public static <K, V> Sink<Pair<K, V>, MutableListMultimap<K, V>> listMultimapKeyValueSink(
+            Comparator<? super K> keyComparator, Comparator<? super V> valueComparator)
+    {
+        FastListMultimap<K, V> result = new FastListMultimap<>();
+        return new MultimapRunSink<>(keyComparator, valueComparator, false,
+                (key, run) -> result.putAll(key, run), () -> result);
+    }
+
+    /**
+     * Streaming set-multimap builder over input sorted by key then value. Value
+     * order within each key is validated against {@code valueComparator}; equal
+     * values are deduped (set semantics).
+     */
+    public static <K, V> Sink<Pair<K, V>, MutableSetMultimap<K, V>> setMultimapKeyValueSink(
+            Comparator<? super K> keyComparator, Comparator<? super V> valueComparator)
+    {
+        UnifiedSetMultimap<K, V> result = new UnifiedSetMultimap<>();
+        return new MultimapRunSink<>(keyComparator, valueComparator, true,
+                (key, run) ->
+                {
+                    MutableSet<V> values = UnifiedSet.newSet(run.size());
+                    values.addAllIterable(run);
+                    result.putAll(key, values);
+                },
+                () -> result);
+    }
+
+    /** One-shot list multimap from input grouped by key (alias of {@link #listMultimapFromSortedRuns}). */
+    public static <K, V> MutableListMultimap<K, V> listMultimapFromSortedKeys(
+            Comparator<? super K> keyComparator, Iterable<Pair<K, V>> groupedByKey)
+    {
+        Sink<Pair<K, V>, MutableListMultimap<K, V>> sink = listMultimapSink(keyComparator);
+        sink.putAll(groupedByKey);
+        return sink.create();
+    }
+
+    /** One-shot set multimap from input grouped by key (alias of {@link #setMultimapFromSortedRuns}). */
+    public static <K, V> MutableSetMultimap<K, V> setMultimapFromSortedKeys(
+            Comparator<? super K> keyComparator, Iterable<Pair<K, V>> groupedByKey)
+    {
+        Sink<Pair<K, V>, MutableSetMultimap<K, V>> sink = setMultimapSink(keyComparator);
+        sink.putAll(groupedByKey);
+        return sink.create();
+    }
+
+    /**
+     * One-shot list multimap from input <b>sorted by key then value</b>; value
+     * order within each key is validated against {@code valueComparator}.
+     */
+    public static <K, V> MutableListMultimap<K, V> listMultimapFromSortedKeyValues(
+            Comparator<? super K> keyComparator, Comparator<? super V> valueComparator, Iterable<Pair<K, V>> sorted)
+    {
+        Sink<Pair<K, V>, MutableListMultimap<K, V>> sink = listMultimapKeyValueSink(keyComparator, valueComparator);
+        sink.putAll(sorted);
+        return sink.create();
+    }
+
+    /**
+     * One-shot set multimap from input sorted by key then value; value order within
+     * each key is validated against {@code valueComparator} and equal values are
+     * deduped.
+     */
+    public static <K, V> MutableSetMultimap<K, V> setMultimapFromSortedKeyValues(
+            Comparator<? super K> keyComparator, Comparator<? super V> valueComparator, Iterable<Pair<K, V>> sorted)
+    {
+        Sink<Pair<K, V>, MutableSetMultimap<K, V>> sink = setMultimapKeyValueSink(keyComparator, valueComparator);
+        sink.putAll(sorted);
+        return sink.create();
+    }
+
+    /**
+     * Unsorted bulk-load into a list multimap: no order claim on the input. Values
+     * are grouped per key via the multimap's own hash, preserving encounter order
+     * within each key. Equivalent to an n&times;{@code put} loop but a single entry
+     * point for the pump API.
+     */
+    public static <K, V> MutableListMultimap<K, V> listMultimapBulkLoad(Iterable<Pair<K, V>> unsorted)
+    {
+        FastListMultimap<K, V> result = new FastListMultimap<>();
+        for (Pair<K, V> pair : unsorted)
+        {
+            result.put(pair.getOne(), pair.getTwo());
+        }
+        return result;
+    }
+
+    /**
+     * Unsorted bulk-load into a set multimap: no order claim on the input. Values
+     * are grouped per key and deduped (set semantics).
+     */
+    public static <K, V> MutableSetMultimap<K, V> setMultimapBulkLoad(Iterable<Pair<K, V>> unsorted)
+    {
+        UnifiedSetMultimap<K, V> result = new UnifiedSetMultimap<>();
+        for (Pair<K, V> pair : unsorted)
+        {
+            result.put(pair.getOne(), pair.getTwo());
+        }
+        return result;
+    }
+
+    /**
+     * Streaming run-grouping multimap sink. Buffers the contiguous equal-key run,
+     * validating key order (and optionally value order within a key), and flushes
+     * each completed run to the target multimap. The final run is flushed on
+     * {@link Sink#create()}. Honours the {@link Sink} poison / once-only contract.
+     */
+    private static final class MultimapRunSink<K, V, R> extends Sink<Pair<K, V>, R>
+    {
+        private final Comparator<? super K> keyComparator;
+        private final Comparator<? super V> valueComparator;
+        private final boolean dedupeEqualValues;
+        private final RunFlush<K, V> flush;
+        private final java.util.function.Supplier<R> finisher;
+
+        private boolean has;
+        private K runKey;
+        private V lastValue;
+        private MutableList<V> run;
+
+        MultimapRunSink(
+                Comparator<? super K> keyComparator,
+                Comparator<? super V> valueComparator,
+                boolean dedupeEqualValues,
+                RunFlush<K, V> flush,
+                java.util.function.Supplier<R> finisher)
+        {
+            this.keyComparator = keyComparator;
+            this.valueComparator = valueComparator;
+            this.dedupeEqualValues = dedupeEqualValues;
+            this.flush = flush;
+            this.finisher = finisher;
+        }
+
+        @Override
+        protected void doPut(Pair<K, V> pair)
+        {
+            K key = pair.getOne();
+            V value = pair.getTwo();
+            if (this.has)
+            {
+                int cmp = compare(this.keyComparator, this.runKey, key);
+                if (cmp > 0)
+                {
+                    throw new PumpSourceNotSorted(key);
+                }
+                if (cmp == 0)
+                {
+                    if (this.valueComparator != null)
+                    {
+                        int vcmp = this.valueComparator.compare(this.lastValue, value);
+                        if (vcmp > 0)
+                        {
+                            throw new PumpSourceNotSorted(value);
+                        }
+                        if (vcmp == 0 && this.dedupeEqualValues)
+                        {
+                            return; // set-valued: drop the equal duplicate value
+                        }
+                    }
+                    this.run.add(value);
+                    this.lastValue = value;
+                    return;
+                }
+                // new key: flush the completed run.
+                this.flush.accept(this.runKey, this.run);
+            }
+            this.runKey = key;
+            this.run = FastList.newList();
+            this.run.add(value);
+            this.lastValue = value;
+            this.has = true;
+        }
+
+        @Override
+        protected R doCreate()
+        {
+            if (this.has)
+            {
+                this.flush.accept(this.runKey, this.run);
+            }
+            return this.finisher.get();
+        }
+    }
+
+    private interface RunFlush<K, V>
+    {
+        void accept(K key, MutableList<V> run);
     }
 
     // ------------------------------------------------------------------

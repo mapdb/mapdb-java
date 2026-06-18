@@ -19,12 +19,16 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
+import org.mapdb.collections.api.bag.sorted.MutableSortedBag;
 import org.mapdb.collections.api.map.sorted.MutableSortedMap;
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.api.tuple.Pair;
+import org.mapdb.collections.impl.Counter;
 import org.mapdb.collections.impl.Pump;
+import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
+import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.Pump.DuplicatePolicy;
 import org.mapdb.collections.impl.list.mutable.primitive.DoubleArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
@@ -34,6 +38,7 @@ import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.mapdb.collections.impl.set.mutable.primitive.DoubleHashSet;
 import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
+import org.mapdb.collections.api.iterator.IntIterator;
 import org.mapdb.collections.impl.tuple.Tuples;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
@@ -282,6 +287,111 @@ public class PumpTest
         IntHashBag pumped = IntHashBag.bulkLoad(100, elements);
         assertEquals(3, pumped.size());
         assertEquals(3, pumped.sizeDistinct());
+    }
+
+    // ------------------------------------------------------------------
+    // Bag overflow contract (data-pump spec: bag run counts are checked)
+    // ------------------------------------------------------------------
+
+    @Test
+    public void hashBagBulkLoadPerElementCountOverflowThrows()
+    {
+        // One element repeated MAX_VALUE + 1 times: the per-element occurrence
+        // count would wrap from Integer.MAX_VALUE to a negative value -> error.
+        RepeatedIntIterable source = new RepeatedIntIterable(42, (long) Integer.MAX_VALUE + 1);
+        assertThrows(Pump.PumpSourceOverflow.class, () -> IntHashBag.bulkLoad(1, source));
+    }
+
+    @Test
+    public void hashBagBulkLoadAtExactlyMaxValueDoesNotThrow()
+    {
+        // Exactly MAX_VALUE occurrences is the boundary that must still succeed.
+        RepeatedIntIterable source = new RepeatedIntIterable(42, Integer.MAX_VALUE);
+        IntHashBag bag = IntHashBag.bulkLoad(1, source);
+        assertEquals(Integer.MAX_VALUE, bag.occurrencesOf(42));
+        assertEquals(Integer.MAX_VALUE, bag.size());
+        assertEquals(1, bag.sizeDistinct());
+    }
+
+    @Test
+    public void treeBagSinkCountsSortedRunsAndMatchesPutLoop()
+    {
+        // Ascending runs of equal keys -> count == run length, built via the JDK
+        // TreeMap(SortedMap) bulk path (not per-element add()).
+        Pump.Sink<Integer, MutableSortedBag<Integer>> sink = Pump.treeBag(null);
+        sink.put(1);
+        sink.put(1);
+        sink.put(1);
+        sink.put(2);
+        sink.put(3);
+        sink.put(3);
+        MutableSortedBag<Integer> bag = sink.create();
+
+        assertEquals(3, bag.occurrencesOf(1));
+        assertEquals(1, bag.occurrencesOf(2));
+        assertEquals(2, bag.occurrencesOf(3));
+        assertEquals(6, bag.size());
+        assertEquals(3, bag.sizeDistinct());
+
+        TreeBag<Integer> ref = TreeBag.newBag();
+        ref.add(1);
+        ref.add(1);
+        ref.add(1);
+        ref.add(2);
+        ref.add(3);
+        ref.add(3);
+        assertEquals(ref, bag);
+        assertEquals(List.of(1, 1, 1, 2, 3, 3), bag.toList());
+    }
+
+    @Test
+    public void treeBagSinkRejectsOutOfOrder()
+    {
+        Pump.Sink<Integer, MutableSortedBag<Integer>> sink = Pump.treeBag(null);
+        sink.put(1);
+        sink.put(2);
+        assertThrows(Pump.PumpSourceNotSorted.class, () -> sink.put(1));
+    }
+
+    @Test
+    public void treeBagSinkPerRunCountOverflowThrows()
+    {
+        // Drive a single run past Integer.MAX_VALUE occurrences via the synthetic
+        // iterable; the sink's per-run Counter must trip the overflow check.
+        Pump.Sink<Integer, MutableSortedBag<Integer>> sink = Pump.treeBag(null);
+        RepeatedIntIterable source = new RepeatedIntIterable(7, (long) Integer.MAX_VALUE + 1);
+        IntIterator it = source.intIterator();
+        assertThrows(Pump.PumpSourceOverflow.class, () ->
+        {
+            while (it.hasNext())
+            {
+                sink.put(it.next());
+            }
+        });
+    }
+
+    @Test
+    public void treeBagFromSortedCountsTotalSizeOverflowThrows()
+    {
+        // Synthetic Counter path: two distinct keys whose counts together exceed
+        // Integer.MAX_VALUE -> the total bag size overflows and must throw.
+        TreeSortedMap<Integer, Counter> counts = new TreeSortedMap<>();
+        counts.put(1, new Counter(Integer.MAX_VALUE));
+        counts.put(2, new Counter(1));
+        assertThrows(ArithmeticException.class, () -> TreeBag.fromSortedCounts(counts));
+    }
+
+    @Test
+    public void treeBagFromSortedCountsBuildsValidBag()
+    {
+        TreeSortedMap<Integer, Counter> counts = new TreeSortedMap<>();
+        counts.put(1, new Counter(3));
+        counts.put(2, new Counter(2));
+        TreeBag<Integer> bag = TreeBag.fromSortedCounts(counts);
+        assertEquals(5, bag.size());
+        assertEquals(3, bag.occurrencesOf(1));
+        assertEquals(2, bag.occurrencesOf(2));
+        assertEquals(List.of(1, 1, 1, 2, 2), bag.toList());
     }
 
     // ------------------------------------------------------------------
@@ -544,6 +654,100 @@ public class PumpTest
                 Tuples.pair(1, "a"), Tuples.pair(3, "b"), Tuples.pair(2, "c")));
         assertThrows(Pump.PumpSourceNotSorted.class,
                 () -> Pump.listMultimapFromSortedRuns(null, input));
+    }
+
+    // ------------------------------------------------------------------
+    // Multimap source contracts: fromSortedKeys / fromSortedKeyValues / bulkLoad
+    // ------------------------------------------------------------------
+
+    @Test
+    public void multimapFromSortedKeysGroupsByKey()
+    {
+        List<Pair<Integer, String>> input = new ArrayList<>(List.of(
+                Tuples.pair(1, "b"), Tuples.pair(1, "a"),
+                Tuples.pair(2, "c")));
+        // fromSortedKeys does NOT validate value order: "b" then "a" is fine.
+        MutableListMultimap<Integer, String> mm = Pump.listMultimapFromSortedKeys(null, input);
+        assertEquals(List.of("b", "a"), mm.get(1).toList());
+        assertEquals(List.of("c"), mm.get(2).toList());
+    }
+
+    @Test
+    public void multimapFromSortedKeyValuesValidatesValueOrder()
+    {
+        // Values within key 1 are descending -> the key+value path must reject.
+        List<Pair<Integer, String>> input = new ArrayList<>(List.of(
+                Tuples.pair(1, "b"), Tuples.pair(1, "a")));
+        assertThrows(Pump.PumpSourceNotSorted.class,
+                () -> Pump.listMultimapFromSortedKeyValues(null, Comparator.<String>naturalOrder(), input));
+    }
+
+    @Test
+    public void multimapFromSortedKeyValuesAcceptsAscendingValues()
+    {
+        List<Pair<Integer, String>> input = new ArrayList<>(List.of(
+                Tuples.pair(1, "a"), Tuples.pair(1, "b"), Tuples.pair(1, "b"),
+                Tuples.pair(2, "c")));
+        MutableListMultimap<Integer, String> list =
+                Pump.listMultimapFromSortedKeyValues(null, Comparator.<String>naturalOrder(), input);
+        assertEquals(List.of("a", "b", "b"), list.get(1).toList());   // list keeps the equal "b"
+
+        MutableSetMultimap<Integer, String> set =
+                Pump.setMultimapFromSortedKeyValues(null, Comparator.<String>naturalOrder(), input);
+        assertEquals(2, set.get(1).size());   // set dedupes the equal "b"
+        assertTrue(set.get(1).contains("a"));
+        assertTrue(set.get(1).contains("b"));
+    }
+
+    @Test
+    public void multimapSetKeyValueSinkValueOutOfOrderPoisonsSink()
+    {
+        Pump.Sink<Pair<Integer, String>, MutableSetMultimap<Integer, String>> sink =
+                Pump.setMultimapKeyValueSink(null, Comparator.<String>naturalOrder());
+        sink.put(Tuples.pair(1, "b"));
+        assertThrows(Pump.PumpSourceNotSorted.class, () -> sink.put(Tuples.pair(1, "a")));
+        // poisoned: further put and create fail
+        assertThrows(IllegalStateException.class, () -> sink.put(Tuples.pair(2, "z")));
+        assertThrows(IllegalStateException.class, sink::create);
+    }
+
+    @Test
+    public void multimapSinkDoubleCreateFails()
+    {
+        Pump.Sink<Pair<Integer, String>, MutableListMultimap<Integer, String>> sink =
+                Pump.listMultimapSink(null);
+        sink.put(Tuples.pair(1, "a"));
+        sink.put(Tuples.pair(2, "b"));
+        MutableListMultimap<Integer, String> mm = sink.create();
+        assertEquals(List.of("a"), mm.get(1).toList());
+        assertThrows(IllegalStateException.class, sink::create);
+        assertThrows(IllegalStateException.class, () -> sink.put(Tuples.pair(3, "c")));
+    }
+
+    @Test
+    public void multimapSinkRejectsOutOfOrderKeysAndPoisons()
+    {
+        Pump.Sink<Pair<Integer, String>, MutableListMultimap<Integer, String>> sink =
+                Pump.listMultimapSink(null);
+        sink.put(Tuples.pair(1, "a"));
+        sink.put(Tuples.pair(3, "b"));
+        assertThrows(Pump.PumpSourceNotSorted.class, () -> sink.put(Tuples.pair(2, "c")));
+        assertThrows(IllegalStateException.class, sink::create);
+    }
+
+    @Test
+    public void multimapBulkLoadUnsortedGroupsAndDedupes()
+    {
+        List<Pair<Integer, String>> input = new ArrayList<>(List.of(
+                Tuples.pair(3, "c"), Tuples.pair(1, "a"), Tuples.pair(3, "c"),
+                Tuples.pair(1, "b"), Tuples.pair(2, "x")));
+        MutableListMultimap<Integer, String> list = Pump.listMultimapBulkLoad(input);
+        assertEquals(List.of("a", "b"), list.get(1).toList());
+        assertEquals(List.of("x"), list.get(2).toList());
+        assertEquals(List.of("c", "c"), list.get(3).toList());   // list keeps dup
+
+        MutableSetMultimap<Integer, String> set = Pump.setMultimapBulkLoad(input);
+        assertEquals(1, set.get(3).size());   // set dedupes
     }
 
     // small helper to build a reference list-multimap via the normal put loop
