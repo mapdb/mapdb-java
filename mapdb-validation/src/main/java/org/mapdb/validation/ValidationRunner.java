@@ -25,6 +25,7 @@ import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
+import org.mapdb.collections.impl.Hash;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -249,6 +250,9 @@ public final class ValidationRunner {
                 break;
             case "ImmutableSortedSet<i32>":
                 runImmutableSortedSet(scenario, r);
+                break;
+            case "HashPipeline":
+                runHashPipeline(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1788,5 +1792,203 @@ public final class ValidationRunner {
         System.out.println("(unsup column retained for layout; unknown collection kinds now SKIP per forward-compat)");
         System.out.println("assertions skipped (no evaluator; each fails its scenario): " + skippedAssertions);
         System.out.println("scenarios run: " + scenariosRun + ", result: " + (anyFail ? "RED (failures present)" : "GREEN"));
+    }
+
+    // ---- HashPipeline (spec/features/hash-pipeline.md) --------------------
+    //
+    // A stateless probe (NOT a stored collection): exactly ONE hash op carries
+    // the input + seed under test; the assertions read the deterministic hash
+    // output. Hashes are emitted as fixed-width 0x-prefixed lowercase hex (8
+    // digits for a u32, 16 for a u64) so a 64-bit hash survives the JSON 2^53
+    // ceiling and every port's consensus diff is byte-identical. `positions` is
+    // an int[] emitted in DERIVATION order (NOT sorted).
+
+    /** Parse a 0x-prefixed hex `word` operand to a long (full u64 range). */
+    private static long parseHexWord(JsonNode op)
+    {
+        String s = op.path("word").asText();
+        if (!s.startsWith("0x") && !s.startsWith("0X"))
+        {
+            throw new ScenarioSkipException("hash-pipeline word must start with 0x: " + s);
+        }
+        // parseUnsignedLong accepts the full 64-bit range (never via double).
+        return Long.parseUnsignedLong(s.substring(2), 16);
+    }
+
+    /**
+     * Parse a `seed` operand: a DECIMAL STRING parsed straight to u64 via
+     * {@link Long#parseUnsignedLong} (never narrowed through a double). A bare
+     * JSON integer is also accepted for small seeds.
+     */
+    private static long parseSeed(JsonNode op)
+    {
+        JsonNode s = op.path("seed");
+        if (s.isTextual())
+        {
+            return Long.parseUnsignedLong(s.asText());
+        }
+        if (s.isIntegralNumber())
+        {
+            return s.asLong();
+        }
+        throw new ScenarioSkipException("hash-pipeline seed must be a decimal string or integer");
+    }
+
+    /** Parse a 0x-prefixed hex `bytes` operand to a byte[]. */
+    private static byte[] parseHexBytes(JsonNode op)
+    {
+        String s = op.path("bytes").asText();
+        if (!s.startsWith("0x") && !s.startsWith("0X"))
+        {
+            throw new ScenarioSkipException("hash-pipeline bytes must start with 0x: " + s);
+        }
+        String body = s.substring(2);
+        if ((body.length() & 1) != 0)
+        {
+            throw new ScenarioSkipException("hash-pipeline bytes must have an even hex-digit count: " + s);
+        }
+        byte[] out = new byte[body.length() / 2];
+        for (int i = 0; i < out.length; i++)
+        {
+            out[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+        }
+        return out;
+    }
+
+    /** The single hash op of a scenario (zero or multiple ops -> SKIP). */
+    private static JsonNode requireSingleHashOp(JsonNode scenario)
+    {
+        JsonNode ops = scenario.path("operations");
+        if (!ops.isArray() || ops.size() != 1)
+        {
+            throw new ScenarioSkipException(
+                    "hash-pipeline scenario must have exactly one op (forward-compat): got "
+                            + (ops.isArray() ? ops.size() : 0));
+        }
+        return ops.get(0);
+    }
+
+    private static String hex32(int h)
+    {
+        return String.format("0x%08x", h & 0xFFFFFFFFL);
+    }
+
+    private static String hex64(long h)
+    {
+        return "0x" + String.format("%016x", h);
+    }
+
+    private void runHashPipeline(JsonNode scenario, ScenarioResult r)
+    {
+        JsonNode op = requireSingleHashOp(scenario);
+        String opName = op.path("op").asText();
+
+        // A hash probe over a single op: compute the four possible widths lazily.
+        int h32;
+        long h64;
+        int[] positions;
+        switch (opName)
+        {
+            case "hash_word32":
+            {
+                long raw = parseHexWord(op);
+                if (Long.compareUnsigned(raw, 0xFFFFFFFFL) > 0)
+                {
+                    throw new ScenarioSkipException("hash_word32 word exceeds 32 bits: " + op.path("word").asText());
+                }
+                long seed = parseSeed(op);
+                h32 = Hash.hash32((int) raw, seed);
+                h64 = 0L;
+                positions = null;
+                break;
+            }
+            case "hash_word64":
+            {
+                long word = parseHexWord(op);
+                long seed = parseSeed(op);
+                h64 = Hash.hash64(word, seed);
+                h32 = 0;
+                positions = null;
+                break;
+            }
+            case "hash_i32":
+            {
+                int value = op.path("value").asInt();
+                long seed = parseSeed(op);
+                h32 = Hash.hash32Int32(value, seed);
+                h64 = Hash.hash64Int32(value, seed);
+                positions = null;
+                break;
+            }
+            case "hash_bytes":
+            {
+                byte[] bytes = parseHexBytes(op);
+                long seed = parseSeed(op);
+                h32 = Hash.hash32Bytes(bytes, seed);
+                h64 = Hash.hash64Bytes(bytes, seed);
+                positions = null;
+                break;
+            }
+            case "positions":
+            {
+                int value = op.path("value").asInt();
+                int m = op.path("m").asInt();
+                int k = op.path("k").asInt();
+                // The i32 element drives positions via its little-endian 4-byte
+                // form (the byte path the sketches use); no op-level seed (the
+                // scheme fixes the internal seeds 0 and SALT2).
+                byte[] bytes = new byte[] {
+                        (byte) value,
+                        (byte) (value >>> 8),
+                        (byte) (value >>> 16),
+                        (byte) (value >>> 24)
+                };
+                positions = Hash.positions(bytes, m, k);
+                h32 = 0;
+                h64 = 0L;
+                break;
+            }
+            default:
+                throw new ScenarioSkipException("unknown hash-pipeline op (forward-compat skip): " + opName);
+        }
+
+        boolean hash32Op = opName.equals("hash_word32") || opName.equals("hash_i32") || opName.equals("hash_bytes");
+        boolean hash64Op = opName.equals("hash_word64") || opName.equals("hash_i32") || opName.equals("hash_bytes");
+        boolean positionsOp = opName.equals("positions");
+
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            String computed;
+            switch (key)
+            {
+                case "hash32":
+                    computed = hash32Op ? hex32(h32) : null;
+                    break;
+                case "hash64":
+                    computed = hash64Op ? hex64(h64) : null;
+                    break;
+                case "hash64_hi":
+                    computed = hash64Op ? hex32((int) (h64 >>> 32)) : null;
+                    break;
+                case "hash64_lo":
+                    computed = hash64Op ? hex32((int) h64) : null;
+                    break;
+                case "positions":
+                    computed = positionsOp ? formatIntArray(positions) : null;
+                    break;
+                default:
+                    // Forward-compat: an assertion key this runner does not yet
+                    // understand is SKIPPED (per the cross-language README), not
+                    // a vacuous fail. Matches the unknown-op / unknown-kind SKIPs.
+                    throw new ScenarioSkipException(
+                            "unknown hash-pipeline assertion key (forward-compat skip): " + key);
+            }
+            r.emit(key, computed, e.getValue(), FloatMode.NONE);
+        }
     }
 }
