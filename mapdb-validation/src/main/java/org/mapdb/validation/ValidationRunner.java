@@ -22,6 +22,8 @@ import org.mapdb.collections.impl.navigable.NavigableTreeMap;
 import org.mapdb.collections.impl.navigable.NavigableTreeSet;
 import org.mapdb.collections.impl.range.BoundType;
 import org.mapdb.collections.impl.range.Range;
+import org.mapdb.collections.impl.range.RangeMap;
+import org.mapdb.collections.impl.range.RangeSet;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
@@ -187,6 +189,39 @@ public final class ValidationRunner {
                 failed = true;
             }
         }
+
+        /**
+         * Emit a range-object / range-object-array assertion (the RangeSet/
+         * RangeMap {@code as_ranges} / {@code complement_ranges} /
+         * {@code sub_range_set_ranges} / {@code as_map_of_ranges} /
+         * {@code sub_range_map_entries} / {@code range_containing_<v>} /
+         * {@code get_entry_<v>} keys). The standard {@link #emit}/
+         * {@link #renderExpected} path is bypassed because the expected value is a
+         * nested object (or array of objects): the runner builds {@code computed}
+         * by hand in the fixed key order
+         * ({@code lower, lower_type, upper, upper_type[, value]}) and compares it
+         * against the COMPACT canonicalisation of the expected JSON
+         * ({@link JsonNode#toString()}, which preserves source key order and
+         * emits no whitespace) — the byte-for-byte oracle the Rust runner achieves
+         * via serde_json's {@code to_string()}. A {@code null} computed (unknown
+         * evaluator) is a loud SKIP that fails the scenario, like {@link #emit}.
+         */
+        void emitJson(String key, String computed, JsonNode expected) {
+            if (computed == null) {
+                System.out.println("SKIP " + name + " " + key + ": no evaluator for this assertion key");
+                skippedAssertions++;
+                failed = true;
+                return;
+            }
+            System.out.println(key + ": " + computed);
+            // expected.toString() is Jackson's compact form (no spaces, source
+            // key order), matching the hand-built computed string.
+            String expectedStr = expected == null || expected.isNull() ? "null" : expected.toString();
+            if (!computed.equals(expectedStr)) {
+                System.out.println("FAIL " + name + " " + key + ": expected=" + expectedStr + " got=" + computed);
+                failed = true;
+            }
+        }
     }
 
     /**
@@ -244,6 +279,12 @@ public final class ValidationRunner {
                 break;
             case "Range<i32>":
                 runRange(scenario, r);
+                break;
+            case "RangeSet<i32>":
+                runRangeSet(scenario, r);
+                break;
+            case "RangeMap<i32, i32>":
+                runRangeMap(scenario, r);
                 break;
             case "ImmutableSortedMap<i32, i32>":
                 runImmutableSortedMap(scenario, r);
@@ -1475,6 +1516,289 @@ public final class ValidationRunner {
             default:
                 return null;
         }
+    }
+
+    // ---- RangeSet<i32> / RangeMap<i32, i32> -------------------------------
+    //
+    // The auto-coalescing RangeSet / piecewise RangeMap (spec/features/
+    // range-set-map.md). Routed through the PRODUCTION boxed RangeSet<Integer>
+    // / RangeMap<Integer, Integer> (the boxed Java carve-out).
+    //
+    // A RangeSet/RangeMap is a STATEFUL structure built by a sequence of
+    // mutating ops, each carrying a range-builder object (the 10-range op
+    // shape):
+    //   RangeSet: {"op":"add","range":{...}} / {"op":"remove_range","range":{...}}
+    //             / {"op":"clear"}
+    //   RangeMap: {"op":"put","range":{...},"value":<i32>}
+    //             / {"op":"put_coalescing","range":{...},"value":<i32>}
+    //             / {"op":"remove_range","range":{...}} / {"op":"clear"}
+    // An optional top-level "query" (same builder shape) supplies the range for
+    // encloses_query / intersects_query / sub_range_set_ranges /
+    // sub_range_map_entries. Unknown ops/keys/kinds SKIP (forward-compat).
+    //
+    // The as_ranges / complement_ranges / sub_range_set_ranges /
+    // as_map_of_ranges / sub_range_map_entries arrays are EXPLICIT-ORDER
+    // (ascending by lower cut) and the range objects are compared by compact
+    // canonical JSON (see ScenarioResult.emitJson) — never sorted.
+
+    /**
+     * Parse a signed base-10 i32 suffix ({@code -} allowed, {@code +} rejected)
+     * from a {@code <prefix><N>} key — the {@code contains_<v>} / {@code get_<v>}
+     * / {@code range_containing_<v>} / {@code get_entry_<v>} convention. Returns
+     * {@code null} when the key does not match (so the caller falls through).
+     */
+    private static Integer signedI32Suffix(String key, String prefix) {
+        if (!key.startsWith(prefix)) {
+            return null;
+        }
+        String rest = key.substring(prefix.length());
+        // Reject a leading '+' and any non-digit body (mirrors the Rust/Go
+        // runners): rest is an optional '-' then base-10 digits only.
+        if (!rest.matches("-?\\d+")) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(rest);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Serialise a {@code Range<Integer>} as the fixed-shape assertion object
+     * {@code {"lower":..,"lower_type":..,"upper":..,"upper_type":..}} — endpoints
+     * are the i32 value or {@code null} when unbounded, {@code *_type} is
+     * {@code "open"}/{@code "closed"}/{@code null}. Key order matches the scenario
+     * JSON so the compact comparison agrees byte-for-byte.
+     */
+    private static String rangeObjStr(Range<Integer> r) {
+        return "{\"lower\":" + optIntJson(r.lowerEndpoint())
+                + ",\"lower_type\":" + boundTypeJson(r.lowerBoundType())
+                + ",\"upper\":" + optIntJson(r.upperEndpoint())
+                + ",\"upper_type\":" + boundTypeJson(r.upperBoundType())
+                + "}";
+    }
+
+    /**
+     * Serialise a {@code (range, value)} RangeMap entry: the range object plus a
+     * trailing {@code "value":<i32>}.
+     */
+    private static String entryObjStr(RangeMap.Entry<Integer, Integer> e) {
+        Range<Integer> r = e.getRange();
+        return "{\"lower\":" + optIntJson(r.lowerEndpoint())
+                + ",\"lower_type\":" + boundTypeJson(r.lowerBoundType())
+                + ",\"upper\":" + optIntJson(r.upperEndpoint())
+                + ",\"upper_type\":" + boundTypeJson(r.upperBoundType())
+                + ",\"value\":" + e.getValue()
+                + "}";
+    }
+
+    private static String rangeArrayStr(List<Range<Integer>> ranges) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < ranges.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(rangeObjStr(ranges.get(i)));
+        }
+        return sb.append(']').toString();
+    }
+
+    private static String entryArrayStr(List<RangeMap.Entry<Integer, Integer>> entries) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < entries.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(entryObjStr(entries.get(i)));
+        }
+        return sb.append(']').toString();
+    }
+
+    private static String optIntJson(Integer v) {
+        return v == null ? "null" : String.valueOf(v);
+    }
+
+    private static String boundTypeJson(BoundType bt) {
+        if (bt == BoundType.OPEN) {
+            return "\"open\"";
+        }
+        if (bt == BoundType.CLOSED) {
+            return "\"closed\"";
+        }
+        return "null";
+    }
+
+    private void runRangeSet(JsonNode scenario, ScenarioResult r) {
+        RangeSet<Integer> set = new RangeSet<>();
+        JsonNode ops = scenario.path("operations");
+        if (ops.isArray()) {
+            for (JsonNode op : ops) {
+                switch (op.path("op").asText()) {
+                    case "add":
+                        set.add(buildRangeFromNode(op.get("range")));
+                        break;
+                    case "remove_range":
+                        set.remove(buildRangeFromNode(op.get("range")));
+                        break;
+                    case "clear":
+                        set.clear();
+                        break;
+                    default:
+                        throw new ScenarioSkipException(
+                                "unknown RangeSet op (forward-compat skip): " + op.path("op").asText());
+                }
+            }
+        }
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            JsonNode expected = e.getValue();
+            // Object / array-of-object keys: compared via compact canonical JSON.
+            switch (key) {
+                case "as_ranges":
+                    r.emitJson(key, rangeArrayStr(set.asRanges()), expected);
+                    continue;
+                case "complement_ranges":
+                    r.emitJson(key, rangeArrayStr(set.complement().asRanges()), expected);
+                    continue;
+                case "sub_range_set_ranges":
+                    if (query == null) {
+                        r.emitJson(key, null, expected);
+                    } else {
+                        r.emitJson(key, rangeArrayStr(set.subRangeSet(query).asRanges()), expected);
+                    }
+                    continue;
+                default:
+                    break;
+            }
+            Integer rc = signedI32Suffix(key, "range_containing_");
+            if (rc != null) {
+                Optional<Range<Integer>> rng = set.rangeContaining(rc);
+                r.emitJson(key, rng.map(ValidationRunner::rangeObjStr).orElse("null"), expected);
+                continue;
+            }
+            // Scalar / bool keys: the standard emit path.
+            r.emit(key, evalRangeSet(key, set, query), expected, FloatMode.NONE);
+        }
+    }
+
+    /**
+     * Evaluate a scalar/bool RangeSet assertion key. Returns {@code null} for an
+     * unrecognised key (a loud SKIP that fails the scenario). Object-shaped keys
+     * are handled in {@link #runRangeSet} via {@code emitJson}.
+     */
+    private String evalRangeSet(String key, RangeSet<Integer> set, Range<Integer> query) {
+        switch (key) {
+            case "is_empty":
+                return String.valueOf(set.isEmpty());
+            case "span_lower":
+                return optIntStr(set.span().map(Range::lowerEndpoint).orElse(null));
+            case "span_upper":
+                return optIntStr(set.span().map(Range::upperEndpoint).orElse(null));
+            case "span_lower_type":
+                return boundTypeStr(set.span().map(Range::lowerBoundType).orElse(null));
+            case "span_upper_type":
+                return boundTypeStr(set.span().map(Range::upperBoundType).orElse(null));
+            case "encloses_query":
+                return query == null ? null : String.valueOf(set.encloses(query));
+            case "intersects_query":
+                return query == null ? null : String.valueOf(set.intersects(query));
+            default:
+                break;
+        }
+        Integer cv = signedI32Suffix(key, "contains_");
+        if (cv != null) {
+            return String.valueOf(set.contains(cv));
+        }
+        return null;
+    }
+
+    private void runRangeMap(JsonNode scenario, ScenarioResult r) {
+        RangeMap<Integer, Integer> map = new RangeMap<>();
+        JsonNode ops = scenario.path("operations");
+        if (ops.isArray()) {
+            for (JsonNode op : ops) {
+                switch (op.path("op").asText()) {
+                    case "put":
+                        map.put(buildRangeFromNode(op.get("range")), op.get("value").asInt());
+                        break;
+                    case "put_coalescing":
+                        map.putCoalescing(buildRangeFromNode(op.get("range")), op.get("value").asInt());
+                        break;
+                    case "remove_range":
+                        map.remove(buildRangeFromNode(op.get("range")));
+                        break;
+                    case "clear":
+                        map.clear();
+                        break;
+                    default:
+                        throw new ScenarioSkipException(
+                                "unknown RangeMap op (forward-compat skip): " + op.path("op").asText());
+                }
+            }
+        }
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            JsonNode expected = e.getValue();
+            switch (key) {
+                case "as_map_of_ranges":
+                    r.emitJson(key, entryArrayStr(map.asMapOfRanges()), expected);
+                    continue;
+                case "sub_range_map_entries":
+                    if (query == null) {
+                        r.emitJson(key, null, expected);
+                    } else {
+                        r.emitJson(key, entryArrayStr(map.subRangeMap(query).asMapOfRanges()), expected);
+                    }
+                    continue;
+                default:
+                    break;
+            }
+            Integer ge = signedI32Suffix(key, "get_entry_");
+            if (ge != null) {
+                Optional<RangeMap.Entry<Integer, Integer>> entry = map.getEntry(ge);
+                r.emitJson(key, entry.map(ValidationRunner::entryObjStr).orElse("null"), expected);
+                continue;
+            }
+            r.emit(key, evalRangeMap(key, map), expected, FloatMode.NONE);
+        }
+    }
+
+    /**
+     * Evaluate a scalar RangeMap assertion key. {@code get_<v>} returns the
+     * mapped i32 or {@code null}. Object-shaped keys ({@code get_entry_<v>},
+     * {@code as_map_of_ranges}, {@code sub_range_map_entries}) are handled in
+     * {@link #runRangeMap}.
+     */
+    private String evalRangeMap(String key, RangeMap<Integer, Integer> map) {
+        switch (key) {
+            case "is_empty":
+                return String.valueOf(map.isEmpty());
+            case "span_lower":
+                return optIntStr(map.span().map(Range::lowerEndpoint).orElse(null));
+            case "span_upper":
+                return optIntStr(map.span().map(Range::upperEndpoint).orElse(null));
+            case "span_lower_type":
+                return boundTypeStr(map.span().map(Range::lowerBoundType).orElse(null));
+            case "span_upper_type":
+                return boundTypeStr(map.span().map(Range::upperBoundType).orElse(null));
+            default:
+                break;
+        }
+        // get_entry_<v> is handled in runRangeMap; here only get_<v>.
+        Integer gv = signedI32Suffix(key, "get_");
+        if (gv != null && !key.startsWith("get_entry_")) {
+            return optIntStr(map.get(gv).orElse(null));
+        }
+        return null;
     }
 
     // ---- ImmutableSortedMap<i32, i32> / ImmutableSortedSet<i32> -----------
