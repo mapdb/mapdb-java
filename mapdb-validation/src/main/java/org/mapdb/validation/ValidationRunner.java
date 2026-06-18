@@ -26,6 +26,7 @@ import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.Hash;
+import org.mapdb.collections.impl.RoaringU32;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -253,6 +254,9 @@ public final class ValidationRunner {
                 break;
             case "HashPipeline":
                 runHashPipeline(scenario, r);
+                break;
+            case "RoaringU32":
+                runRoaringU32(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1990,5 +1994,218 @@ public final class ValidationRunner {
             }
             r.emit(key, computed, e.getValue(), FloatMode.NONE);
         }
+    }
+
+    // ---- RoaringU32 (spec/features/roaring-u32.md) ------------------------
+    //
+    // A sparse, compressed u32 set. Values are i32 reinterpreted to u32 (NOT
+    // sign-extended); ordering/min/max/serialized order are UNSIGNED u32
+    // ascending. serialized_hex (+ the four set-algebra hex keys) is the byte
+    // oracle, emitted as a lowercase 0x-prefixed hex string. container_types is
+    // a string[] ("array"/"bitmap"). to_sorted_array is UNSIGNED-ascending,
+    // emitted as i32. Malformed scenarios (reversed range, mixed deserialize,
+    // bad-hex without 0x) SKIP.
+
+    private static final Pattern ROARING_CONTAINS = Pattern.compile("^contains_(-?\\d+)$");
+
+    private void runRoaringU32(JsonNode scenario, ScenarioResult r)
+    {
+        RoaringU32 set = buildRoaring(scenario.path("operations"));
+        RoaringU32 other = scenario.has("other")
+                ? buildRoaring(scenario.path("other").path("operations"))
+                : null;
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            r.emit(key, evalRoaring(key, set, other), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    /**
+     * Build a {@link RoaringU32} from a scenario op list. A {@code deserialize}
+     * op must be the ONLY op (mixing with add/remove SKIPs); a reversed
+     * {@code add_range}/{@code remove_range} (unsigned {@code from > to}) SKIPs;
+     * a {@code deserialize} hex without a {@code 0x} prefix SKIPs.
+     */
+    private RoaringU32 buildRoaring(JsonNode ops)
+    {
+        // A lone deserialize op is read-back; mixing it with anything SKIPs.
+        for (JsonNode op : ops)
+        {
+            if (op.path("op").asText().equals("deserialize"))
+            {
+                if (ops.size() != 1)
+                {
+                    throw new ScenarioSkipException(
+                            "RoaringU32 deserialize op must be the only op");
+                }
+                String s = op.path("bytes").asText();
+                if (!s.startsWith("0x") && !s.startsWith("0X"))
+                {
+                    throw new ScenarioSkipException(
+                            "RoaringU32 deserialize bytes must start with 0x: " + s);
+                }
+                String body = s.substring(2);
+                if ((body.length() & 1) != 0)
+                {
+                    throw new ScenarioSkipException(
+                            "RoaringU32 deserialize bytes must have an even hex-digit count");
+                }
+                byte[] bytes = new byte[body.length() / 2];
+                for (int i = 0; i < bytes.length; i++)
+                {
+                    bytes[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+                }
+                return RoaringU32.deserialize(bytes);
+            }
+        }
+        RoaringU32 set = new RoaringU32();
+        for (JsonNode op : ops)
+        {
+            switch (op.path("op").asText())
+            {
+                case "add":
+                    set.add(op.get("value").asInt());
+                    break;
+                case "remove":
+                    set.remove(op.get("value").asInt());
+                    break;
+                case "clear":
+                    set.clear();
+                    break;
+                case "add_range":
+                    roaringRange(set, op, true);
+                    break;
+                case "remove_range":
+                    roaringRange(set, op, false);
+                    break;
+                default:
+                    throw new ScenarioSkipException(
+                            "unknown RoaringU32 op (forward-compat skip): " + op.path("op").asText());
+            }
+        }
+        return set;
+    }
+
+    /**
+     * Apply an inclusive {@code add_range}/{@code remove_range} over UNSIGNED
+     * reinterpreted u32 endpoints. A reversed range (unsigned {@code from > to})
+     * SKIPs the whole scenario (authoring rule, no wrap-around).
+     */
+    private void roaringRange(RoaringU32 set, JsonNode op, boolean add)
+    {
+        int from = op.get("from").asInt();
+        int to = op.get("to").asInt();
+        if (Integer.compareUnsigned(from, to) > 0)
+        {
+            throw new ScenarioSkipException("RoaringU32 reversed range (unsigned from > to)");
+        }
+        // Inclusive unsigned loop; `to` may be 0xFFFFFFFF so iterate then break.
+        int v = from;
+        while (true)
+        {
+            if (add)
+            {
+                set.add(v);
+            }
+            else
+            {
+                set.remove(v);
+            }
+            if (v == to)
+            {
+                break;
+            }
+            v++;
+        }
+    }
+
+    private String evalRoaring(String key, RoaringU32 set, RoaringU32 other)
+    {
+        switch (key)
+        {
+            case "cardinality":
+                return String.valueOf(set.cardinality());
+            case "is_empty":
+                return String.valueOf(set.isEmpty());
+            case "chunk_count":
+                return String.valueOf(set.chunkCount());
+            case "container_types":
+                return formatStringArray(set.containerTypes());
+            case "to_sorted_array":
+                return formatIntArray(set.toSortedArray());
+            case "min":
+                return set.min().isPresent() ? String.valueOf(set.min().getAsInt()) : "null";
+            case "max":
+                return set.max().isPresent() ? String.valueOf(set.max().getAsInt()) : "null";
+            case "serialized_hex":
+                return hexBytes(set.serialize());
+            case "serialized_len":
+                return String.valueOf(set.serialize().length);
+            default:
+                break;
+        }
+        Matcher cm = ROARING_CONTAINS.matcher(key);
+        if (cm.matches())
+        {
+            return String.valueOf(set.contains(Integer.parseInt(cm.group(1))));
+        }
+        if (other == null)
+        {
+            return null;
+        }
+        switch (key)
+        {
+            case "union_serialized_hex":
+                return hexBytes(set.or(other).serialize());
+            case "union_cardinality":
+                return String.valueOf(set.or(other).cardinality());
+            case "intersect_serialized_hex":
+                return hexBytes(set.and(other).serialize());
+            case "intersect_cardinality":
+                return String.valueOf(set.and(other).cardinality());
+            case "and_not_serialized_hex":
+                return hexBytes(set.andNot(other).serialize());
+            case "and_not_cardinality":
+                return String.valueOf(set.andNot(other).cardinality());
+            case "xor_serialized_hex":
+                return hexBytes(set.xor(other).serialize());
+            case "xor_cardinality":
+                return String.valueOf(set.xor(other).cardinality());
+            default:
+                return null;
+        }
+    }
+
+    /** Lowercase 0x-prefixed hex of a byte image (the byte oracle format). */
+    private static String hexBytes(byte[] bytes)
+    {
+        StringBuilder sb = new StringBuilder(2 + bytes.length * 2);
+        sb.append("0x");
+        for (byte b : bytes)
+        {
+            sb.append(Character.forDigit((b >>> 4) & 0xF, 16));
+            sb.append(Character.forDigit(b & 0xF, 16));
+        }
+        return sb.toString();
+    }
+
+    /** Render a string[] as a quoted JSON-style array (matches renderExpected). */
+    private static String formatStringArray(String[] v)
+    {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++)
+        {
+            if (i > 0)
+            {
+                sb.append(',');
+            }
+            sb.append('"').append(v[i]).append('"');
+        }
+        return sb.append(']').toString();
     }
 }
