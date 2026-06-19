@@ -52,6 +52,25 @@ package org.mapdb.collections.impl;
  *   <li><b>Deterministic.</b> Identical {@code (m, k)} + add-sequence ⇒ identical
  *       bits on all five ports.</li>
  * </ul>
+ *
+ * <h2>Boxed-Java carve-out: the {@code k} bound</h2>
+ * The spec's {@code with_params(m_bits: u32, k: u32)} carries both parameters in
+ * the full {@code u32} domain. This Java port keeps <b>{@code m_bits} at the full
+ * {@code u32}</b> ({@code 1 ..= 2^32-1}) — bit/word indexing is unsigned, so the
+ * whole range is meaningful and representable. <b>{@code k} is bounded to
+ * {@code 0 ..= Integer.MAX_VALUE}</b>, however, and a {@code k} above that is
+ * <b>rejected</b> with an {@link IllegalArgumentException}. The reason is honest
+ * and Java-specific: each element's positions are produced as a Java
+ * {@code int[]} of length {@code k} ({@link Hash#positionsFromHashes}), and a
+ * Java array cannot have {@code >= 2^31} elements — a {@code k >= 2^31} stored as
+ * a signed {@code int} is negative and would throw {@code NegativeArraySizeException}
+ * deep inside {@code add}/{@code mightContain}. A {@code k} that large is also
+ * purely degenerate (it sets/tests billions of positions per element). The other
+ * four ports tolerate such a {@code k} degenerately; Java's {@code int[]}-indexed
+ * positions genuinely cannot represent it, so this port rejects it up front with a
+ * clear message rather than crashing later. This is the <b>only</b> bound this
+ * port adds beyond the spec; it never triggers for the validation scenarios
+ * (whose {@code k} is small).
  */
 public final class Bloom
 {
@@ -73,9 +92,12 @@ public final class Bloom
     private final int mBits;
 
     /**
-     * Number of hash functions / positions set per element, as the {@code u32}
-     * bit pattern in a signed {@code int} (the validated {@code k} domain is the
-     * full {@code 0 ..= 2^32-1}). Interpreted unsigned everywhere.
+     * Number of hash functions / positions set per element. Bounded to
+     * {@code 0 ..= Integer.MAX_VALUE} (the boxed-Java carve-out: each element's
+     * {@code k} positions are a Java {@code int[]}, which cannot hold {@code >=
+     * 2^31} entries). Stored as a non-negative {@code int}; a {@code k} above the
+     * bound is rejected by {@link #withParams}, so this is never a negative bit
+     * pattern.
      */
     private final int k;
 
@@ -102,24 +124,35 @@ public final class Bloom
      * {@code positions} modulo would be by zero). {@code k == 0} is degenerate
      * but <b>legal</b> (see {@link #mightContain}).
      *
-     * <p><b>Full {@code u32} domain (via {@code long}).</b> The native ports carry
-     * {@code m}/{@code k} as {@code u32}; this Java port implements the <b>same
-     * full {@code u32} domain</b>. The parameters are accepted as {@code long} so
-     * a value {@code > Integer.MAX_VALUE} (the high bit of the {@code u32}) is
-     * <b>not</b> rejected — it is validated against the {@code u32} range and
-     * stored as the 32-bit pattern in a signed {@code int}, then interpreted
-     * unsigned everywhere (bit/word indexing uses {@code >>>} /
+     * <p><b>{@code m_bits}: full {@code u32} domain (via {@code long}).</b> The
+     * native ports carry {@code m} as {@code u32}; this Java port implements the
+     * <b>same full {@code u32} domain</b> for {@code mBits}. It is accepted as a
+     * {@code long} so a value {@code > Integer.MAX_VALUE} (the high bit of the
+     * {@code u32}) is <b>not</b> rejected — it is validated against the
+     * {@code u32} range and stored as the 32-bit pattern in a signed {@code int},
+     * then interpreted unsigned everywhere (bit/word indexing uses {@code >>>} /
      * {@link Long#divideUnsigned} / {@link Integer#remainderUnsigned}, never a
-     * sign-extend). Validation: {@code 1 <= mBits <= 2^32-1} and
-     * {@code 0 <= k <= 2^32-1}. (The cross-language scenarios only exercise small
-     * values; this widening makes the full domain representable, matching the
-     * spec's {@code with_params(m_bits: u32, k: u32)}.)
+     * sign-extend). Validation: {@code 1 <= mBits <= 2^32-1}.
+     *
+     * <p><b>{@code k}: bounded to {@code 0 ..= Integer.MAX_VALUE} (boxed-Java
+     * carve-out).</b> Unlike {@code m}, {@code k} cannot span the full {@code u32}
+     * in this port: each element's {@code k} positions are produced as a Java
+     * {@code int[]} of length {@code k} ({@link Hash#positionsFromHashes}), which
+     * cannot hold {@code >= 2^31} entries. A {@code k > Integer.MAX_VALUE} is
+     * therefore <b>rejected</b> here with a clear {@link IllegalArgumentException}
+     * (rather than being stored as a negative {@code int} and throwing a
+     * {@code NegativeArraySizeException} later inside {@code add}/{@code
+     * mightContain}). Such a {@code k} is degenerate and unrepresentable as a Java
+     * {@code int[]}; see the class Javadoc carve-out. Validation:
+     * {@code 0 <= k <= Integer.MAX_VALUE}. (The cross-language scenarios only
+     * exercise small values, so this bound never triggers there.)
      *
      * @param mBits the number of bits in the array ({@code 1 ..= 2^32-1})
-     * @param k the number of hash functions / positions set per element ({@code 0 ..= 2^32-1})
+     * @param k the number of hash functions / positions set per element
+     *        ({@code 0 ..= Integer.MAX_VALUE})
      * @return a fresh empty filter
      * @throws IllegalArgumentException if {@code mBits} is outside {@code 1 ..= 2^32-1}
-     *         or {@code k} is outside {@code 0 ..= 2^32-1}
+     *         or {@code k} is outside {@code 0 ..= Integer.MAX_VALUE}
      */
     public static Bloom withParams(long mBits, long k)
     {
@@ -128,10 +161,11 @@ public final class Bloom
             throw new IllegalArgumentException(
                     "Bloom.withParams: mBits must be in 1..=4294967295 (u32), got " + mBits);
         }
-        if (k < 0L || k > U32_MAX)
+        if (k < 0L || k > (long) Integer.MAX_VALUE)
         {
             throw new IllegalArgumentException(
-                    "Bloom.withParams: k must be in 0..=4294967295 (u32), got " + k);
+                    "Bloom.withParams: k must be in 0..=2147483647 (Integer.MAX_VALUE) — "
+                            + "Java's int[]-indexed positions cannot represent k >= 2^31; got " + k);
         }
         // ceil(mBits / 64) over the unsigned u32 domain. For the max u32 mBits
         // this is ~67.1M longs (~537 MB) — large but a representable Java array;
@@ -203,8 +237,8 @@ public final class Bloom
     }
 
     /**
-     * The hash count {@code k} as a 32-bit pattern (the spec's {@code u32}); read
-     * via {@link Integer#toUnsignedLong} for values {@code >= 2^31}.
+     * The hash count {@code k}. Bounded to {@code 0 ..= Integer.MAX_VALUE} (the
+     * boxed-Java carve-out), so this is always a plain non-negative {@code int}.
      */
     public int k()
     {
@@ -290,15 +324,31 @@ public final class Bloom
     /**
      * The number of set bits (popcount of the whole bit array). The zeroed tail
      * bits never contribute (no {@code positions} index reaches them).
+     *
+     * <p>Accumulated as a {@code long} so a large {@code m} (up to the
+     * {@code u32} ceiling, ~2^32 bits) cannot silently overflow a 32-bit counter
+     * into a negative value. The spec's {@code bit_count} return is a {@code u32}
+     * carried in a signed {@code int}; if the true popcount ever exceeded
+     * {@code 2^32-1} (impossible for {@code m <= 2^32-1}) it would saturate at the
+     * {@code u32} ceiling rather than wrap. For every validation scenario the set
+     * count is tiny.
      */
     public int bitCount()
     {
-        int count = 0;
+        return (int) longBitCount();
+    }
+
+    /** Population count of the bit array as a {@code long} (overflow-safe). */
+    private long longBitCount()
+    {
+        long count = 0L;
         for (long w : this.words)
         {
             count += Long.bitCount(w);
         }
-        return count;
+        // Saturate at the u32 ceiling; m <= 2^32-1 so this can never truncate a
+        // real count, it only guards against an impossible overflow.
+        return Math.min(count, U32_MAX);
     }
 
     /**
@@ -367,7 +417,19 @@ public final class Bloom
      */
     public int[] setBits()
     {
-        int[] out = new int[bitCount()];
+        // Size from the overflow-safe long popcount. A Java int[] cannot hold
+        // >= 2^31 entries, so if the count ever exceeded Integer.MAX_VALUE
+        // (impossible for the validated/scenario sizes) it is unrepresentable as
+        // an int[] and we fail fast rather than allocate a negative/overflowed
+        // array.
+        long count = longBitCount();
+        if (count > (long) Integer.MAX_VALUE)
+        {
+            throw new IllegalStateException(
+                    "Bloom.setBits: " + count + " set bits exceed Integer.MAX_VALUE — "
+                            + "not representable as a Java int[]");
+        }
+        int[] out = new int[(int) count];
         int n = 0;
         for (int wi = 0; wi < this.words.length; wi++)
         {
