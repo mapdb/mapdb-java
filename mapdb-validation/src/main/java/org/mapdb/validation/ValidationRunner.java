@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.impl.bounded.BoundedLruMap;
+import org.mapdb.collections.impl.bounded.EvictionCause;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
@@ -187,6 +189,52 @@ public final class ValidationRunner {
                 failed = true;
             }
         }
+
+        /**
+         * Emit a computed assertion whose expected value is rendered by an
+         * explicit canonical JSON renderer (used for nested-array keys like the
+         * bounded-LRU {@code eviction_log} / {@code snapshot_*_log}, which the
+         * generic {@link #renderExpected} flattens incorrectly). Both sides are
+         * compared as compact canonical JSON.
+         */
+        void emitExact(String key, String computed, String expectedCanonical) {
+            System.out.println(key + ": " + computed);
+            if (!computed.equals(expectedCanonical)) {
+                System.out.println("FAIL " + name + " " + key
+                        + ": expected=" + expectedCanonical + " got=" + computed);
+                failed = true;
+            }
+        }
+    }
+
+    /**
+     * Render a JsonNode as compact canonical JSON for the bounded-LRU
+     * explicit-order assertions (arrays of arrays / triples, scalars, strings,
+     * booleans, null). Mirrors the Rust runner's byte-level encoding (commas, no
+     * spaces; cause strings double-quoted).
+     */
+    private static String canonicalJson(JsonNode v) {
+        if (v == null || v.isNull()) {
+            return "null";
+        }
+        if (v.isBoolean()) {
+            return String.valueOf(v.asBoolean());
+        }
+        if (v.isTextual()) {
+            return "\"" + v.asText() + "\"";
+        }
+        if (v.isArray()) {
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < v.size(); i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(canonicalJson(v.get(i)));
+            }
+            return sb.append(']').toString();
+        }
+        // Numbers: emit the integral text (the suite's LRU keys/values are i32).
+        return v.asText();
     }
 
     /**
@@ -253,6 +301,9 @@ public final class ValidationRunner {
                 break;
             case "HashPipeline":
                 runHashPipeline(scenario, r);
+                break;
+            case "BoundedLruMap<i32, i32>":
+                runBoundedLru(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1990,5 +2041,280 @@ public final class ValidationRunner {
             }
             r.emit(key, computed, e.getValue(), FloatMode.NONE);
         }
+    }
+
+    // ---- BoundedLruMap<i32, i32> (spec/features/bounded-lru.md) -----------
+    //
+    // The bounded LRU map: a boxed Integer/Integer BoundedLruMap (the mapdb-java
+    // carve-out) + a recording eviction callback (always installed) that appends
+    // each (key, value, cause) triple to an ordered eviction LOG — the load-
+    // bearing cross-language oracle. Config: `max_size` (required, non-negative)
+    // and `ttl` (a logical-tick TTL, or null/absent for a pure max-size map);
+    // `now`/`ttl` are decimal STRINGS if > 2^53, plain JSON numbers otherwise,
+    // parsed via Long.parseUnsignedLong (NEVER via double). Ops put / put_at /
+    // get / get_or_default / contains_key / remove / clear / expire_entries /
+    // snapshot_keys / snapshot_values / snapshot_entries, applied in order. The
+    // runner records each op's result + each snapshot for the result-log
+    // assertions. Explicit-order keys (eviction_log, lru_order_*, snapshot_*_log)
+    // are NEVER re-sorted. Assertion-time get/queries are READ-ONLY.
+
+    /** Parse a `now`/`ttl` operand: a u64 logical tick as a decimal STRING (via
+     * {@link Long#parseUnsignedLong}, never via double) or a plain JSON integer. */
+    private static long parseTick(JsonNode v) {
+        if (v.isTextual()) {
+            return Long.parseUnsignedLong(v.asText());
+        }
+        if (v.isIntegralNumber()) {
+            return Long.parseUnsignedLong(v.asText());
+        }
+        throw new ScenarioSkipException("bounded-lru tick must be a decimal string or integer");
+    }
+
+    /** Result logs accumulated while applying bounded-LRU operations, in execution order. */
+    private static final class LruLog {
+        final List<Integer> putResults = new ArrayList<>();
+        final List<Integer> getResults = new ArrayList<>();
+        final List<Integer> getOrDefaultResults = new ArrayList<>();
+        final List<Boolean> containsResults = new ArrayList<>();
+        final List<Integer> removeResults = new ArrayList<>();
+        final List<Integer> expiredCounts = new ArrayList<>();
+        final List<List<Integer>> snapshotKeysLog = new ArrayList<>();
+        final List<List<Integer>> snapshotValuesLog = new ArrayList<>();
+        final List<List<int[]>> snapshotEntriesLog = new ArrayList<>();
+    }
+
+    private void runBoundedLru(JsonNode scenario, ScenarioResult r) {
+        JsonNode maxSizeNode = scenario.get("max_size");
+        if (maxSizeNode == null || !maxSizeNode.isInt() && !maxSizeNode.canConvertToInt()) {
+            throw new ScenarioSkipException("BoundedLruMap scenario needs a non-negative max_size");
+        }
+        int maxSize = maxSizeNode.asInt();
+
+        JsonNode ttlNode = scenario.get("ttl");
+        Long ttl = (ttlNode == null || ttlNode.isNull()) ? null : parseTick(ttlNode);
+
+        // The recording eviction callback appends each (key, value, cause) triple
+        // to the shared eviction LOG — the load-bearing oracle.
+        List<int[]> evictLog = new ArrayList<>(); // each: {key, value, causeIsExpired ? 1 : 0}
+        BoundedLruMap.Builder<Integer, Integer> builder =
+                BoundedLruMap.<Integer, Integer>builder().maxSize(maxSize);
+        if (ttl != null) {
+            builder = builder.ttl(ttl);
+        }
+        BoundedLruMap<Integer, Integer> map = builder
+                .onEvict((k, v, cause) ->
+                        evictLog.add(new int[] {k, v, cause == EvictionCause.EXPIRED ? 1 : 0}))
+                .build();
+
+        LruLog log = new LruLog();
+
+        for (JsonNode op : scenario.path("operations")) {
+            switch (op.path("op").asText()) {
+                case "put": {
+                    int k = op.path("key").asInt();
+                    int v = op.path("value").asInt();
+                    // An optional `now` makes this a put_at; absent => plain put
+                    // (which is put_at(k, v, 0) — no hidden clock).
+                    JsonNode nowNode = op.get("now");
+                    Optional<Integer> prev = (nowNode != null && !nowNode.isNull())
+                            ? map.putAt(k, v, parseTick(nowNode))
+                            : map.put(k, v);
+                    log.putResults.add(prev.orElse(null));
+                    break;
+                }
+                case "put_at": {
+                    int k = op.path("key").asInt();
+                    int v = op.path("value").asInt();
+                    long now = parseTick(op.path("now"));
+                    log.putResults.add(map.putAt(k, v, now).orElse(null));
+                    break;
+                }
+                case "get": {
+                    int k = op.path("key").asInt();
+                    log.getResults.add(map.get(k).orElse(null));
+                    break;
+                }
+                case "get_or_default": {
+                    int k = op.path("key").asInt();
+                    int d = op.path("default").asInt();
+                    log.getOrDefaultResults.add(map.getOrDefault(k, d));
+                    break;
+                }
+                case "contains_key": {
+                    int k = op.path("key").asInt();
+                    log.containsResults.add(map.containsKey(k));
+                    break;
+                }
+                case "remove": {
+                    int k = op.path("key").asInt();
+                    log.removeResults.add(map.remove(k).orElse(null));
+                    break;
+                }
+                case "clear":
+                    map.clear();
+                    break;
+                case "expire_entries": {
+                    long now = parseTick(op.path("now"));
+                    log.expiredCounts.add(map.expireEntries(now));
+                    break;
+                }
+                // Mid-sequence read-only LRU-order snapshots: record the current
+                // contents WITHOUT refreshing recency or evicting.
+                case "snapshot_keys":
+                    log.snapshotKeysLog.add(new ArrayList<>(map.keys()));
+                    break;
+                case "snapshot_values":
+                    log.snapshotValuesLog.add(new ArrayList<>(map.values()));
+                    break;
+                case "snapshot_entries": {
+                    List<int[]> pairs = new ArrayList<>();
+                    for (Map.Entry<Integer, Integer> en : map.entries()) {
+                        pairs.add(new int[] {en.getKey(), en.getValue()});
+                    }
+                    log.snapshotEntriesLog.add(pairs);
+                    break;
+                }
+                // Forward-compat: an unknown op must not crash; skip it.
+                default:
+                    break;
+            }
+        }
+
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            evalLruAssertion(key, e.getValue(), map, log, evictLog, r);
+        }
+    }
+
+    private void evalLruAssertion(String key, JsonNode expected,
+            BoundedLruMap<Integer, Integer> map, LruLog log, List<int[]> evictLog,
+            ScenarioResult r) {
+        switch (key) {
+            case "size":
+                r.emit(key, String.valueOf(map.size()), expected, FloatMode.NONE);
+                return;
+            case "is_empty":
+                r.emit(key, String.valueOf(map.isEmpty()), expected, FloatMode.NONE);
+                return;
+            // Post-sequence contents in LRU order (least-recently-used first).
+            case "lru_order_keys":
+                r.emit(key, formatIntList(map.keys()), expected, FloatMode.NONE);
+                return;
+            case "lru_order_values":
+                r.emit(key, formatIntList(map.values()), expected, FloatMode.NONE);
+                return;
+            // The load-bearing oracle: ordered eviction LOG, each element the
+            // fixed 3-tuple [key, value, "cause"], in invocation order (NOT sorted).
+            case "eviction_log":
+                r.emitExact(key, formatEvictionLog(evictLog), canonicalJson(expected));
+                return;
+            // Per-op result logs, in execution order.
+            case "put_results":
+                r.emit(key, formatNullableIntList(log.putResults), expected, FloatMode.NONE);
+                return;
+            case "get_results":
+                r.emit(key, formatNullableIntList(log.getResults), expected, FloatMode.NONE);
+                return;
+            case "get_or_default_results":
+                r.emit(key, formatIntList(log.getOrDefaultResults), expected, FloatMode.NONE);
+                return;
+            case "contains_results":
+                r.emit(key, formatBoolList(log.containsResults), expected, FloatMode.NONE);
+                return;
+            case "remove_results":
+                r.emit(key, formatNullableIntList(log.removeResults), expected, FloatMode.NONE);
+                return;
+            case "expired_counts":
+                r.emit(key, formatIntList(log.expiredCounts), expected, FloatMode.NONE);
+                return;
+            case "snapshot_keys_log":
+                r.emitExact(key, formatArrayOfIntLists(log.snapshotKeysLog), canonicalJson(expected));
+                return;
+            case "snapshot_values_log":
+                r.emitExact(key, formatArrayOfIntLists(log.snapshotValuesLog), canonicalJson(expected));
+                return;
+            case "snapshot_entries_log":
+                r.emitExact(key, formatArrayOfPairArrays(log.snapshotEntriesLog), canonicalJson(expected));
+                return;
+            default:
+                break;
+        }
+        // Post-op out-of-band reads: MUST NOT refresh recency, evict, or mutate.
+        // get_<k> is computed read-only via the LRU-order snapshot (NOT map.get,
+        // which WOULD refresh recency). contains_<k> is read-only.
+        if (key.startsWith("get_")) {
+            int k = Integer.parseInt(key.substring(4));
+            Integer found = null;
+            for (Map.Entry<Integer, Integer> en : map.entries()) {
+                if (en.getKey() == k) {
+                    found = en.getValue();
+                    break;
+                }
+            }
+            r.emit(key, found == null ? "null" : String.valueOf(found), expected, FloatMode.NONE);
+            return;
+        }
+        if (key.startsWith("contains_")) {
+            int k = Integer.parseInt(key.substring(9));
+            r.emit(key, String.valueOf(map.containsKey(k)), expected, FloatMode.NONE);
+            return;
+        }
+        // Forward-compat: unknown assertion key -> SKIP (loud, fails scenario via emit).
+        throw new ScenarioSkipException(
+                "unknown bounded-lru assertion key (forward-compat skip): " + key);
+    }
+
+    private static String formatBoolList(List<Boolean> v) {
+        return "[" + v.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
+    }
+
+    /** Render the eviction LOG as [[key,value,"cause"],...] in invocation order. */
+    private static String formatEvictionLog(List<int[]> evictLog) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < evictLog.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            int[] t = evictLog.get(i);
+            sb.append('[').append(t[0]).append(',').append(t[1]).append(',')
+              .append(t[2] == 1 ? "\"expired\"" : "\"size\"").append(']');
+        }
+        return sb.append(']').toString();
+    }
+
+    /** Render an array-of-int-arrays (snapshot key/value logs), inner arrays in LRU order. */
+    private static String formatArrayOfIntLists(List<List<Integer>> v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(formatIntList(v.get(i)));
+        }
+        return sb.append(']').toString();
+    }
+
+    /** Render the snapshot_entries log: an array of LRU-order [[key,value],...] arrays. */
+    private static String formatArrayOfPairArrays(List<List<int[]>> v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            List<int[]> inner = v.get(i);
+            sb.append('[');
+            for (int j = 0; j < inner.size(); j++) {
+                if (j > 0) {
+                    sb.append(',');
+                }
+                int[] p = inner.get(j);
+                sb.append('[').append(p[0]).append(',').append(p[1]).append(']');
+            }
+            sb.append(']');
+        }
+        return sb.append(']').toString();
     }
 }
