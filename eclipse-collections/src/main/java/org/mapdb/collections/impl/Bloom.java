@@ -58,10 +58,25 @@ public final class Bloom
     /** {@code ln(2)} in {@code f64} (used only by {@link #optimal}). */
     private static final double LN2 = 0.6931471805599453;
 
-    /** Number of bits in the array ({@code m}, carried as {@code int}). */
+    /** The largest {@code u32} value, {@code 2^32 - 1}. */
+    private static final long U32_MAX = 0xFFFF_FFFFL;
+
+    /**
+     * Number of bits in the array ({@code m}). The spec's domain is the full
+     * {@code u32} {@code 1 ..= 2^32-1}; Java carries it as the <b>32-bit pattern
+     * stored in a signed {@code int}</b> (a value {@code >= 2^31} is a negative
+     * {@code int}). Every use treats it as <b>unsigned</b>
+     * ({@link Integer#toUnsignedLong}, {@link Long#divideUnsigned}, {@code >>>},
+     * {@link Integer#remainderUnsigned} inside {@link Hash}) — it is never
+     * sign-extended.
+     */
     private final int mBits;
 
-    /** Number of hash functions / positions set per element. */
+    /**
+     * Number of hash functions / positions set per element, as the {@code u32}
+     * bit pattern in a signed {@code int} (the validated {@code k} domain is the
+     * full {@code 0 ..= 2^32-1}). Interpreted unsigned everywhere.
+     */
     private final int k;
 
     /**
@@ -87,34 +102,43 @@ public final class Bloom
      * {@code positions} modulo would be by zero). {@code k == 0} is degenerate
      * but <b>legal</b> (see {@link #mightContain}).
      *
-     * <p><b>Java subset.</b> The native ports carry {@code m}/{@code k} as
-     * {@code u32}; the validated {@code m}/{@code k} are small (well under
-     * {@code 2^31}), so Java carries them as a signed {@code int}. This method
-     * therefore enforces the Java-representable subset explicitly:
-     * {@code mBits} in {@code 1 ..= Integer.MAX_VALUE} and {@code k >= 0}. A
-     * negative {@code mBits} (a {@code u32} with the high bit set) or a negative
-     * {@code k} is outside that subset and traps rather than producing a
-     * half-unsigned object.
+     * <p><b>Full {@code u32} domain (via {@code long}).</b> The native ports carry
+     * {@code m}/{@code k} as {@code u32}; this Java port implements the <b>same
+     * full {@code u32} domain</b>. The parameters are accepted as {@code long} so
+     * a value {@code > Integer.MAX_VALUE} (the high bit of the {@code u32}) is
+     * <b>not</b> rejected — it is validated against the {@code u32} range and
+     * stored as the 32-bit pattern in a signed {@code int}, then interpreted
+     * unsigned everywhere (bit/word indexing uses {@code >>>} /
+     * {@link Long#divideUnsigned} / {@link Integer#remainderUnsigned}, never a
+     * sign-extend). Validation: {@code 1 <= mBits <= 2^32-1} and
+     * {@code 0 <= k <= 2^32-1}. (The cross-language scenarios only exercise small
+     * values; this widening makes the full domain representable, matching the
+     * spec's {@code with_params(m_bits: u32, k: u32)}.)
      *
-     * @param mBits the number of bits in the array ({@code 1 ..= 2^31-1})
-     * @param k the number of hash functions / positions set per element ({@code >= 0})
+     * @param mBits the number of bits in the array ({@code 1 ..= 2^32-1})
+     * @param k the number of hash functions / positions set per element ({@code 0 ..= 2^32-1})
      * @return a fresh empty filter
-     * @throws IllegalArgumentException if {@code mBits < 1} or {@code k < 0}
+     * @throws IllegalArgumentException if {@code mBits} is outside {@code 1 ..= 2^32-1}
+     *         or {@code k} is outside {@code 0 ..= 2^32-1}
      */
-    public static Bloom withParams(int mBits, int k)
+    public static Bloom withParams(long mBits, long k)
     {
-        if (mBits < 1)
+        if (mBits < 1L || mBits > U32_MAX)
         {
             throw new IllegalArgumentException(
-                    "Bloom.withParams: mBits must be in 1..Integer.MAX_VALUE, got " + mBits);
+                    "Bloom.withParams: mBits must be in 1..=4294967295 (u32), got " + mBits);
         }
-        if (k < 0)
+        if (k < 0L || k > U32_MAX)
         {
-            throw new IllegalArgumentException("Bloom.withParams: k must be >= 0, got " + k);
+            throw new IllegalArgumentException(
+                    "Bloom.withParams: k must be in 0..=4294967295 (u32), got " + k);
         }
-        // ceil(mBits / 64) over the unsigned interpretation of mBits.
-        int nWords = (int) ((Integer.toUnsignedLong(mBits) + 63L) / 64L);
-        return new Bloom(mBits, k, new long[nWords]);
+        // ceil(mBits / 64) over the unsigned u32 domain. For the max u32 mBits
+        // this is ~67.1M longs (~537 MB) — large but a representable Java array;
+        // tests never allocate near the top of the range.
+        int nWords = (int) ((mBits + 63L) / 64L);
+        // Store the validated values as their 32-bit pattern in a signed int.
+        return new Bloom((int) mBits, (int) k, new long[nWords]);
     }
 
     /**
@@ -155,25 +179,33 @@ public final class Bloom
         }
         double nf = (double) n;
         double mf = Math.ceil(-nf * Math.log(p) / (LN2 * LN2));
-        if (!(Double.isFinite(mf) && mf >= 1.0 && mf <= (double) Integer.MAX_VALUE))
+        if (!(Double.isFinite(mf) && mf >= 1.0 && mf <= (double) U32_MAX))
         {
             throw new IllegalArgumentException("Bloom.optimal: derived m out of range: " + mf);
         }
-        int m = (int) mf;
+        long m = (long) mf;
         // Math.round is round-half-up; for the non-negative argument here that is
         // identical to round-half-away-from-zero. Clamp to >= 1.
-        long kRound = Math.round((m / nf) * LN2);
-        int kk = (int) Math.max(1L, kRound);
+        long kRound = Math.round(((double) m / nf) * LN2);
+        long kk = Math.max(1L, kRound);
         return withParams(m, kk);
     }
 
-    /** The bit count {@code m}. */
+    /**
+     * The bit count {@code m} as a 32-bit pattern (the spec's {@code u32}). For
+     * the small validated values this is the plain count; a value {@code >= 2^31}
+     * is returned as the {@code u32} bit pattern (read it via
+     * {@link Integer#toUnsignedLong} for the unsigned value).
+     */
     public int mBits()
     {
         return this.mBits;
     }
 
-    /** The hash count {@code k}. */
+    /**
+     * The hash count {@code k} as a 32-bit pattern (the spec's {@code u32}); read
+     * via {@link Integer#toUnsignedLong} for values {@code >= 2^31}.
+     */
     public int k()
     {
         return this.k;
@@ -354,13 +386,14 @@ public final class Bloom
 
     private void setBit(int i)
     {
-        int idx = i; // positions() always returns 0 <= i < m, so it fits an int.
-        this.words[idx >>> 6] |= 1L << (idx & 63);
+        // positions() returns an UNSIGNED u32 position in [0, m); for m >= 2^31 it
+        // arrives as a negative int (the u32 bit pattern). The unsigned shift
+        // (>>>) computes the word index correctly without sign-extension.
+        this.words[i >>> 6] |= 1L << (i & 63);
     }
 
     private boolean getBit(int i)
     {
-        int idx = i;
-        return ((this.words[idx >>> 6] >>> (idx & 63)) & 1L) == 1L;
+        return ((this.words[i >>> 6] >>> (i & 63)) & 1L) == 1L;
     }
 }

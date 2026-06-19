@@ -142,14 +142,47 @@ class BloomTest
     }
 
     @Test
-    void negativeParamsTrap()
+    void outOfDomainParamsTrap()
     {
-        // The Java subset carries m/k as signed int; a negative m (a u32 with the
-        // high bit set) or negative k is outside the subset and must trap rather
-        // than build a half-unsigned object.
-        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(-1, 4));
-        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(Integer.MIN_VALUE, 4));
-        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(16, -1));
+        // withParams takes the full u32 domain as long: m in 1..=2^32-1,
+        // k in 0..=2^32-1. A negative value or a value past the u32 ceiling is
+        // outside the domain and must trap.
+        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(-1L, 4L));
+        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(Long.MIN_VALUE, 4L));
+        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(16L, -1L));
+        // Past the u32 ceiling (2^32 == 4294967296) -> out of domain.
+        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(4294967296L, 4L));
+        assertThrows(IllegalArgumentException.class, () -> Bloom.withParams(16L, 4294967296L));
+    }
+
+    @Test
+    void u32DomainAcceptsValuesAboveIntMax()
+    {
+        // The spec domain is the full u32 (with_params(m_bits: u32, k: u32)); a
+        // value > Integer.MAX_VALUE is LEGAL and must NOT be rejected — this is
+        // the widening from the old int-narrowed API. Validate at the API level
+        // without allocating a multi-GB bit array: a k > 2^31 is accepted with a
+        // SMALL m (k is not allocated), and a moderately large but allocatable m
+        // (a few million bits) is accepted and round-trips.
+        long bigK = (long) Integer.MAX_VALUE + 1L; // 2^31, high bit of the u32 k
+        Bloom kBig = Bloom.withParams(16L, bigK);
+        assertEquals(bigK, Integer.toUnsignedLong(kBig.k()));
+        assertEquals(16L, Integer.toUnsignedLong(kBig.mBits()));
+
+        long u32Max = 0xFFFF_FFFFL; // 2^32-1, the top of the domain
+        Bloom kMax = Bloom.withParams(16L, u32Max);
+        assertEquals(u32Max, Integer.toUnsignedLong(kMax.k()));
+
+        // A moderately large, allocatable m (5_000_000 bits ~= 78125 longs).
+        long bigM = 5_000_000L;
+        Bloom mBig = Bloom.withParams(bigM, 4L);
+        assertEquals(bigM, Integer.toUnsignedLong(mBig.mBits()));
+        assertTrue(mBig.isEmpty());
+        mBig.add(7);
+        assertEquals(4, mBig.bitCount());
+        assertTrue(mBig.mightContain(7));
+        // toBytes is ceil(bigM/8) bytes long.
+        assertEquals((int) ((bigM + 7L) / 8L), mBig.toBytes().length);
     }
 
     @Test
