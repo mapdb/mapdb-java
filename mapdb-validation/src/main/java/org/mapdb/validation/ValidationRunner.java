@@ -1919,15 +1919,13 @@ public final class ValidationRunner {
             {
                 continue;
             }
-            String computed = evalHll(key, hll);
-            if (computed == null)
-            {
-                // Unknown HLL assertion key (incl. out-of-range register_at_N):
-                // skip THIS assertion silently (do not fail the scenario),
-                // mirroring the Rust runner's UNKNOWN_ASSERTION skip.
-                continue;
-            }
-            r.emit(key, computed, e.getValue(), FloatMode.NONE);
+            // Unknown HLL assertion key (incl. out-of-range register_at_N) ->
+            // evalHll returns null; emit() prints the visible forward-compat SKIP
+            // line and does NOT increment `evaluated` (so an all-unknown scenario
+            // is still caught by the vacuous-pass guard). A KNOWN key increments
+            // `evaluated` and is compared. This mirrors the emit() convention used
+            // by every other runner in this file (do not short-circuit on null).
+            r.emit(key, evalHll(key, hll), e.getValue(), FloatMode.NONE);
         }
     }
 
