@@ -393,19 +393,28 @@ class HyperLogLogTest
     @Test
     void estimateLargeRangeCorrectionIsFinite()
     {
-        // All registers at ceiling-1 (the reachable high-register regime) drives
-        // raw E into the large-range band; the 2^64 ceiling keeps ln(1 - E/2^64)
-        // finite (a 2^32 ceiling would return NaN here).
+        // Drive a high-register state via fromBytes so raw E exceeds (1/30)*2^64;
+        // estimate() must be finite. ceiling-1 (60 at p=4) lands E in the
+        // large-range band but below 2^64 (the log correction fires; the 2^64
+        // ceiling keeps ln(1 - E/2^64) > 0, a 2^32 ceiling would return NaN).
+        // ceiling (61 at p=4, fully saturated — every register at the per-p max,
+        // an add-unreachable state constructible via fromBytes) reaches/exceeds
+        // 2^64; the log-argument guard skips the correction and returns the raw
+        // (large, finite) E. Without the guard, ln(1 - E/2^64) = ln(<= 0) = NaN.
         int p = 4;
-        int nearMax = 64 - p + 1 - 1; // 60
-        byte[] bytes = HyperLogLog.withPrecision(p).toBytes();
-        for (int i = 5; i < bytes.length; i++)
+        int ceiling = 64 - p + 1; // 61
+        for (int r : new int[] {ceiling - 1, ceiling})
         {
-            bytes[i] = (byte) nearMax;
+            byte[] bytes = HyperLogLog.withPrecision(p).toBytes();
+            for (int i = 5; i < bytes.length; i++)
+            {
+                bytes[i] = (byte) r;
+            }
+            HyperLogLog h = HyperLogLog.fromBytes(bytes);
+            double est = h.estimate();
+            assertTrue(Double.isFinite(est),
+                    "large-range estimate must be finite for all-" + r + " registers, got " + est);
         }
-        HyperLogLog h = HyperLogLog.fromBytes(bytes);
-        double est = h.estimate();
-        assertTrue(Double.isFinite(est), "large-range estimate must be finite, got " + est);
     }
 
     @Test

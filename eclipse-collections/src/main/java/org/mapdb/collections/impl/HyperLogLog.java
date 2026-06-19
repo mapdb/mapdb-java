@@ -215,15 +215,15 @@ public final class HyperLogLog
      * large-range correction (this HLL consumes a 64-bit {@code hash64}, so the
      * hash space is {@code 2^64}, NOT the 2007 paper's {@code 2^32}).
      *
-     * <p><b>Edge note:</b> for an add/merge-reachable state this is always
-     * finite. A synthetic state loaded via {@link #fromBytes(byte[])} with every
-     * register at the absolute per-{@code p} ceiling ({@code 64 - p + 1}) is not
+     * <p><b>Edge note:</b> this is <b>always finite</b>, for every state. A
+     * synthetic state loaded via {@link #fromBytes(byte[])} with every register
+     * at the absolute per-{@code p} ceiling ({@code 64 - p + 1}) is not
      * reachable from the v1 {@code i32} add surface; at small {@code p} its raw
-     * {@code E} can exceed {@code 2^64}, making {@code ln(1 - E/2^64)} take
-     * {@code ln(< 0) = NaN}. That state never occurs through {@code add}/
-     * {@code merge} and never enters the shared integer oracle (the estimate is
-     * quarantined), so it is a non-issue for the contract; documented here only
-     * for callers that estimate arbitrary deserialized states.
+     * {@code E} can reach or exceed {@code 2^64}, which would make
+     * {@code ln(1 - E/2^64)} take {@code ln(<= 0) = NaN}. The large-range branch
+     * guards the log argument: when {@code E >= 2^64} it skips the correction
+     * and returns the raw (large, finite) {@code E}, so {@code estimate()} never
+     * returns {@code NaN}/{@code Infinity}.
      *
      * @return the estimated distinct cardinality
      */
@@ -257,7 +257,17 @@ public final class HyperLogLog
         double two64 = 18446744073709551616.0; // 2^64, exactly representable.
         if (e > (1.0 / 30.0) * two64)
         {
-            return -two64 * Math.log(1.0 - e / two64);
+            // Guard the log argument: for all reachable states E < 2^64 so
+            // (1 - E/2^64) > 0. A fully-saturated deserialized state (every
+            // register at the per-p ceiling, constructible via fromBytes but
+            // not via add) can push raw E >= 2^64, making (1 - E/2^64) <= 0 and
+            // Math.log(<= 0) = NaN. Skip the log correction there and return the
+            // raw (large, finite) E so estimate() stays finite as the spec
+            // mandates.
+            if (e < two64)
+            {
+                return -two64 * Math.log(1.0 - e / two64);
+            }
         }
 
         return e;
