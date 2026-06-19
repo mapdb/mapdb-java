@@ -325,17 +325,19 @@ public final class Bloom
      * The number of set bits (popcount of the whole bit array). The zeroed tail
      * bits never contribute (no {@code positions} index reaches them).
      *
-     * <p>Accumulated as a {@code long} so a large {@code m} (up to the
-     * {@code u32} ceiling, ~2^32 bits) cannot silently overflow a 32-bit counter
-     * into a negative value. The spec's {@code bit_count} return is a {@code u32}
-     * carried in a signed {@code int}; if the true popcount ever exceeded
-     * {@code 2^32-1} (impossible for {@code m <= 2^32-1}) it would saturate at the
-     * {@code u32} ceiling rather than wrap. For every validation scenario the set
-     * count is tiny.
+     * <p><b>Returns {@code long} for u32 parity.</b> The spec's {@code bit_count}
+     * is a {@code u32} (the other four ports carry it as an unsigned 32-bit value,
+     * which holds counts up to {@code 2^32-1}). Java has no unsigned {@code int},
+     * so a count {@code >= 2^31} stored in a signed {@code int} would render
+     * negative and break parity; this port returns the count as a non-negative
+     * {@code long} instead. The value is accumulated as a {@code long} and capped
+     * at the {@code u32} ceiling (impossible for {@code m <= 2^32-1}, so the cap
+     * never truncates a real count). For every validation scenario the set count
+     * is tiny, so the emitted decimal is unchanged for small {@code m}.
      */
-    public int bitCount()
+    public long bitCount()
     {
-        return (int) longBitCount();
+        return longBitCount();
     }
 
     /** Population count of the bit array as a {@code long} (overflow-safe). */
@@ -414,22 +416,32 @@ public final class Bloom
      * The sorted-ascending indices of the set bits — a human-legible alternate
      * oracle to {@link #toBytes} (drives the {@code set_bits} scenario
      * assertion).
+     *
+     * <p><b>Returns {@code long[]} of non-negative u32 indices for parity.</b> A
+     * bit index lives in the {@code u32} domain {@code 0 ..= 2^32-1} (it can
+     * exceed {@code 2^31} for a large {@code m}). The other ports carry indices as
+     * unsigned 32-bit values; Java has no unsigned {@code int}, so each index is
+     * returned as a non-negative {@code long} ({@code (wi * 64L + j)} is computed
+     * in {@code long} arithmetic, never overflowing into a negative {@code int}).
+     * For the validation scenarios (small {@code m}) the values are small and the
+     * emitted decimals are unchanged.
+     *
+     * <p>The array length is sized from the overflow-safe {@code long} popcount; a
+     * Java {@code long[]} cannot hold {@code >= 2^31} entries, so if the count ever
+     * exceeded {@code Integer.MAX_VALUE} (impossible for the validated/scenario
+     * sizes) it is unrepresentable as a Java array and we fail fast rather than
+     * allocate a negative/overflowed array.
      */
-    public int[] setBits()
+    public long[] setBits()
     {
-        // Size from the overflow-safe long popcount. A Java int[] cannot hold
-        // >= 2^31 entries, so if the count ever exceeded Integer.MAX_VALUE
-        // (impossible for the validated/scenario sizes) it is unrepresentable as
-        // an int[] and we fail fast rather than allocate a negative/overflowed
-        // array.
         long count = longBitCount();
         if (count > (long) Integer.MAX_VALUE)
         {
             throw new IllegalStateException(
                     "Bloom.setBits: " + count + " set bits exceed Integer.MAX_VALUE — "
-                            + "not representable as a Java int[]");
+                            + "not representable as a Java long[]");
         }
-        int[] out = new int[(int) count];
+        long[] out = new long[(int) count];
         int n = 0;
         for (int wi = 0; wi < this.words.length; wi++)
         {
@@ -437,7 +449,8 @@ public final class Bloom
             while (bits != 0L)
             {
                 int j = Long.numberOfTrailingZeros(bits);
-                out[n++] = wi * 64 + j;
+                // long arithmetic: a u32 index >= 2^31 stays non-negative.
+                out[n++] = (long) wi * 64L + j;
                 bits &= bits - 1L; // clear lowest set bit
             }
         }

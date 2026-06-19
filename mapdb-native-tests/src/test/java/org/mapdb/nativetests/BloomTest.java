@@ -45,8 +45,11 @@ class BloomTest
         Bloom b = Bloom.withParams(16, 4);
         assertTrue(b.isEmpty());
         b.add(7);
-        assertArrayEquals(new int[] {0, 2, 7, 9}, b.setBits());
-        assertEquals(4, b.bitCount());
+        // setBits() returns long[] (u32-correct, non-negative); bitCount() long.
+        long[] sb = b.setBits();
+        assertArrayEquals(new long[] {0L, 2L, 7L, 9L}, sb);
+        long bc = b.bitCount();
+        assertEquals(4L, bc);
         assertFalse(b.isEmpty());
         // Byte 0: bits 0,2,7 -> 0x01|0x04|0x80 = 0x85. Byte 1: bit 9 -> 0x02.
         assertArrayEquals(new byte[] {(byte) 0x85, (byte) 0x02}, b.toBytes());
@@ -175,6 +178,65 @@ class BloomTest
         assertTrue(m2.mightContain(7));
         // toBytes is ceil(allocM/8) bytes long.
         assertEquals((int) ((allocM + 7L) / 8L), m2.toBytes().length);
+    }
+
+    @Test
+    void bitCountAndSetBitsAreLongTyped()
+    {
+        // Parity guard: the spec's bit_count and set_bits live in the u32 domain
+        // (0..=2^32-1). Java has no unsigned int, so this port returns them as
+        // non-negative longs. Assert the STATIC return types are long / long[]
+        // (a regression to int / int[] would not compile these lines).
+        Bloom b = Bloom.withParams(16, 4);
+        b.add(7);
+        long bc = b.bitCount();         // must be assignable to long
+        long[] sb = b.setBits();        // must be a long[]
+        assertEquals(4L, bc);
+        assertArrayEquals(new long[] {0L, 2L, 7L, 9L}, sb);
+    }
+
+    @Test
+    void u32IndexMathDoesNotOverflowConceptually()
+    {
+        // The count/index logic must hold the full u32 domain without wrapping
+        // negative — the bug being fixed. We exercise the math directly rather
+        // than allocating a multi-GB filter:
+        //
+        //   bit_count: a popcount up to 2^32-1 must stay a non-negative long
+        //   (a 32-bit signed counter would wrap negative past 2^31).
+        long bigCountA = 0xFFFF_FFFFL;          // 2^32-1, the u32 ceiling
+        long bigCountB = (long) Integer.MAX_VALUE + 1L; // 2^31, the int wrap point
+        assertTrue(bigCountA > 0L, "u32-max count stays positive as a long");
+        assertTrue(bigCountB > 0L, "2^31 count stays positive as a long");
+        // The same value cast to a (buggy) signed int would be negative:
+        assertTrue((int) bigCountA < 0, "u32-max would wrap negative in an int");
+        assertTrue((int) bigCountB < 0, "2^31 would wrap negative in an int");
+        //
+        //   set_bits index: (long) wordIndex * 64 + bitInWord must stay a
+        //   non-negative long even when the bit index exceeds 2^31. Reproduce
+        //   the exact arithmetic Bloom.setBits() uses for a word index whose
+        //   resulting bit index is > 2^31 (and would be a negative int).
+        int highWordIndex = 0x0400_0000; // 2^26 words -> bit index 2^32, > int range
+        int bitInWord = 5;
+        long idx = (long) highWordIndex * 64L + bitInWord; // the setBits() formula
+        assertEquals((1L << 32) + 5L, idx);
+        assertTrue(idx > (long) Integer.MAX_VALUE, "index exceeds int range");
+        assertTrue(idx > 0L, "index stays non-negative as a long");
+        // The 32-bit-truncated version of the same computation silently produces
+        // the WRONG value (the * 64 overflows int), proving long arithmetic is
+        // required: highWordIndex*64 = 2^32 truncates to 0 in int, so the int
+        // result is 5 rather than the true 2^32+5.
+        assertEquals(5, highWordIndex * 64 + bitInWord);
+        assertTrue((highWordIndex * 64 + bitInWord) != idx,
+                "the int-arithmetic version is wrong (truncated)");
+
+        // A word index whose bit index lands strictly between 2^31 and 2^32
+        // would render NEGATIVE under int arithmetic but stays positive as long.
+        int midWordIndex = (1 << 25) + 1; // bit index ~2^31+64, in (2^31, 2^32)
+        long midIdx = (long) midWordIndex * 64L;
+        assertTrue(midIdx > (long) Integer.MAX_VALUE && midIdx < (1L << 32));
+        assertTrue(midIdx > 0L, "stays non-negative as a long");
+        assertTrue(midWordIndex * 64 < 0, "would be negative under int arithmetic");
     }
 
     @Test
@@ -313,8 +375,8 @@ class BloomTest
         b.add(-1);
         b.add(Integer.MIN_VALUE);
         assertEquals("0x00000000062000000044000880004000", hex(b.toBytes()));
-        assertEquals(8, b.bitCount());
-        assertArrayEquals(new int[] {33, 34, 45, 74, 78, 91, 103, 118}, b.setBits());
+        assertEquals(8L, b.bitCount());
+        assertArrayEquals(new long[] {33L, 34L, 45L, 74L, 78L, 91L, 103L, 118L}, b.setBits());
         assertTrue(b.mightContain(-1));
         assertTrue(b.mightContain(Integer.MIN_VALUE));
     }
@@ -345,12 +407,12 @@ class BloomTest
         Bloom b = Bloom.withParams(13, 3);
         b.add(7);
         b.add(42);
-        assertArrayEquals(new int[] {3, 4, 7, 10}, b.setBits());
-        assertEquals(4, b.bitCount());
+        assertArrayEquals(new long[] {3L, 4L, 7L, 10L}, b.setBits());
+        assertEquals(4L, b.bitCount());
         // The unused high bits of byte 1 (bits 13,14,15) MUST be 0 -> byte1 = 0x04.
         assertEquals("0x9804", hex(b.toBytes()));
         assertEquals(2, b.toBytes().length);
-        for (int p : b.setBits())
+        for (long p : b.setBits())
         {
             assertTrue(p < 13, "set bit " + p + " must be < m=13");
         }
@@ -374,10 +436,10 @@ class BloomTest
     void emptyFilterSerializesAllZeroOfFullLength()
     {
         Bloom b = Bloom.withParams(16, 4);
-        assertEquals(0, b.bitCount());
+        assertEquals(0L, b.bitCount());
         assertTrue(b.isEmpty());
         assertEquals("0x0000", hex(b.toBytes()));
-        assertArrayEquals(new int[] {}, b.setBits());
+        assertArrayEquals(new long[] {}, b.setBits());
         assertFalse(b.mightContain(7)); // k>=1: some position always clear
     }
 }

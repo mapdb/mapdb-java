@@ -319,6 +319,17 @@ public final class ValidationRunner {
         return sb.append(']').toString();
     }
 
+    private static String formatLongArray(long[] v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(v[i]);
+        }
+        return sb.append(']').toString();
+    }
+
     private static String formatIntList(List<Integer> v) {
         return "[" + v.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
     }
@@ -2211,11 +2222,13 @@ public final class ValidationRunner {
             case "k":
                 return String.valueOf(Integer.toUnsignedLong(bloom.k()));
             case "bit_count":
+                // bitCount() is a long (u32-correct, non-negative); decimal.
                 return String.valueOf(bloom.bitCount());
             case "is_empty":
                 return String.valueOf(bloom.isEmpty());
             case "set_bits":
-                return formatIntArray(bloom.setBits());
+                // setBits() are non-negative long u32 indices; decimal each.
+                return formatLongArray(bloom.setBits());
             case "bytes":
                 return bloomHex(bloom.toBytes());
             default:
@@ -2236,7 +2249,7 @@ public final class ValidationRunner {
             case "union_bit_count":
                 return String.valueOf(union.bitCount());
             case "union_set_bits":
-                return formatIntArray(union.setBits());
+                return formatLongArray(union.setBits());
             case "union_bytes":
                 return bloomHex(union.toBytes());
             default:
