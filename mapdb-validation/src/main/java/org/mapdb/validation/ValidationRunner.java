@@ -26,6 +26,7 @@ import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.Hash;
+import org.mapdb.collections.impl.HyperLogLog;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -253,6 +254,9 @@ public final class ValidationRunner {
                 break;
             case "HashPipeline":
                 runHashPipeline(scenario, r);
+                break;
+            case "HyperLogLog":
+                runHyperLogLog(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1792,6 +1796,166 @@ public final class ValidationRunner {
         System.out.println("(unsup column retained for layout; unknown collection kinds now SKIP per forward-compat)");
         System.out.println("assertions skipped (no evaluator; each fails its scenario): " + skippedAssertions);
         System.out.println("scenarios run: " + scenariosRun + ", result: " + (anyFail ? "RED (failures present)" : "GREEN"));
+    }
+
+    // ---- HyperLogLog (spec/features/hyperloglog.md) -----------------------
+    //
+    // A stored cardinality sketch. The cross-language oracle is the INTEGER
+    // register array (register_hex / nonzero_registers / max_register /
+    // register_at_N) — NEVER the float estimate (float-quarantine Rule Q1; there
+    // is deliberately NO `estimate` assertion key). Exactly one builder op,
+    // first: either with_precision(p) (then zero or more add/merge) OR a single
+    // from_bytes. Zero/two builders or an add before the builder => malformed =>
+    // SKIP. A merge consumes the scenario's `other` HyperLogLog. Unknown
+    // ops/keys/kinds SKIP (forward-compat).
+
+    /**
+     * Build a HyperLogLog from an op list (used for the primary and the `other`
+     * block). A malformed op list (not starting with exactly one builder, an
+     * add/merge before the builder, an out-of-range with_precision, or a bad
+     * from_bytes) raises {@link ScenarioSkipException} -> the scenario SKIPs.
+     */
+    private HyperLogLog buildHll(JsonNode operations, JsonNode other)
+    {
+        if (!operations.isArray() || operations.size() == 0)
+        {
+            throw new ScenarioSkipException("HyperLogLog scenario must have at least one op (forward-compat)");
+        }
+        JsonNode first = operations.get(0);
+        String firstOp = first.path("op").asText();
+        HyperLogLog hll;
+        try
+        {
+            switch (firstOp)
+            {
+                case "with_precision":
+                    hll = HyperLogLog.withPrecision(first.path("p").asInt());
+                    break;
+                case "from_bytes":
+                    // from_bytes is the SOLE op when present (full state replacement).
+                    if (operations.size() != 1)
+                    {
+                        throw new ScenarioSkipException("from_bytes must be the only op (forward-compat)");
+                    }
+                    hll = HyperLogLog.fromBytes(parseHexBytes(first));
+                    break;
+                default:
+                    throw new ScenarioSkipException(
+                            "HyperLogLog first op must be a builder (forward-compat): " + firstOp);
+            }
+        }
+        catch (IllegalArgumentException e)
+        {
+            // Out-of-range p / bad from_bytes => the harness cannot build the
+            // probe => SKIP. Native tests pin the error path itself.
+            throw new ScenarioSkipException("HyperLogLog builder error (forward-compat skip): " + e.getMessage());
+        }
+        for (int i = 1; i < operations.size(); i++)
+        {
+            JsonNode op = operations.get(i);
+            switch (op.path("op").asText())
+            {
+                case "add":
+                    hll.add(op.get("value").asInt());
+                    break;
+                case "merge":
+                {
+                    if (other == null)
+                    {
+                        throw new ScenarioSkipException("HyperLogLog merge with no `other` block (forward-compat)");
+                    }
+                    HyperLogLog otherHll = buildHll(other.path("operations"), null);
+                    try
+                    {
+                        hll.merge(otherHll);
+                    }
+                    catch (IllegalArgumentException e)
+                    {
+                        throw new ScenarioSkipException("HyperLogLog merge error (forward-compat skip): " + e.getMessage());
+                    }
+                    break;
+                }
+                default:
+                    throw new ScenarioSkipException(
+                            "unknown HyperLogLog op (forward-compat skip): " + op.path("op").asText());
+            }
+        }
+        return hll;
+    }
+
+    private void runHyperLogLog(JsonNode scenario, ScenarioResult r)
+    {
+        JsonNode other = scenario.has("other") ? scenario.get("other") : null;
+        HyperLogLog hll = buildHll(scenario.path("operations"), other);
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            String computed = evalHll(key, hll);
+            if (computed == null)
+            {
+                // Unknown HLL assertion key (incl. out-of-range register_at_N):
+                // skip THIS assertion silently (do not fail the scenario),
+                // mirroring the Rust runner's UNKNOWN_ASSERTION skip.
+                continue;
+            }
+            r.emit(key, computed, e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    /**
+     * Evaluate a single HyperLogLog assertion key. The PRIMARY oracle is
+     * register_hex (the full serialized form as a lowercase 0x-prefixed hex
+     * string; registers are unsigned bytes). NO `estimate` key (float-quarantine
+     * Q1). Returns {@code null} for an unknown key or an out-of-range
+     * register_at_N suffix, which the caller skips silently (forward-compat).
+     */
+    private String evalHll(String key, HyperLogLog hll)
+    {
+        switch (key)
+        {
+            case "register_hex":
+            {
+                byte[] bytes = hll.toBytes();
+                StringBuilder sb = new StringBuilder(2 + bytes.length * 2);
+                sb.append("0x");
+                for (byte b : bytes)
+                {
+                    sb.append(String.format("%02x", b & 0xFF));
+                }
+                return sb.toString();
+            }
+            case "nonzero_registers":
+                return String.valueOf(hll.nonzeroRegisters());
+            case "max_register":
+                return String.valueOf(hll.maxRegister());
+            default:
+                break;
+        }
+        if (key.startsWith("register_at_"))
+        {
+            // Parse the index suffix as an unsigned i32/u32 with range-check;
+            // out-of-range or non-numeric -> unknown -> skip (return null).
+            String suffix = key.substring("register_at_".length());
+            long n;
+            try
+            {
+                n = Long.parseLong(suffix);
+            }
+            catch (NumberFormatException ex)
+            {
+                return null;
+            }
+            if (n < 0 || n >= hll.registerCount())
+            {
+                return null;
+            }
+            return String.valueOf(hll.registers()[(int) n] & 0xFF);
+        }
+        return null;
     }
 
     // ---- HashPipeline (spec/features/hash-pipeline.md) --------------------
