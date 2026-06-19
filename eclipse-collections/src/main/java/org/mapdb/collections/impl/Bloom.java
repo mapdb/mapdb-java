@@ -226,14 +226,19 @@ public final class Bloom
     }
 
     /**
-     * The bit count {@code m} as a 32-bit pattern (the spec's {@code u32}). For
-     * the small validated values this is the plain count; a value {@code >= 2^31}
-     * is returned as the {@code u32} bit pattern (read it via
-     * {@link Integer#toUnsignedLong} for the unsigned value).
+     * The bit count {@code m} (the spec's {@code u32}) as a non-negative
+     * {@code long}. {@code mBits} is stored as the {@code u32} bit pattern in a
+     * signed {@code int}, so a value {@code >= 2^31} would render negative if
+     * returned as an {@code int} (e.g. {@code withParams(2147483648L, 0)} would
+     * yield {@code -2147483648}). Java has no unsigned {@code int}, so — exactly
+     * like {@link #bitCount()} — this returns the unsigned value widened with
+     * {@link Integer#toUnsignedLong}, keeping parity with the {@code u32} ports.
+     * For the small validated values used in the scenarios the decimal is
+     * unchanged.
      */
-    public int mBits()
+    public long mBits()
     {
-        return this.mBits;
+        return Integer.toUnsignedLong(this.mBits);
     }
 
     /**

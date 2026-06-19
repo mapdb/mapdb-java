@@ -2216,9 +2216,10 @@ public final class ValidationRunner {
         switch (key)
         {
             case "m_bits":
-                // mBits()/k() carry the u32 bit pattern in a signed int; emit the
-                // unsigned value so a (hypothetical) large-u32 scenario matches.
-                return String.valueOf(Integer.toUnsignedLong(bloom.mBits()));
+                // mBits() now returns the unsigned u32 as a non-negative long
+                // (Integer.toUnsignedLong applied inside); emit it directly so a
+                // (hypothetical) large-u32 scenario matches.
+                return String.valueOf(bloom.mBits());
             case "k":
                 return String.valueOf(Integer.toUnsignedLong(bloom.k()));
             case "bit_count":

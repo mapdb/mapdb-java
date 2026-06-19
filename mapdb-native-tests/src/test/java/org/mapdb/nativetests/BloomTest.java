@@ -120,7 +120,7 @@ class BloomTest
         for (int i = 0; i < cases.length; i++)
         {
             Bloom b = Bloom.optimal(cases[i][0], ps[i]);
-            assertEquals((int) cases[i][1], b.mBits(), "optimal(" + cases[i][0] + ", " + ps[i] + ") m");
+            assertEquals(cases[i][1], b.mBits(), "optimal(" + cases[i][0] + ", " + ps[i] + ") m");
             assertEquals((int) cases[i][2], b.k(), "optimal(" + cases[i][0] + ", " + ps[i] + ") k");
         }
     }
@@ -170,7 +170,7 @@ class BloomTest
         // round-trip add -> mightContain with NO overflow in bitCount/setBits.
         long allocM = 5_000_000L;
         Bloom m2 = Bloom.withParams(allocM, 4L);
-        assertEquals(allocM, Integer.toUnsignedLong(m2.mBits()));
+        assertEquals(allocM, m2.mBits());
         assertTrue(m2.isEmpty());
         m2.add(7);
         assertEquals(4, m2.bitCount());
@@ -178,6 +178,20 @@ class BloomTest
         assertTrue(m2.mightContain(7));
         // toBytes is ceil(allocM/8) bytes long.
         assertEquals((int) ((allocM + 7L) / 8L), m2.toBytes().length);
+    }
+
+    @Test
+    void mBitsReturnsNonNegativeLongForLargeU32()
+    {
+        // Witness: m >= 2^31 is stored as a u32 bit pattern in a signed int.
+        // mBits() previously returned int, so withParams(2^31, 0).mBits() was
+        // -2147483648. It now returns the unsigned value as a non-negative long.
+        // (2^31 bits => a ~256 MiB long[], allocatable under the -Xmx2048m test
+        // heap; k = 0 so add/contain do no work.)
+        long m = 2147483648L; // 2^31
+        Bloom b = Bloom.withParams(m, 0L);
+        assertEquals(m, b.mBits());
+        assertTrue(b.mBits() >= 0L, "mBits() must never be negative");
     }
 
     @Test
