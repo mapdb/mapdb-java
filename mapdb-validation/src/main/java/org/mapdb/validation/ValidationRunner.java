@@ -25,6 +25,7 @@ import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
+import org.mapdb.collections.impl.FenwickTree;
 import org.mapdb.collections.impl.Hash;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
@@ -253,6 +254,9 @@ public final class ValidationRunner {
                 break;
             case "HashPipeline":
                 runHashPipeline(scenario, r);
+                break;
+            case "FenwickTree":
+                runFenwick(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -1989,6 +1993,172 @@ public final class ValidationRunner {
                             "unknown hash-pipeline assertion key (forward-compat skip): " + key);
             }
             r.emit(key, computed, e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    // ---- FenwickTree (spec/features/fenwick.md) ---------------------------
+    //
+    // A fixed-size int-element / long-accumulator Binary Indexed Tree.
+    // Construction is EXACTLY ONE op (`with_size` or `from_values`) FIRST, then
+    // any number of `update`/`set` point ops (all in-range; out-of-range traps
+    // are native-test-only). Sum-returning assertions (`total`, `get_<i>`,
+    // `prefix_sum_<i>`, `range_sum_<lo>_<hi>`, and each `tree` element) are i64
+    // and wire-encoded as DECIMAL STRINGS (Long.toString -- signed). The `tree`
+    // assertion is the canonical 1-based BIT array in 1-based index order (an
+    // explicit-order key, NOT sorted), each element a quoted decimal string to
+    // match renderExpected's NONE-mode array path (the i64 sorted_keys
+    // convention). Unknown ops / kinds / assertion keys SKIP (forward-compat).
+
+    private static final Pattern FENWICK_GET_KEY = Pattern.compile("^get_([0-9]+)$");
+    private static final Pattern FENWICK_PREFIX_KEY = Pattern.compile("^prefix_sum_([0-9]+)$");
+    private static final Pattern FENWICK_RANGE_KEY = Pattern.compile("^range_sum_([0-9]+)_([0-9]+)$");
+
+    private void runFenwick(JsonNode scenario, ScenarioResult r)
+    {
+        JsonNode operations = scenario.path("operations");
+        if (!operations.isArray() || operations.size() == 0)
+        {
+            throw new ScenarioSkipException(
+                    "fenwick scenario must begin with a construction op (forward-compat skip)");
+        }
+
+        // The FIRST op MUST be exactly one construction op (with_size OR
+        // from_values); a missing/late/duplicate construction op is malformed.
+        JsonNode firstOp = operations.get(0);
+        String first = firstOp.path("op").asText("");
+        FenwickTree tree;
+        switch (first)
+        {
+            case "with_size":
+            {
+                long requested = I64Codec.parseOperand(firstOp.path("n"));
+                if (requested < 0 || requested > Integer.MAX_VALUE)
+                {
+                    throw new ScenarioSkipException(
+                            "fenwick with_size out-of-range n (malformed): " + requested);
+                }
+                tree = FenwickTree.withSize((int) requested);
+                break;
+            }
+            case "from_values":
+            {
+                JsonNode vals = firstOp.path("values");
+                if (!vals.isArray())
+                {
+                    throw new ScenarioSkipException("fenwick from_values needs a values array");
+                }
+                int[] arr = new int[vals.size()];
+                for (int i = 0; i < arr.length; i++)
+                {
+                    arr[i] = vals.get(i).asInt();
+                }
+                tree = FenwickTree.fromValues(arr);
+                break;
+            }
+            default:
+                throw new ScenarioSkipException(
+                        "fenwick first op must be with_size/from_values (forward-compat skip): " + first);
+        }
+
+        // Any subsequent construction op is malformed; unknown ops SKIP.
+        for (int k = 1; k < operations.size(); k++)
+        {
+            JsonNode op = operations.get(k);
+            String opName = op.path("op").asText("");
+            switch (opName)
+            {
+                case "update":
+                    tree.update(op.path("index").asInt(), op.path("delta").asInt());
+                    break;
+                case "set":
+                    tree.set(op.path("index").asInt(), op.path("value").asInt());
+                    break;
+                case "with_size":
+                case "from_values":
+                    throw new ScenarioSkipException(
+                            "fenwick has a non-first construction op (malformed)");
+                default:
+                    throw new ScenarioSkipException(
+                            "unknown fenwick op (forward-compat skip): " + opName);
+            }
+        }
+
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            r.emit(key, evalFenwick(key, tree), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private String evalFenwick(String key, FenwickTree tree)
+    {
+        switch (key)
+        {
+            case "size":
+                return String.valueOf(tree.size());
+            case "is_empty":
+                return String.valueOf(tree.isEmpty());
+            case "total":
+                return Long.toString(tree.total());
+            case "tree":
+            {
+                // Canonical 1-based BIT array in 1-based index order (NOT sorted);
+                // each i64 element a quoted decimal string.
+                long[] canon = tree.canonicalTree();
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < canon.length; i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.append(',');
+                    }
+                    sb.append('"').append(Long.toString(canon[i])).append('"');
+                }
+                return sb.append(']').toString();
+            }
+            default:
+        }
+        Matcher m = FENWICK_GET_KEY.matcher(key);
+        if (m.matches())
+        {
+            return Long.toString(tree.get(parseFenwickIndex(key, m.group(1))));
+        }
+        m = FENWICK_PREFIX_KEY.matcher(key);
+        if (m.matches())
+        {
+            return Long.toString(tree.prefixSum(parseFenwickIndex(key, m.group(1))));
+        }
+        m = FENWICK_RANGE_KEY.matcher(key);
+        if (m.matches())
+        {
+            int lo = parseFenwickIndex(key, m.group(1));
+            int hi = parseFenwickIndex(key, m.group(2));
+            return Long.toString(tree.rangeSum(lo, hi));
+        }
+        // Unknown assertion key -> SKIP (forward-compat), matching HashPipeline.
+        throw new ScenarioSkipException(
+                "unknown fenwick assertion key (forward-compat skip): " + key);
+    }
+
+    /**
+     * Parse a non-negative i32 index suffix; an out-of-i32-range suffix makes the
+     * key un-evaluable, so the scenario SKIPS (forward-compat) rather than fails.
+     * The matched regex already guarantees the digits are non-negative.
+     */
+    private static int parseFenwickIndex(String key, String s)
+    {
+        try
+        {
+            return Integer.parseInt(s);
+        }
+        catch (NumberFormatException ex)
+        {
+            throw new ScenarioSkipException(
+                    "fenwick assertion index out of i32 range (forward-compat skip): " + key);
         }
     }
 }
