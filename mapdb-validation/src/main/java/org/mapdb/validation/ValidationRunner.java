@@ -1687,10 +1687,13 @@ public final class ValidationRunner {
                         // i64 sorted_keys arrays are quoted decimal STRINGS in the
                         // JSON; integer arrays are bare numbers. Preserve quoting so
                         // the rendered form matches the runner's quoted i64 output.
+                        // The Fenwick `tree` canonical array carries its i64 elements
+                        // as decimal STRINGS too, but the runner emits them as bare
+                        // decimals (matching rust/go/ts/zig), so render those UNQUOTED.
                         if (el.isNull()) {
                             parts.add("null");
                         } else if (el.isTextual()) {
-                            parts.add("\"" + el.asText() + "\"");
+                            parts.add(key.equals("tree") ? el.asText() : "\"" + el.asText() + "\"");
                         } else {
                             parts.add(el.asText());
                         }
@@ -2005,9 +2008,10 @@ public final class ValidationRunner {
     // `prefix_sum_<i>`, `range_sum_<lo>_<hi>`, and each `tree` element) are i64
     // and wire-encoded as DECIMAL STRINGS (Long.toString -- signed). The `tree`
     // assertion is the canonical 1-based BIT array in 1-based index order (an
-    // explicit-order key, NOT sorted), each element a quoted decimal string to
-    // match renderExpected's NONE-mode array path (the i64 sorted_keys
-    // convention). Unknown ops / kinds / assertion keys SKIP (forward-compat).
+    // explicit-order key, NOT sorted), each element a BARE signed decimal (the
+    // rust/go/ts/zig reference wire form `[v1,v2,...]`); renderExpected normalises
+    // the expected JSON's quoted-string `tree` elements quote-free to match.
+    // Unknown ops / kinds / assertion keys SKIP (forward-compat).
 
     private static final Pattern FENWICK_GET_KEY = Pattern.compile("^get_([0-9]+)$");
     private static final Pattern FENWICK_PREFIX_KEY = Pattern.compile("^prefix_sum_([0-9]+)$");
@@ -2107,7 +2111,9 @@ public final class ValidationRunner {
             case "tree":
             {
                 // Canonical 1-based BIT array in 1-based index order (NOT sorted);
-                // each i64 element a quoted decimal string.
+                // each i64 element a bare signed decimal (matching the rust/go/ts/zig
+                // reference wire form `[v1,v2,...]`; the expected JSON's quoted-string
+                // i64 elements are normalised quote-free by renderExpected).
                 long[] canon = tree.canonicalTree();
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < canon.length; i++)
@@ -2116,7 +2122,7 @@ public final class ValidationRunner {
                     {
                         sb.append(',');
                     }
-                    sb.append('"').append(Long.toString(canon[i])).append('"');
+                    sb.append(Long.toString(canon[i]));
                 }
                 return sb.append(']').toString();
             }
