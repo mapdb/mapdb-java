@@ -148,6 +148,19 @@ public final class ValidationRunner {
             return;
         }
 
+        // Vacuous-pass guard: a scenario that evaluated ZERO real assertions is
+        // flagged a failure, even if nothing explicitly failed. This is what lets
+        // emit() forward-compat-SKIP an unknown assertion key without failing the
+        // scenario: a scenario with at least one KNOWN assertion still passes
+        // (its unknown keys merely skip), but a scenario whose assertions are ALL
+        // unknown (or absent) evaluates nothing and is caught here rather than
+        // passing vacuously.
+        if (!result.failed && result.evaluated == 0) {
+            System.out.println("FAIL " + name
+                    + " : no assertions evaluated (all unknown/absent -> vacuous pass guard)");
+            result.failed = true;
+        }
+
         if (result.failed) {
             System.out.println("FAIL " + name);
             anyFail = true;
@@ -162,24 +175,35 @@ public final class ValidationRunner {
     private final class ScenarioResult {
         final String name;
         boolean failed = false;
+        /** Real assertions actually evaluated (evaluator returned a value). */
+        int evaluated = 0;
+        /** Unknown assertion keys skipped (evaluator returned the null sentinel). */
+        int unknownSkipped = 0;
 
         ScenarioResult(String name) {
             this.name = name;
         }
 
         /**
-         * Emit a computed assertion. A key the runner has no evaluator for is
-         * loudly reported as SKIP and fails the scenario -- a silent skip is what
-         * once let the {@code product} assertion pass vacuously. Otherwise print
-         * {@code key: value} and compare to expected.
+         * Emit a computed assertion. A key the runner has no evaluator for
+         * (evaluator returns the {@code null} "unknown key" sentinel) is reported
+         * as SKIP <b>without failing the scenario</b> — the cross-language README
+         * requires an unknown ops/assertion key to be forward-compat-SKIPPED, so a
+         * future key never breaks an older runner. (The vacuous-pass hole that
+         * once let the {@code product} assertion slip through is closed instead by
+         * the zero-evaluated-assertions guard in {@link #runScenario}: a scenario
+         * that evaluates NO real assertion is flagged a failure there, so an
+         * unknown key can be skipped without also turning every all-unknown
+         * scenario green.) A known key is printed and compared to expected.
          */
         void emit(String key, String computed, JsonNode expected, FloatMode mode) {
             if (computed == null) {
-                System.out.println("SKIP " + name + " " + key + ": no evaluator for this assertion key");
+                System.out.println("SKIP " + name + " " + key + ": unknown assertion key (forward-compat skip)");
                 skippedAssertions++;
-                failed = true;
+                unknownSkipped++;
                 return;
             }
+            evaluated++;
             System.out.println(key + ": " + computed);
             String expectedStr = renderExpected(expected, key, mode);
             if (!computed.equals(expectedStr) && !looseNanMatch(expected, mode, computed)) {
@@ -1790,7 +1814,8 @@ public final class ValidationRunner {
         System.out.println("-----------------------------------------");
         System.out.printf("%-22s %6d %6d %6d%n", "TOTAL", tp, tf, tu);
         System.out.println("(unsup column retained for layout; unknown collection kinds now SKIP per forward-compat)");
-        System.out.println("assertions skipped (no evaluator; each fails its scenario): " + skippedAssertions);
+        System.out.println("unknown assertion keys skipped (forward-compat; a scenario with ZERO real "
+                + "assertions still fails): " + skippedAssertions);
         System.out.println("scenarios run: " + scenariosRun + ", result: " + (anyFail ? "RED (failures present)" : "GREEN"));
     }
 
