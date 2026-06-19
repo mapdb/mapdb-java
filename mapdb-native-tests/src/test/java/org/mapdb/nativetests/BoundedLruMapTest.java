@@ -224,15 +224,33 @@ class BoundedLruMapTest
     @Test
     void capacityNegativeBehavesLikeZero()
     {
-        // n <= 0 drops every insert (n == 0 path: maxSize >= 1 is never true).
+        // A negative capacity is clamped to 0 (drop-everything): capacity() is never
+        // negative, and every insert drops. Matches the Go port and the spec's
+        // non-negative capacity domain.
         Recorder<Integer, Integer> rec = new Recorder<>();
         BoundedLruMap<Integer, Integer> m =
                 BoundedLruMap.<Integer, Integer>builder().maxSize(-5).onEvict(rec).build();
+        assertEquals(0, m.capacity()); // clamped, never negative
         assertEquals(Optional.empty(), m.put(1, 10));
         assertEquals(Optional.empty(), m.put(2, 20));
         assertEquals(0, m.size());
         assertTrue(m.isEmpty());
         assertTrue(rec.log.isEmpty());
+    }
+
+    @Test
+    void capacityNegativeWithMaxSizeClampsToZero()
+    {
+        // The static withMaxSize(-1) convenience also clamps: no negative capacity
+        // is ever observable, and the map is drop-everything (every put evicts to nothing).
+        BoundedLruMap<Integer, Integer> m = BoundedLruMap.withMaxSize(-1);
+        assertEquals(0, m.capacity()); // clamped, never negative
+        assertEquals(Optional.empty(), m.put(1, 10));
+        assertEquals(Optional.empty(), m.put(2, 20));
+        assertEquals(0, m.size());
+        assertTrue(m.isEmpty());
+        assertEquals(Optional.empty(), m.get(1));
+        assertEquals(List.of(), keys(m));
     }
 
     @Test

@@ -132,7 +132,7 @@ public final class BoundedLruMap<K, V>
     private final LinkedHashMap<K, Node<V>> map =
             new LinkedHashMap<>(16, 0.75f, true);
 
-    /** Capacity {@code n} ({@code <= 0} ⇒ permanently empty; every insert drops). */
+    /** Capacity {@code n} ({@code 0} ⇒ permanently empty; every insert drops). Negative inputs are clamped to {@code 0}. */
     private final int maxSize;
     /** After-write TTL in unsigned logical ticks, or {@code null} for a pure max-size map. */
     private final Long ttl;
@@ -141,7 +141,11 @@ public final class BoundedLruMap<K, V>
 
     private BoundedLruMap(int maxSize, Long ttl, EvictionListener<K, V> onEvict)
     {
-        this.maxSize = maxSize;
+        // A negative capacity is meaningless; clamp it to 0 (drop-everything), so
+        // capacity() never reports a negative value and the map stays within the
+        // spec's non-negative capacity domain. Clamp-to-0 (not throw) matches the
+        // Go port's cross-port convention; observable behavior is identical to n==0.
+        this.maxSize = Math.max(maxSize, 0);
         this.ttl = ttl;
         this.onEvict = onEvict;
     }
