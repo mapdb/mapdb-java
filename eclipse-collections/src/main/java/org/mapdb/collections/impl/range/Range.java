@@ -303,6 +303,46 @@ public final class Range<C extends Comparable<? super C>>
         return new Range<>(newLower, newUpper);
     }
 
+    // ---- cut-level access for RangeSet / RangeMap (package-private) --------
+    //
+    // RangeSet/RangeMap re-assemble ranges from the cuts they compute (the
+    // boundary-flip of remove/complement, the clip of subRangeSet/put) and
+    // order their backing strictly by lower cut. They MUST do this in cut
+    // space — never via (value, inclusive) booleans or +-1 endpoint math — so
+    // the side-aware cut comparisons of bound-range.md remain the single source
+    // of truth. These package-private accessors expose exactly that, without
+    // leaking the Cut type into the public API.
+
+    /** The lower {@link Cut} of this range ({@code BelowAll} when unbounded below). */
+    Cut<C> lowerCut()
+    {
+        return this.lower;
+    }
+
+    /** The upper {@link Cut} of this range ({@code AboveAll} when unbounded above). */
+    Cut<C> upperCut()
+    {
+        return this.upper;
+    }
+
+    /**
+     * Re-assemble a {@link Range} directly from two {@link Cut}s, validating
+     * {@code lower <= upper}. Package-private so the RangeSet/RangeMap split /
+     * complement / clip logic can rebuild a range from the cut endpoints it
+     * computed, keeping all boundary arithmetic in cut space (never {@code +-1}).
+     * Deliberately not public: it does not re-check cut-side legality (a lower
+     * cut must never be {@code AboveAll}, an upper cut never {@code BelowAll}) —
+     * an invariant the public factories establish; all in-package callers pass
+     * cuts copied from valid ranges, so the side invariant is preserved by
+     * construction.
+     *
+     * @throws IllegalArgumentException if {@code lower > upper}
+     */
+    static <C extends Comparable<? super C>> Range<C> fromCutsInternal(Cut<C> lower, Cut<C> upper)
+    {
+        return fromCuts(lower, upper);
+    }
+
     private static <C extends Comparable<? super C>> Cut<C> maxCut(Cut<C> a, Cut<C> b)
     {
         return a.compareTo(b) < 0 ? b : a;
@@ -359,7 +399,7 @@ public final class Range<C extends Comparable<? super C>>
      * cuts at different values order by value; at the same value
      * {@code Below(v) < Above(v)}.
      */
-    private abstract static class Cut<C extends Comparable<? super C>> implements Comparable<Cut<C>>
+    abstract static class Cut<C extends Comparable<? super C>> implements Comparable<Cut<C>>
     {
         static <C extends Comparable<? super C>> Cut<C> belowAll()
         {
