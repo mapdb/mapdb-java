@@ -28,6 +28,8 @@ import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.Hash;
 import org.mapdb.collections.impl.Bloom;
 import org.mapdb.collections.impl.HyperLogLog;
+import org.mapdb.collections.impl.CountMin;
+import org.mapdb.collections.impl.SpaceSaving;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -285,6 +287,12 @@ public final class ValidationRunner {
                 break;
             case "HyperLogLog":
                 runHyperLogLog(scenario, r);
+                break;
+            case "CountMin":
+                runCountMin(scenario, r);
+                break;
+            case "SpaceSaving":
+                runSpaceSaving(scenario, r);
                 break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
@@ -2424,5 +2432,345 @@ public final class ValidationRunner {
             return String.valueOf(union.mightContain(bloomI32Suffix(um.group(1))));
         }
         return null;
+    }
+
+    // ---- CountMin (spec/features/count-min.md) ----------------------------
+    //
+    // A d x w integer counter matrix riding the hash pipeline. Counts are u64
+    // carried in Java long (unsigned bits), serialized via Long.toUnsignedString
+    // (a saturated counter is u64::MAX = 18446744073709551615 > 2^53). Exactly
+    // ONE with_params op builds the sketch (no optimal() in scenarios — the
+    // float trap is native-only); subsequent ops are add. `counters` is an
+    // explicit-order (row-major) array of decimal strings; estimate_<v>/total
+    // are derived decimal-string cross-checks.
+
+    private static final Pattern ESTIMATE_KEY = Pattern.compile("^estimate_(-?[0-9]+)$");
+    private static final Pattern COUNT_KEY = Pattern.compile("^count_(-?[0-9]+)$");
+    private static final Pattern ERROR_KEY = Pattern.compile("^error_(-?[0-9]+)$");
+    private static final Pattern TOP_K_KEY = Pattern.compile("^top_k_([0-9]+)$");
+
+    /**
+     * Parse a u64 {@code count} field (decimal string; omitted -&gt; 1). A value
+     * that does not parse as {@code 0 ..= u64::MAX} (negative, non-numeric, or
+     * exceeding {@code u64::MAX}) is malformed -&gt; SKIP (the same wide-integer
+     * discipline as the i64-key suite; parsed straight to u64, never via a
+     * double). Shared by CountMin and SpaceSaving.
+     */
+    private static long parseU64Count(JsonNode op)
+    {
+        JsonNode c = op.get("count");
+        if (c == null || c.isNull())
+        {
+            return 1L; // add_one shape
+        }
+        try
+        {
+            if (c.isTextual())
+            {
+                return Long.parseUnsignedLong(c.asText());
+            }
+            if (c.isIntegralNumber())
+            {
+                // A bare JSON integer: parse the DECIMAL TEXT straight to u64
+                // (never via asLong(), which truncates a node outside the signed
+                // long range). parseUnsignedLong rejects negative and >u64::MAX.
+                return Long.parseUnsignedLong(c.asText());
+            }
+        }
+        catch (NumberFormatException ex)
+        {
+            throw new ScenarioSkipException("malformed u64 count (negative / >u64::MAX / non-numeric): " + c);
+        }
+        throw new ScenarioSkipException("count must be a decimal string or non-negative integer: " + c);
+    }
+
+    /**
+     * Parse the signed i32 suffix of an assertion key (e.g. {@code estimate_<v>},
+     * {@code count_<v>}, {@code error_<v>}) with a full i32 range-check. An
+     * out-of-range suffix is treated as an unknown key (SKIP via {@code null}),
+     * NOT wrapped.
+     */
+    private static Integer parseI32Suffix(String s)
+    {
+        try
+        {
+            long v = Long.parseLong(s);
+            if (v < Integer.MIN_VALUE || v > Integer.MAX_VALUE)
+            {
+                return null; // out of i32 range -> unknown key
+            }
+            return (int) v;
+        }
+        catch (NumberFormatException ex)
+        {
+            return null;
+        }
+    }
+
+    private void runCountMin(JsonNode scenario, ScenarioResult r)
+    {
+        JsonNode ops = scenario.path("operations");
+        // Exactly one with_params op builds the sketch (zero or multiple -> SKIP).
+        JsonNode params = null;
+        int paramCount = 0;
+        if (ops.isArray())
+        {
+            for (JsonNode op : ops)
+            {
+                if ("with_params".equals(op.path("op").asText()))
+                {
+                    paramCount++;
+                    params = op;
+                }
+            }
+        }
+        if (paramCount != 1)
+        {
+            throw new ScenarioSkipException(
+                    "CountMin scenario must have exactly one with_params op (found " + paramCount + ")");
+        }
+        CountMin cms = CountMin.withParams(params.get("d").asInt(), params.get("w").asInt());
+        for (JsonNode op : ops)
+        {
+            String opName = op.path("op").asText();
+            switch (opName)
+            {
+                case "with_params":
+                    break;
+                case "add":
+                    cms.add(op.get("value").asInt(), parseU64Count(op));
+                    break;
+                default:
+                    // Unknown op -> SKIP (forward-compat).
+                    throw new ScenarioSkipException("unknown CountMin op (forward-compat skip): " + opName);
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            r.emit(key, evalCountMin(key, cms), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private String evalCountMin(String key, CountMin cms)
+    {
+        switch (key)
+        {
+            case "depth":
+                return String.valueOf(cms.depth());
+            case "width":
+                return String.valueOf(cms.width());
+            case "total":
+                return Long.toUnsignedString(cms.total());
+            case "counters":
+                return formatU64Array(cms.toCounters());
+            default:
+                break;
+        }
+        Matcher est = ESTIMATE_KEY.matcher(key);
+        if (est.matches())
+        {
+            Integer v = parseI32Suffix(est.group(1));
+            // Out-of-i32-range suffix -> unknown key -> SKIP (NOT wrap, NOT fail).
+            if (v == null)
+            {
+                throw new ScenarioSkipException("estimate suffix out of i32 range (unknown key skip): " + key);
+            }
+            return Long.toUnsignedString(cms.estimate(v));
+        }
+        // Unknown assertion key -> SKIP (forward-compat).
+        throw new ScenarioSkipException("unknown CountMin assertion key (forward-compat skip): " + key);
+    }
+
+    /** A u64[] as a JSON array of quoted decimal strings (Long.toUnsignedString). */
+    private static String formatU64Array(long[] v)
+    {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++)
+        {
+            if (i > 0)
+            {
+                sb.append(',');
+            }
+            sb.append('"').append(Long.toUnsignedString(v[i])).append('"');
+        }
+        return sb.append(']').toString();
+    }
+
+    // ---- SpaceSaving (spec/features/count-min.md) -------------------------
+    //
+    // A bounded heavy-hitters / top-k summary. count/error are u64 in long
+    // (unsigned), serialized via Long.toUnsignedString. monitored_set / top_k
+    // are NESTED arrays of [item, "count", "error"] triples in CANONICAL order
+    // (count DESC unsigned, signed item ASC) — an explicit-order projection, NOT
+    // runner-sorted. Exactly ONE with_capacity op builds the summary; adds are
+    // applied IN LISTED ORDER (Space-Saving is order-dependent).
+
+    private void runSpaceSaving(JsonNode scenario, ScenarioResult r)
+    {
+        JsonNode ops = scenario.path("operations");
+        JsonNode cap = null;
+        int capCount = 0;
+        if (ops.isArray())
+        {
+            for (JsonNode op : ops)
+            {
+                if ("with_capacity".equals(op.path("op").asText()))
+                {
+                    capCount++;
+                    cap = op;
+                }
+            }
+        }
+        if (capCount != 1)
+        {
+            throw new ScenarioSkipException(
+                    "SpaceSaving scenario must have exactly one with_capacity op (found " + capCount + ")");
+        }
+        SpaceSaving ss = SpaceSaving.withCapacity(cap.get("m").asInt());
+        for (JsonNode op : ops)
+        {
+            String opName = op.path("op").asText();
+            switch (opName)
+            {
+                case "with_capacity":
+                    break;
+                case "add":
+                    // Adds are applied in array order (the order is contractual).
+                    ss.add(op.get("value").asInt(), parseU64Count(op));
+                    break;
+                default:
+                    throw new ScenarioSkipException("unknown SpaceSaving op (forward-compat skip): " + opName);
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario))
+        {
+            String key = e.getKey();
+            if (skipKey(key))
+            {
+                continue;
+            }
+            // monitored_set / top_k_<k> are nested-array projections; compare the
+            // rendered nested form directly (renderExpected handles only flat
+            // arrays). Everything else routes through the standard emit.
+            if (key.equals("monitored_set"))
+            {
+                emitNestedTriples(r, key, formatTriples(ss.monitoredSet()), e.getValue());
+                continue;
+            }
+            Matcher tk = TOP_K_KEY.matcher(key);
+            if (tk.matches())
+            {
+                emitNestedTriples(r, key, formatTriples(ss.topK(Integer.parseInt(tk.group(1)))), e.getValue());
+                continue;
+            }
+            r.emit(key, evalSpaceSaving(key, ss), e.getValue(), FloatMode.NONE);
+        }
+    }
+
+    private String evalSpaceSaving(String key, SpaceSaving ss)
+    {
+        switch (key)
+        {
+            case "size":
+                return String.valueOf(ss.size());
+            case "capacity":
+                return String.valueOf(ss.capacity());
+            default:
+                break;
+        }
+        Matcher cnt = COUNT_KEY.matcher(key);
+        if (cnt.matches())
+        {
+            Integer v = parseI32Suffix(cnt.group(1));
+            // Out-of-i32-range suffix -> unknown key -> SKIP (NOT wrap, NOT fail).
+            if (v == null)
+            {
+                throw new ScenarioSkipException("count suffix out of i32 range (unknown key skip): " + key);
+            }
+            return Long.toUnsignedString(ss.count(v));
+        }
+        Matcher err = ERROR_KEY.matcher(key);
+        if (err.matches())
+        {
+            Integer v = parseI32Suffix(err.group(1));
+            if (v == null)
+            {
+                throw new ScenarioSkipException("error suffix out of i32 range (unknown key skip): " + key);
+            }
+            return Long.toUnsignedString(ss.error(v));
+        }
+        // Unknown assertion key -> SKIP (forward-compat).
+        throw new ScenarioSkipException("unknown SpaceSaving assertion key (forward-compat skip): " + key);
+    }
+
+    /**
+     * Render a list of {@code (item, count, error)} triples as a nested JSON
+     * array {@code [[item,"count","error"],…]} (item a bare int; count/error
+     * quoted u64 decimal strings), in the list's canonical order.
+     */
+    private static String formatTriples(List<SpaceSaving.SSEntry> entries)
+    {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < entries.size(); i++)
+        {
+            if (i > 0)
+            {
+                sb.append(',');
+            }
+            SpaceSaving.SSEntry en = entries.get(i);
+            sb.append('[').append(en.item)
+                    .append(",\"").append(Long.toUnsignedString(en.count)).append('"')
+                    .append(",\"").append(Long.toUnsignedString(en.error)).append('"')
+                    .append(']');
+        }
+        return sb.append(']').toString();
+    }
+
+    /**
+     * Render the expected nested-triples JSON array and compare to the computed
+     * form, printing and failing through the same channels as
+     * {@link ScenarioResult#emit}. The expected JSON elements are inner arrays
+     * {@code [item, "count", "error"]} (item bare int, count/error quoted
+     * strings).
+     */
+    private void emitNestedTriples(ScenarioResult r, String key, String computed, JsonNode expected)
+    {
+        System.out.println(key + ": " + computed);
+        String expectedStr = renderNestedTriples(expected);
+        if (!computed.equals(expectedStr))
+        {
+            System.out.println("FAIL " + r.name + " " + key + ": expected=" + expectedStr + " got=" + computed);
+            r.failed = true;
+        }
+    }
+
+    private static String renderNestedTriples(JsonNode expected)
+    {
+        if (expected == null || !expected.isArray())
+        {
+            return "null";
+        }
+        StringBuilder sb = new StringBuilder("[");
+        boolean firstOuter = true;
+        for (JsonNode triple : expected)
+        {
+            if (!firstOuter)
+            {
+                sb.append(',');
+            }
+            firstOuter = false;
+            sb.append('[');
+            // [item, "count", "error"]: item bare int; count/error quoted strings.
+            int item = triple.get(0).asInt();
+            String count = triple.get(1).asText();
+            String error = triple.get(2).asText();
+            sb.append(item).append(",\"").append(count).append("\",\"").append(error).append('"').append(']');
+        }
+        return sb.append(']').toString();
     }
 }
