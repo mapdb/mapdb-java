@@ -549,6 +549,7 @@ public final class Pump
             K key = pair.getOne();
             if (has && compare(keyComparator, runKey, key) == 0)
             {
+                requireComparatorConsistentWithEquals(runKey, key, "key comparator");
                 run.add(pair.getTwo());
                 continue;
             }
@@ -766,6 +767,7 @@ public final class Pump
                 }
                 if (cmp == 0)
                 {
+                    requireComparatorConsistentWithEquals(this.runKey, key, "key comparator");
                     if (this.valueComparator != null)
                     {
                         int vcmp = this.valueComparator.compare(this.lastValue, value);
@@ -775,6 +777,7 @@ public final class Pump
                         }
                         if (vcmp == 0 && this.dedupeEqualValues)
                         {
+                            requireComparatorConsistentWithEquals(this.lastValue, value, "value comparator");
                             return; // set-valued: drop the equal duplicate value
                         }
                     }
@@ -820,6 +823,14 @@ public final class Pump
             return comparator.compare(a, b);
         }
         return ((Comparable<? super T>) a).compareTo(b);
+    }
+
+    private static <T> void requireComparatorConsistentWithEquals(T a, T b, String label)
+    {
+        if (!Objects.equals(a, b))
+        {
+            throw new IllegalArgumentException(label + " must be consistent with equals: " + a + " vs " + b);
+        }
     }
 
     private static boolean comparatorsEquivalent(Comparator<?> a, Comparator<?> b)

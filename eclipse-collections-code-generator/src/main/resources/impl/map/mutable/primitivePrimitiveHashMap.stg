@@ -261,9 +261,12 @@ public class <name1><name2>HashMap extends AbstractMutable<name2>ValuesMap imple
         {
             return; // keep the default empty table allocated by the constructor
         }
-        // 2 * expectedSize, overflow-safe; the doubled allocateTable array must also fit.
+        // 2 * expectedSize, overflow-safe; same-primitive maps store keys and values
+        // in one interleaved array, so their backing array has one less power-of-two
+        // of headroom than split key/value maps.
         long needed = 2L * expectedSize;
-        if (needed > (1L \<\< 30))
+        long maxNeeded = <if(sameTwoPrimitives)>(1L \<\< 29)<else>(1L \<\< 30)<endif>;
+        if (needed > maxNeeded)
         {
             throw new IllegalArgumentException("expectedSize too large for a single bulk allocation: " + expectedSize);
         }

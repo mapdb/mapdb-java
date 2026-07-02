@@ -42,6 +42,7 @@ import org.mapdb.collections.api.iterator.IntIterator;
 import org.mapdb.collections.impl.tuple.Tuples;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -127,12 +128,47 @@ public class PumpTest
     }
 
     @Test
+    public void mapBulkLoadExactMatchesPreSizedPutLoopLayoutWithCollisions() throws Exception
+    {
+        int n = 20;
+        int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+        IntArrayList keys = new IntArrayList();
+        IntArrayList values = new IntArrayList();
+        for (int i = 0; i < n; i++)
+        {
+            keys.add(7 + i * expectedCap);
+            values.add(1000 + i);
+        }
+
+        IntIntHashMap pumped = IntIntHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+        IntIntHashMap putLoop = new IntIntHashMap(n);
+        for (int i = 0; i < n; i++)
+        {
+            putLoop.put(keys.get(i), values.get(i));
+        }
+
+        assertArrayEquals(keysValues(putLoop), keysValues(pumped));
+    }
+
+    @Test
     public void mapBulkLoadExactRejectsOversizedSource()
     {
         IntArrayList keys = IntArrayList.newListWith(10, 11, 12, 13);
         IntArrayList values = IntArrayList.newListWith(0, 1, 2, 3);
         assertThrows(IllegalArgumentException.class,
                 () -> IntIntHashMap.bulkLoadExact(3, keys, values, DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void mapBulkLoadRejectsInterleavedArrayOverflowHint()
+    {
+        int tooLargeForInterleavedTable = (1 << 28) + 1;
+        assertThrows(IllegalArgumentException.class,
+                () -> IntIntHashMap.bulkLoad(
+                        tooLargeForInterleavedTable,
+                        new IntArrayList(),
+                        new IntArrayList(),
+                        DuplicatePolicy.ERROR));
     }
 
     @Test
@@ -287,6 +323,14 @@ public class PumpTest
         IntHashBag pumped = IntHashBag.bulkLoad(100, elements);
         assertEquals(3, pumped.size());
         assertEquals(3, pumped.sizeDistinct());
+    }
+
+    @Test
+    public void bagBulkLoadRejectsInterleavedArrayOverflowHint()
+    {
+        int tooLargeForInterleavedTable = (1 << 28) + 1;
+        assertThrows(IllegalArgumentException.class,
+                () -> IntHashBag.bulkLoad(tooLargeForInterleavedTable, new IntArrayList()));
     }
 
     // ------------------------------------------------------------------
@@ -700,6 +744,34 @@ public class PumpTest
     }
 
     @Test
+    public void multimapRejectsComparatorEqualButNonEqualKeys()
+    {
+        List<Pair<String, Integer>> input = List.of(
+                Tuples.pair("A", 1),
+                Tuples.pair("a", 2));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Pump.listMultimapFromSortedKeyValues(
+                        String.CASE_INSENSITIVE_ORDER,
+                        Comparator.<Integer>naturalOrder(),
+                        input));
+    }
+
+    @Test
+    public void setMultimapRejectsComparatorEqualButNonEqualDedupedValues()
+    {
+        List<Pair<Integer, String>> input = List.of(
+                Tuples.pair(1, "A"),
+                Tuples.pair(1, "a"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Pump.setMultimapFromSortedKeyValues(
+                        null,
+                        String.CASE_INSENSITIVE_ORDER,
+                        input));
+    }
+
+    @Test
     public void multimapSetKeyValueSinkValueOutOfOrderPoisonsSink()
     {
         Pump.Sink<Pair<Integer, String>, MutableSetMultimap<Integer, String>> sink =
@@ -776,6 +848,13 @@ public class PumpTest
         Field f = IntIntHashMap.class.getDeclaredField("keysValues");
         f.setAccessible(true);
         return ((int[]) f.get(map)).length;
+    }
+
+    private static int[] keysValues(IntIntHashMap map) throws Exception
+    {
+        Field f = IntIntHashMap.class.getDeclaredField("keysValues");
+        f.setAccessible(true);
+        return ((int[]) f.get(map)).clone();
     }
 
     private static int tableLength(IntHashSet set) throws Exception

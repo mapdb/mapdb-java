@@ -142,6 +142,12 @@ public class <name>HashBag
         {
             throw new IllegalArgumentException("expectedDistinct cannot be less than 0");
         }
+        long needed = 2L * expectedDistinct;
+        long maxNeeded = <if(primitive.intPrimitive)>(1L \<\< 29)<else>(1L \<\< 30)<endif>;
+        if (needed > maxNeeded)
+        {
+            throw new IllegalArgumentException("expectedDistinct too large for a single bulk allocation: " + expectedDistinct);
+        }
         // new <name>IntHashMap(expectedDistinct) sizes the inner table to
         // nextPow2(2 * expectedDistinct), which holds expectedDistinct keys with
         // no rehash under EC's ~50% growth rule -- the bag's zero-rehash pump.
