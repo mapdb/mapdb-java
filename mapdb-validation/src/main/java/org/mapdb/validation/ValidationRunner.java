@@ -8,18 +8,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
-import org.mapdb.collections.api.map.sorted.MutableSortedMap;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
 import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.LongIntHashMap;
-import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.multimap.list.FastListMultimap;
 import org.mapdb.collections.impl.multimap.set.UnifiedSetMultimap;
 import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
+import org.mapdb.collections.impl.navigable.NavigableTreeMap;
+import org.mapdb.collections.impl.navigable.NavigableTreeSet;
 import org.mapdb.collections.impl.range.BoundType;
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
@@ -273,6 +273,25 @@ public final class ValidationRunner {
 
     private static String formatIntList(List<Integer> v) {
         return "[" + v.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
+    }
+
+    /** Like {@link #formatIntList} but renders {@code null} elements as {@code null}. */
+    private static String formatNullableIntList(List<Integer> v) {
+        return "[" + v.stream().map(x -> x == null ? "null" : String.valueOf(x))
+                .collect(Collectors.joining(",")) + "]";
+    }
+
+    private static final Pattern NAV_KEY = Pattern.compile("^(floor|ceiling|lower|higher)_(-?\\d+)$");
+
+    /**
+     * Parse the signed base-10 i32 suffix of a point-nav assertion key
+     * ({@code floor_<k>}/{@code ceiling_<k>}/{@code lower_<k>}/{@code higher_<k>}),
+     * including a leading {@code -} and the full i32 range. Returns {@code null}
+     * when the key is not a nav key.
+     */
+    private static Integer parseNavKey(String key) {
+        Matcher m = NAV_KEY.matcher(key);
+        return m.matches() ? Integer.parseInt(m.group(2)) : null;
     }
 
     // ---- HashMap<i32, i32> ------------------------------------------------
@@ -785,10 +804,15 @@ public final class ValidationRunner {
         }
     }
 
-    // ---- TreeSet<i32> (object TreeSortedSet<Integer>) ---------------------
+    // ---- TreeSet<i32> (NavigableTreeSet<Integer> over the boxed tree) -----
 
     private void runIntTreeSet(JsonNode scenario, ScenarioResult r) {
-        MutableSortedSet<Integer> set = TreeSortedSet.newSet();
+        NavigableTreeSet<Integer> set = NavigableTreeSet.newSet();
+        // Operation result logs: poll values and removeRange counts in
+        // execution order (cross-language-observable per the harness).
+        List<Integer> pollFirstKeys = new ArrayList<>();
+        List<Integer> pollLastKeys = new ArrayList<>();
+        List<Integer> removeRangeCounts = new ArrayList<>();
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "add":
@@ -800,45 +824,99 @@ public final class ValidationRunner {
                 case "clear":
                     set.clear();
                     break;
+                case "poll_first":
+                    pollFirstKeys.add(set.pollFirst().orElse(null));
+                    break;
+                case "poll_last":
+                    pollLastKeys.add(set.pollLast().orElse(null));
+                    break;
+                case "remove_range":
+                    removeRangeCounts.add(set.removeRange(buildRangeFromNode(op.get("range"))));
+                    break;
                 default:
-                    throw new IllegalArgumentException("unknown treeset op: " + op.path("op").asText());
+                    // Unknown op -> SKIP (forward-compat).
+                    break;
             }
         }
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
         for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
             String key = e.getKey();
             if (skipKey(key)) {
                 continue;
             }
-            String computed;
-            switch (key) {
-                case "size":
-                    computed = String.valueOf(set.size());
-                    break;
-                case "is_empty":
-                    computed = String.valueOf(set.isEmpty());
-                    break;
-                case "min":
-                    computed = set.isEmpty() ? "null" : String.valueOf(set.getFirst());
-                    break;
-                case "max":
-                    computed = set.isEmpty() ? "null" : String.valueOf(set.getLast());
-                    break;
-                case "to_sorted_array":
-                    computed = "[" + set.collect(String::valueOf).makeString(",") + "]";
-                    break;
-                default:
-                    computed = key.startsWith("contains_")
-                            ? String.valueOf(set.contains(Integer.parseInt(key.substring(9))))
-                            : null;
-            }
-            r.emit(key, computed, e.getValue(), FloatMode.NONE);
+            r.emit(key, evalIntTreeSet(key, set, query, pollFirstKeys, pollLastKeys, removeRangeCounts),
+                    e.getValue(), FloatMode.NONE);
         }
     }
 
-    // ---- TreeMap<i32, i32> (object TreeSortedMap<Integer,Integer>) --------
+    private String evalIntTreeSet(String key, NavigableTreeSet<Integer> set, Range<Integer> query,
+                                  List<Integer> pollFirstKeys, List<Integer> pollLastKeys,
+                                  List<Integer> removeRangeCounts) {
+        switch (key) {
+            case "size":
+                return String.valueOf(set.size());
+            case "is_empty":
+                return String.valueOf(set.isEmpty());
+            case "min":
+            case "first":
+                return optIntStr(set.first());
+            case "max":
+            case "last":
+                return optIntStr(set.last());
+            case "to_sorted_array":
+                return formatIntList(set.rangeElements(Range.all()));
+            case "descending_elements":
+                return formatIntList(set.descending());
+            case "range_elements":
+                return query == null ? null : formatIntList(set.rangeElements(query));
+            case "range_elements_desc":
+                return query == null ? null : formatIntList(set.descendingRangeElements(query));
+            case "range_size":
+                return query == null ? null : String.valueOf(set.rangeElements(query).size());
+            case "poll_first_keys":
+                return formatNullableIntList(pollFirstKeys);
+            case "poll_last_keys":
+                return formatNullableIntList(pollLastKeys);
+            case "remove_range_counts":
+                return formatIntList(removeRangeCounts);
+            default:
+                break;
+        }
+        if (key.startsWith("contains_")) {
+            return String.valueOf(set.contains(Integer.parseInt(key.substring(9))));
+        }
+        Integer navArg = parseNavKey(key);
+        if (navArg != null) {
+            return evalSetNav(key, set, navArg);
+        }
+        return null;
+    }
+
+    private String evalSetNav(String key, NavigableTreeSet<Integer> set, int k) {
+        if (key.startsWith("floor_")) {
+            return optIntStr(set.floor(k));
+        }
+        if (key.startsWith("ceiling_")) {
+            return optIntStr(set.ceiling(k));
+        }
+        if (key.startsWith("lower_")) {
+            return optIntStr(set.lower(k));
+        }
+        if (key.startsWith("higher_")) {
+            return optIntStr(set.higher(k));
+        }
+        return null;
+    }
+
+    // ---- TreeMap<i32, i32> (NavigableTreeMap<Integer,Integer> over the boxed tree)
 
     private void runIntTreeMap(JsonNode scenario, ScenarioResult r) {
-        MutableSortedMap<Integer, Integer> map = TreeSortedMap.newMap();
+        NavigableTreeMap<Integer, Integer> map = NavigableTreeMap.newMap();
+        List<Integer> pollFirstKeys = new ArrayList<>();
+        List<Integer> pollFirstValues = new ArrayList<>();
+        List<Integer> pollLastKeys = new ArrayList<>();
+        List<Integer> pollLastValues = new ArrayList<>();
+        List<Integer> removeRangeCounts = new ArrayList<>();
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "put":
@@ -850,50 +928,116 @@ public final class ValidationRunner {
                 case "clear":
                     map.clear();
                     break;
+                case "poll_first": {
+                    Optional<Map.Entry<Integer, Integer>> e = map.pollFirstEntry();
+                    pollFirstKeys.add(e.map(Map.Entry::getKey).orElse(null));
+                    pollFirstValues.add(e.map(Map.Entry::getValue).orElse(null));
+                    break;
+                }
+                case "poll_last": {
+                    Optional<Map.Entry<Integer, Integer>> e = map.pollLastEntry();
+                    pollLastKeys.add(e.map(Map.Entry::getKey).orElse(null));
+                    pollLastValues.add(e.map(Map.Entry::getValue).orElse(null));
+                    break;
+                }
+                case "remove_range":
+                    removeRangeCounts.add(map.removeRange(buildRangeFromNode(op.get("range"))));
+                    break;
                 default:
-                    throw new IllegalArgumentException("unknown treemap op: " + op.path("op").asText());
+                    // Unknown op -> SKIP (forward-compat).
+                    break;
             }
         }
+        Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
         for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
             String key = e.getKey();
             if (skipKey(key)) {
                 continue;
             }
-            String computed;
-            switch (key) {
-                case "size":
-                    computed = String.valueOf(map.size());
-                    break;
-                case "is_empty":
-                    computed = String.valueOf(map.isEmpty());
-                    break;
-                case "min":
-                    computed = map.isEmpty() ? "null" : String.valueOf(map.keySet().getFirst());
-                    break;
-                case "max":
-                    computed = map.isEmpty() ? "null" : String.valueOf(map.keySet().getLast());
-                    break;
-                case "sorted_keys":
-                    // keysView() preserves the tree's key order; keySet().collect()
-                    // would route through an unordered UnifiedSet and scramble it.
-                    computed = "[" + map.keysView().collect(String::valueOf).makeString(",") + "]";
-                    break;
-                case "sorted_values":
-                    // Values in key-ascending order (TreeSortedMap iterates by key).
-                    computed = "[" + map.valuesView().collect(String::valueOf).makeString(",") + "]";
-                    break;
-                default:
-                    if (key.startsWith("get_")) {
-                        Integer v = map.get(Integer.parseInt(key.substring(4)));
-                        computed = v == null ? "null" : String.valueOf(v);
-                    } else if (key.startsWith("contains_")) {
-                        computed = String.valueOf(map.containsKey(Integer.parseInt(key.substring(9))));
-                    } else {
-                        computed = null;
-                    }
-            }
-            r.emit(key, computed, e.getValue(), FloatMode.NONE);
+            r.emit(key, evalIntTreeMap(key, map, query,
+                            pollFirstKeys, pollFirstValues, pollLastKeys, pollLastValues, removeRangeCounts),
+                    e.getValue(), FloatMode.NONE);
         }
+    }
+
+    private String evalIntTreeMap(String key, NavigableTreeMap<Integer, Integer> map, Range<Integer> query,
+                                  List<Integer> pollFirstKeys, List<Integer> pollFirstValues,
+                                  List<Integer> pollLastKeys, List<Integer> pollLastValues,
+                                  List<Integer> removeRangeCounts) {
+        switch (key) {
+            case "size":
+                return String.valueOf(map.size());
+            case "is_empty":
+                return String.valueOf(map.isEmpty());
+            case "min":
+                return optIntStr(map.firstKey());
+            case "max":
+                return optIntStr(map.lastKey());
+            case "first_key":
+                return optIntStr(map.firstKey());
+            case "last_key":
+                return optIntStr(map.lastKey());
+            case "sorted_keys":
+                return formatIntList(map.rangeKeys(Range.all()));
+            case "sorted_values":
+                return formatIntList(rangeValuesAsc(map));
+            case "descending_keys":
+                return formatIntList(map.descendingKeys());
+            case "range_keys":
+                return query == null ? null : formatIntList(map.rangeKeys(query));
+            case "range_keys_desc":
+                return query == null ? null : formatIntList(map.descendingRangeKeys(query));
+            case "range_size":
+                return query == null ? null : String.valueOf(map.rangeKeys(query).size());
+            case "poll_first_keys":
+                return formatNullableIntList(pollFirstKeys);
+            case "poll_last_keys":
+                return formatNullableIntList(pollLastKeys);
+            case "poll_first_values":
+                return formatNullableIntList(pollFirstValues);
+            case "poll_last_values":
+                return formatNullableIntList(pollLastValues);
+            case "remove_range_counts":
+                return formatIntList(removeRangeCounts);
+            default:
+                break;
+        }
+        if (key.startsWith("get_")) {
+            Integer v = map.get(Integer.parseInt(key.substring(4)));
+            return v == null ? "null" : String.valueOf(v);
+        }
+        if (key.startsWith("contains_")) {
+            return String.valueOf(map.containsKey(Integer.parseInt(key.substring(9))));
+        }
+        Integer navArg = parseNavKey(key);
+        if (navArg != null) {
+            return evalMapNav(key, map, navArg);
+        }
+        return null;
+    }
+
+    private static List<Integer> rangeValuesAsc(NavigableTreeMap<Integer, Integer> map) {
+        List<Integer> out = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> e : map.rangeEntries(Range.all())) {
+            out.add(e.getValue());
+        }
+        return out;
+    }
+
+    private String evalMapNav(String key, NavigableTreeMap<Integer, Integer> map, int k) {
+        if (key.startsWith("floor_")) {
+            return optIntStr(map.floorKey(k));
+        }
+        if (key.startsWith("ceiling_")) {
+            return optIntStr(map.ceilingKey(k));
+        }
+        if (key.startsWith("lower_")) {
+            return optIntStr(map.lowerKey(k));
+        }
+        if (key.startsWith("higher_")) {
+            return optIntStr(map.higherKey(k));
+        }
+        return null;
     }
 
     // ---- HashMap<f32, i32> ------------------------------------------------
@@ -1165,7 +1309,15 @@ public final class ValidationRunner {
             throw new IllegalArgumentException(
                     "Range<i32> scenario must have exactly one constructor op");
         }
-        JsonNode op = ops.get(0);
+        return buildRangeFromNode(ops.get(0));
+    }
+
+    /**
+     * Build a {@code Range<Integer>} from a single builder-op node (the
+     * {@code 10-range} builder-op shape), reused by the navigable-map
+     * {@code query} block and the {@code remove_range} op's {@code range} field.
+     */
+    private Range<Integer> buildRangeFromNode(JsonNode op) {
         String name = op.path("op").asText();
         switch (name) {
             case "closed":
