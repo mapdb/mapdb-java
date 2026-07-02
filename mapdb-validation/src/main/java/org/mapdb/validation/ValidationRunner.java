@@ -8,6 +8,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.api.multimap.list.MutableListMultimap;
+import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
+import org.mapdb.collections.api.map.sorted.MutableSortedMap;
+import org.mapdb.collections.api.tuple.Pair;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.bounded.BoundedLruMap;
 import org.mapdb.collections.impl.bounded.EvictionCause;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
@@ -27,6 +32,7 @@ import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.range.RangeMap;
 import org.mapdb.collections.impl.range.RangeSet;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import org.mapdb.collections.impl.FenwickTree;
@@ -36,6 +42,7 @@ import org.mapdb.collections.impl.Bloom;
 import org.mapdb.collections.impl.HyperLogLog;
 import org.mapdb.collections.impl.CountMin;
 import org.mapdb.collections.impl.SpaceSaving;
+import org.mapdb.collections.impl.tuple.Tuples;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
@@ -434,23 +441,35 @@ public final class ValidationRunner {
     // ---- HashMap<i32, i32> ------------------------------------------------
 
     private void runIntIntMap(JsonNode scenario, ScenarioResult r) {
-        IntIntHashMap map = new IntIntHashMap();
-        for (JsonNode op : scenario.path("operations")) {
-            switch (op.path("op").asText()) {
-                case "put":
-                    map.put(op.get("key").asInt(), op.get("value").asInt());
-                    break;
-                case "remove":
-                    map.removeKey(op.get("key").asInt());
-                    break;
-                case "addToValue":
-                    map.addToValue(op.get("key").asInt(), op.get("delta").asInt());
-                    break;
-                case "clear":
-                    map.clear();
-                    break;
-                default:
-                    throw new IllegalArgumentException("unknown hashmap op: " + op.path("op").asText());
+        IntIntHashMap map;
+        if ("bulkLoadExact".equals(scenario.path("construction").asText())) {
+            IntArrayList keys = new IntArrayList();
+            IntArrayList values = new IntArrayList();
+            for (JsonNode op : scenario.path("operations")) {
+                keys.add(op.get("key").asInt());
+                values.add(op.get("value").asInt());
+            }
+            map = IntIntHashMap.bulkLoadExact(keys.size(), keys, values, Pump.DuplicatePolicy.ERROR);
+        }
+        else {
+            map = new IntIntHashMap();
+            for (JsonNode op : scenario.path("operations")) {
+                switch (op.path("op").asText()) {
+                    case "put":
+                        map.put(op.get("key").asInt(), op.get("value").asInt());
+                        break;
+                    case "remove":
+                        map.removeKey(op.get("key").asInt());
+                        break;
+                    case "addToValue":
+                        map.addToValue(op.get("key").asInt(), op.get("delta").asInt());
+                        break;
+                    case "clear":
+                        map.clear();
+                        break;
+                    default:
+                        throw new IllegalArgumentException("unknown hashmap op: " + op.path("op").asText());
+                }
             }
         }
         for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
@@ -560,8 +579,14 @@ public final class ValidationRunner {
     // ---- {List,Set}Multimap<i64, i32> -------------------------------------
 
     private void runI64ListMultimap(JsonNode scenario, ScenarioResult r) {
-        FastListMultimap<Long, Integer> mm = new FastListMultimap<>();
-        applyMultimapOps(scenario, mm::put, k -> mm.removeAll(k));
+        MutableListMultimap<Long, Integer> mm;
+        if ("fromSortedKeyValues".equals(scenario.path("construction").asText())) {
+            mm = Pump.listMultimapFromSortedKeyValues(null, Comparator.<Integer>naturalOrder(), i64Pairs(scenario));
+        }
+        else {
+            mm = new FastListMultimap<>();
+            applyMultimapOps(scenario, mm::put, k -> mm.removeAll(k));
+        }
         evalMultimap(scenario, r,
                 mm.keysView().size(),
                 () -> sortedI64Keys(mm.keysView()),
@@ -570,8 +595,14 @@ public final class ValidationRunner {
     }
 
     private void runI64SetMultimap(JsonNode scenario, ScenarioResult r) {
-        UnifiedSetMultimap<Long, Integer> mm = new UnifiedSetMultimap<>();
-        applyMultimapOps(scenario, mm::put, k -> mm.removeAll(k));
+        MutableSetMultimap<Long, Integer> mm;
+        if ("fromSortedKeyValues".equals(scenario.path("construction").asText())) {
+            mm = Pump.setMultimapFromSortedKeyValues(null, Comparator.<Integer>naturalOrder(), i64Pairs(scenario));
+        }
+        else {
+            mm = new UnifiedSetMultimap<>();
+            applyMultimapOps(scenario, mm::put, k -> mm.removeAll(k));
+        }
         evalMultimap(scenario, r,
                 mm.keysView().size(),
                 () -> sortedI64Keys(mm.keysView()),
@@ -585,6 +616,14 @@ public final class ValidationRunner {
 
     private interface MultimapRemoveAll {
         void removeAll(Long k);
+    }
+
+    private static List<Pair<Long, Integer>> i64Pairs(JsonNode scenario) {
+        List<Pair<Long, Integer>> pairs = new ArrayList<>();
+        for (JsonNode op : scenario.path("operations")) {
+            pairs.add(Tuples.pair(I64Codec.parseOperand(op.get("key")), op.get("value").asInt()));
+        }
+        return pairs;
     }
 
     private void applyMultimapOps(JsonNode scenario, MultimapPut put, MultimapRemoveAll removeAll) {
@@ -1062,35 +1101,48 @@ public final class ValidationRunner {
         List<Integer> pollLastKeys = new ArrayList<>();
         List<Integer> pollLastValues = new ArrayList<>();
         List<Integer> removeRangeCounts = new ArrayList<>();
-        for (JsonNode op : scenario.path("operations")) {
-            switch (op.path("op").asText()) {
-                case "put":
-                    map.put(op.get("key").asInt(), op.get("value").asInt());
-                    break;
-                case "remove":
-                    map.remove(op.get("key").asInt());
-                    break;
-                case "clear":
-                    map.clear();
-                    break;
-                case "poll_first": {
-                    Optional<Map.Entry<Integer, Integer>> e = map.pollFirstEntry();
-                    pollFirstKeys.add(e.map(Map.Entry::getKey).orElse(null));
-                    pollFirstValues.add(e.map(Map.Entry::getValue).orElse(null));
-                    break;
+        if ("fromSorted".equals(scenario.path("construction").asText())) {
+            List<Pair<Integer, Integer>> pairs = new ArrayList<>();
+            for (JsonNode op : scenario.path("operations")) {
+                pairs.add(Tuples.pair(op.get("key").asInt(), op.get("value").asInt()));
+            }
+            MutableSortedMap<Integer, Integer> pumped =
+                    Pump.treeSortedMapFromSorted(null, pairs, Pump.DuplicatePolicy.ERROR);
+            for (Map.Entry<Integer, Integer> entry : pumped.entrySet()) {
+                map.put(entry.getKey(), entry.getValue());
+            }
+        }
+        else {
+            for (JsonNode op : scenario.path("operations")) {
+                switch (op.path("op").asText()) {
+                    case "put":
+                        map.put(op.get("key").asInt(), op.get("value").asInt());
+                        break;
+                    case "remove":
+                        map.remove(op.get("key").asInt());
+                        break;
+                    case "clear":
+                        map.clear();
+                        break;
+                    case "poll_first": {
+                        Optional<Map.Entry<Integer, Integer>> e = map.pollFirstEntry();
+                        pollFirstKeys.add(e.map(Map.Entry::getKey).orElse(null));
+                        pollFirstValues.add(e.map(Map.Entry::getValue).orElse(null));
+                        break;
+                    }
+                    case "poll_last": {
+                        Optional<Map.Entry<Integer, Integer>> e = map.pollLastEntry();
+                        pollLastKeys.add(e.map(Map.Entry::getKey).orElse(null));
+                        pollLastValues.add(e.map(Map.Entry::getValue).orElse(null));
+                        break;
+                    }
+                    case "remove_range":
+                        removeRangeCounts.add(map.removeRange(buildRangeFromNode(op.get("range"))));
+                        break;
+                    default:
+                        // Unknown op -> SKIP (forward-compat).
+                        break;
                 }
-                case "poll_last": {
-                    Optional<Map.Entry<Integer, Integer>> e = map.pollLastEntry();
-                    pollLastKeys.add(e.map(Map.Entry::getKey).orElse(null));
-                    pollLastValues.add(e.map(Map.Entry::getValue).orElse(null));
-                    break;
-                }
-                case "remove_range":
-                    removeRangeCounts.add(map.removeRange(buildRangeFromNode(op.get("range"))));
-                    break;
-                default:
-                    // Unknown op -> SKIP (forward-compat).
-                    break;
             }
         }
         Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;

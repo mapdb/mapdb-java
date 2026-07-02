@@ -98,6 +98,32 @@ public class TreeBag<T>
         return new TreeBag<>();
     }
 
+    /**
+     * Data-pump factory: wrap an already-built, sorted {@code element -> Counter}
+     * map as a {@code TreeBag} without re-inserting element by element. The pump
+     * (see {@code org.mapdb.collections.impl.Pump#treeBag}) accumulates sorted
+     * runs into this map -- the underlying {@code TreeSortedMap} is built in one
+     * O(n) pass via the JDK {@code TreeMap(SortedMap)} bulk constructor -- then
+     * hands it here. The total {@code size} is summed with overflow checking and
+     * an overflow throws {@link ArithmeticException} (the pump maps it to its own
+     * overflow error). Used only by the pump; not part of the public bag API.
+     */
+    public static <E> TreeBag<E> fromSortedCounts(MutableSortedMap<E, Counter> sortedCounts)
+    {
+        long total = 0L;
+        for (Counter counter : sortedCounts.valuesView())
+        {
+            total = Math.addExact(total, counter.getCount());
+        }
+        if (total > Integer.MAX_VALUE)
+        {
+            throw new ArithmeticException("integer overflow");
+        }
+        TreeBag<E> bag = new TreeBag<>(sortedCounts);
+        bag.size = (int) total;
+        return bag;
+    }
+
     public static <E> TreeBag<E> newBag(Comparator<? super E> comparator)
     {
         return new TreeBag<>(comparator);
