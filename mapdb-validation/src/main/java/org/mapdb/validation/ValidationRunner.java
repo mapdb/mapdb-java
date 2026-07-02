@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.impl.bounded.BoundedLruMap;
+import org.mapdb.collections.impl.bounded.EvictionCause;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
@@ -320,6 +322,9 @@ public final class ValidationRunner {
                 break;
             case "RangeMap<i32, i32>":
                 runRangeMap(scenario, r);
+                break;
+            case "BoundedLruMap<i32, i32>":
+                runBoundedLru(scenario, r);
                 break;
             case "ImmutableSortedMap<i32, i32>":
                 runImmutableSortedMap(scenario, r);
@@ -3461,6 +3466,250 @@ public final class ValidationRunner {
                 sb.append(',');
             }
             sb.append('"').append(v[i]).append('"');
+        }
+        return sb.append(']').toString();
+    }
+
+    // ---- BoundedLruMap<i32, i32> (spec/features/bounded-lru.md) -----------
+
+    private static long parseTick(JsonNode v) {
+        if (v.isTextual()) {
+            return Long.parseUnsignedLong(v.asText());
+        }
+        if (v.isIntegralNumber()) {
+            return Long.parseUnsignedLong(v.asText());
+        }
+        throw new ScenarioSkipException("bounded-lru tick must be a decimal string or integer");
+    }
+
+    private static final class LruLog {
+        final List<Integer> putResults = new ArrayList<>();
+        final List<Integer> getResults = new ArrayList<>();
+        final List<Integer> getOrDefaultResults = new ArrayList<>();
+        final List<Boolean> containsResults = new ArrayList<>();
+        final List<Integer> removeResults = new ArrayList<>();
+        final List<Integer> expiredCounts = new ArrayList<>();
+        final List<List<Integer>> snapshotKeysLog = new ArrayList<>();
+        final List<List<Integer>> snapshotValuesLog = new ArrayList<>();
+        final List<List<int[]>> snapshotEntriesLog = new ArrayList<>();
+    }
+
+    private void runBoundedLru(JsonNode scenario, ScenarioResult r) {
+        JsonNode maxSizeNode = scenario.get("max_size");
+        if (maxSizeNode == null || !maxSizeNode.isInt() && !maxSizeNode.canConvertToInt()) {
+            throw new ScenarioSkipException("BoundedLruMap scenario needs a non-negative max_size");
+        }
+        int maxSize = maxSizeNode.asInt();
+        if (maxSize < 0) {
+            throw new ScenarioSkipException("BoundedLruMap scenario needs a non-negative max_size");
+        }
+
+        JsonNode ttlNode = scenario.get("ttl");
+        Long ttl = (ttlNode == null || ttlNode.isNull()) ? null : parseTick(ttlNode);
+
+        List<int[]> evictLog = new ArrayList<>();
+        BoundedLruMap.Builder<Integer, Integer> builder =
+                BoundedLruMap.<Integer, Integer>builder().maxSize(maxSize);
+        if (ttl != null) {
+            builder = builder.ttl(ttl);
+        }
+        BoundedLruMap<Integer, Integer> map = builder
+                .onEvict((k, v, cause) ->
+                        evictLog.add(new int[] {k, v, cause == EvictionCause.EXPIRED ? 1 : 0}))
+                .build();
+
+        LruLog log = new LruLog();
+
+        for (JsonNode op : scenario.path("operations")) {
+            switch (op.path("op").asText()) {
+                case "put": {
+                    int k = op.path("key").asInt();
+                    int v = op.path("value").asInt();
+                    JsonNode nowNode = op.get("now");
+                    Optional<Integer> prev = (nowNode != null && !nowNode.isNull())
+                            ? map.putAt(k, v, parseTick(nowNode))
+                            : map.put(k, v);
+                    log.putResults.add(prev.orElse(null));
+                    break;
+                }
+                case "put_at": {
+                    int k = op.path("key").asInt();
+                    int v = op.path("value").asInt();
+                    long now = parseTick(op.path("now"));
+                    log.putResults.add(map.putAt(k, v, now).orElse(null));
+                    break;
+                }
+                case "get": {
+                    int k = op.path("key").asInt();
+                    log.getResults.add(map.get(k).orElse(null));
+                    break;
+                }
+                case "get_or_default": {
+                    int k = op.path("key").asInt();
+                    int d = op.path("default").asInt();
+                    log.getOrDefaultResults.add(map.getOrDefault(k, d));
+                    break;
+                }
+                case "contains_key": {
+                    int k = op.path("key").asInt();
+                    log.containsResults.add(map.containsKey(k));
+                    break;
+                }
+                case "remove": {
+                    int k = op.path("key").asInt();
+                    log.removeResults.add(map.remove(k).orElse(null));
+                    break;
+                }
+                case "clear":
+                    map.clear();
+                    break;
+                case "expire_entries": {
+                    long now = parseTick(op.path("now"));
+                    log.expiredCounts.add(map.expireEntries(now));
+                    break;
+                }
+                case "snapshot_keys":
+                    log.snapshotKeysLog.add(new ArrayList<>(map.keys()));
+                    break;
+                case "snapshot_values":
+                    log.snapshotValuesLog.add(new ArrayList<>(map.values()));
+                    break;
+                case "snapshot_entries": {
+                    List<int[]> pairs = new ArrayList<>();
+                    for (Map.Entry<Integer, Integer> en : map.entries()) {
+                        pairs.add(new int[] {en.getKey(), en.getValue()});
+                    }
+                    log.snapshotEntriesLog.add(pairs);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            evalLruAssertion(key, e.getValue(), map, log, evictLog, r);
+        }
+    }
+
+    private void evalLruAssertion(String key, JsonNode expected,
+            BoundedLruMap<Integer, Integer> map, LruLog log, List<int[]> evictLog,
+            ScenarioResult r) {
+        switch (key) {
+            case "size":
+                r.emit(key, String.valueOf(map.size()), expected, FloatMode.NONE);
+                return;
+            case "is_empty":
+                r.emit(key, String.valueOf(map.isEmpty()), expected, FloatMode.NONE);
+                return;
+            case "lru_order_keys":
+                r.emit(key, formatIntList(map.keys()), expected, FloatMode.NONE);
+                return;
+            case "lru_order_values":
+                r.emit(key, formatIntList(map.values()), expected, FloatMode.NONE);
+                return;
+            case "eviction_log":
+                r.emitJson(key, formatEvictionLog(evictLog), expected);
+                return;
+            case "put_results":
+                r.emit(key, formatNullableIntList(log.putResults), expected, FloatMode.NONE);
+                return;
+            case "get_results":
+                r.emit(key, formatNullableIntList(log.getResults), expected, FloatMode.NONE);
+                return;
+            case "get_or_default_results":
+                r.emit(key, formatIntList(log.getOrDefaultResults), expected, FloatMode.NONE);
+                return;
+            case "contains_results":
+                r.emit(key, formatBoolList(log.containsResults), expected, FloatMode.NONE);
+                return;
+            case "remove_results":
+                r.emit(key, formatNullableIntList(log.removeResults), expected, FloatMode.NONE);
+                return;
+            case "expired_counts":
+                r.emit(key, formatIntList(log.expiredCounts), expected, FloatMode.NONE);
+                return;
+            case "snapshot_keys_log":
+                r.emitJson(key, formatArrayOfIntLists(log.snapshotKeysLog), expected);
+                return;
+            case "snapshot_values_log":
+                r.emitJson(key, formatArrayOfIntLists(log.snapshotValuesLog), expected);
+                return;
+            case "snapshot_entries_log":
+                r.emitJson(key, formatArrayOfPairArrays(log.snapshotEntriesLog), expected);
+                return;
+            default:
+                break;
+        }
+        if (key.startsWith("get_")) {
+            int k = Integer.parseInt(key.substring(4));
+            Integer found = null;
+            for (Map.Entry<Integer, Integer> en : map.entries()) {
+                if (en.getKey() == k) {
+                    found = en.getValue();
+                    break;
+                }
+            }
+            r.emit(key, found == null ? "null" : String.valueOf(found), expected, FloatMode.NONE);
+            return;
+        }
+        if (key.startsWith("contains_")) {
+            int k = Integer.parseInt(key.substring(9));
+            r.emit(key, String.valueOf(map.containsKey(k)), expected, FloatMode.NONE);
+            return;
+        }
+        throw new ScenarioSkipException(
+                "unknown bounded-lru assertion key (forward-compat skip): " + key);
+    }
+
+    private static String formatBoolList(List<Boolean> v) {
+        return "[" + v.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
+    }
+
+    private static String formatEvictionLog(List<int[]> evictLog) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < evictLog.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            int[] t = evictLog.get(i);
+            sb.append('[').append(t[0]).append(',').append(t[1]).append(',')
+              .append(t[2] == 1 ? "\"expired\"" : "\"size\"").append(']');
+        }
+        return sb.append(']').toString();
+    }
+
+    private static String formatArrayOfIntLists(List<List<Integer>> v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(formatIntList(v.get(i)));
+        }
+        return sb.append(']').toString();
+    }
+
+    private static String formatArrayOfPairArrays(List<List<int[]>> v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            List<int[]> inner = v.get(i);
+            sb.append('[');
+            for (int j = 0; j < inner.size(); j++) {
+                if (j > 0) {
+                    sb.append(',');
+                }
+                int[] p = inner.get(j);
+                sb.append('[').append(p[0]).append(',').append(p[1]).append(']');
+            }
+            sb.append(']');
         }
         return sb.append(']').toString();
     }
