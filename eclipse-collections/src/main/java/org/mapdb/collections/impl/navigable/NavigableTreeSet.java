@@ -190,6 +190,69 @@ public final class NavigableTreeSet<T extends Comparable<? super T>>
         return Optional.of(v);
     }
 
+    // ---- order statistics (rank / select; spec features/rank-select.md) ----
+
+    /**
+     * The number of elements strictly less than {@code x} under this set's
+     * comparator — the 0-based lower-bound index {@code x} occupies (if present)
+     * or would occupy (if absent). Defined for present and absent elements
+     * alike; the result is in {@code 0..=size()} ({@code size()} for any element
+     * greater than the maximum). Pure query; never mutates.
+     *
+     * <p><strong>Java carve-out (complexity relaxed).</strong> Computed by an
+     * ordered scan over the boxed tree — O(n) rather than the O(log n) the
+     * subtree-size-augmented native ports give. Observable results are
+     * identical (see {@code style/java.md}).
+     */
+    public int rank(T x)
+    {
+        Comparator<? super T> cmp = this.nav.comparator();
+        int rank = 0;
+        for (T t : this.nav)
+        {
+            int c = cmp == null ? t.compareTo(x) : cmp.compare(t, x);
+            if (c < 0)
+            {
+                rank++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        return rank;
+    }
+
+    /**
+     * The {@code i}-th smallest element (0-based; the order-statistic
+     * {@code select}, per the {@code select}-name reservation in
+     * {@code features/rank-select.md}), or empty when {@code i} is out of range.
+     * {@code i >= size()} (including on an empty set) and {@code i < 0} both
+     * return {@link Optional#empty()} and never trap. Round-trips with
+     * {@link #rank}: {@code select(rank(x))} is present and equals {@code x} for
+     * any present {@code x}, and {@code rank(select(i).get()) == i} for every
+     * {@code 0 <= i < size()}.
+     *
+     * <p>Java carve-out: O(n) ordered scan (see {@link #rank}).
+     */
+    public Optional<T> select(int i)
+    {
+        if (i < 0 || i >= this.nav.size())
+        {
+            return Optional.empty();
+        }
+        int idx = 0;
+        for (T t : this.nav)
+        {
+            if (idx == i)
+            {
+                return Optional.of(t);
+            }
+            idx++;
+        }
+        return Optional.empty();
+    }
+
     // ---- range slice & descending -----------------------------------------
 
     /** Elements in {@code range}, ascending (materialized snapshot). */

@@ -294,6 +294,13 @@ public final class ValidationRunner {
         return m.matches() ? Integer.parseInt(m.group(2)) : null;
     }
 
+    // Order-statistics keys (spec features/rank-select.md). Matched by EXACT
+    // regex so they never collide with the functional select_<pred> keys
+    // (select_gt_N, select_even): rank_<k> takes a signed i32 suffix, select_<i>
+    // a NON-NEGATIVE decimal index (leading '+' rejected by the pattern).
+    private static final Pattern RANK_KEY = Pattern.compile("^rank_(-?[0-9]+)$");
+    private static final Pattern SELECT_KEY = Pattern.compile("^select_([0-9]+)$");
+
     // ---- HashMap<i32, i32> ------------------------------------------------
 
     private void runIntIntMap(JsonNode scenario, ScenarioResult r) {
@@ -885,6 +892,14 @@ public final class ValidationRunner {
         if (key.startsWith("contains_")) {
             return String.valueOf(set.contains(Integer.parseInt(key.substring(9))));
         }
+        Matcher rank = RANK_KEY.matcher(key);
+        if (rank.matches()) {
+            return String.valueOf(set.rank(Integer.parseInt(rank.group(1))));
+        }
+        Matcher sel = SELECT_KEY.matcher(key);
+        if (sel.matches()) {
+            return optIntStr(set.select(Integer.parseInt(sel.group(1))).orElse(null));
+        }
         Integer navArg = parseNavKey(key);
         if (navArg != null) {
             return evalSetNav(key, set, navArg);
@@ -1008,6 +1023,14 @@ public final class ValidationRunner {
         }
         if (key.startsWith("contains_")) {
             return String.valueOf(map.containsKey(Integer.parseInt(key.substring(9))));
+        }
+        Matcher rank = RANK_KEY.matcher(key);
+        if (rank.matches()) {
+            return String.valueOf(map.rank(Integer.parseInt(rank.group(1))));
+        }
+        Matcher sel = SELECT_KEY.matcher(key);
+        if (sel.matches()) {
+            return optIntStr(map.selectKey(Integer.parseInt(sel.group(1))).orElse(null));
         }
         Integer navArg = parseNavKey(key);
         if (navArg != null) {

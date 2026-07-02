@@ -259,6 +259,92 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         return Optional.of(e);
     }
 
+    // ---- order statistics (rank / select; spec features/rank-select.md) ----
+
+    /**
+     * The number of keys strictly less than {@code key} under this map's
+     * comparator — the 0-based lower-bound index {@code key} occupies (if
+     * present) or would occupy (if absent). Defined for present and absent keys
+     * alike; the result is in {@code 0..=size()} ({@code size()} for any key
+     * greater than the maximum). Pure query; never mutates.
+     *
+     * <p><strong>Java carve-out (complexity relaxed).</strong> Computed by an
+     * ordered scan over the boxed tree — O(n) rather than the O(log n) the
+     * subtree-size-augmented native ports give. Observable results are
+     * identical (see {@code style/java.md}).
+     */
+    public int rank(K key)
+    {
+        Comparator<? super K> cmp = this.nav.comparator();
+        int rank = 0;
+        for (K k : this.nav.keySet())
+        {
+            int c = cmp == null ? k.compareTo(key) : cmp.compare(k, key);
+            if (c < 0)
+            {
+                rank++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        return rank;
+    }
+
+    /**
+     * The {@code i}-th smallest key (0-based), or empty when {@code i} is out of
+     * range. {@code i >= size()} (including on an empty map) and {@code i < 0}
+     * both return {@link Optional#empty()} and never trap. Round-trips with
+     * {@link #rank}: {@code selectKey(rank(k))} is present and equals {@code k}
+     * for any present {@code k}, and {@code rank(selectKey(i).get()) == i} for
+     * every {@code 0 <= i < size()}.
+     *
+     * <p>Java carve-out: O(n) ordered scan (see {@link #rank}).
+     */
+    public Optional<K> selectKey(int i)
+    {
+        if (i < 0 || i >= this.nav.size())
+        {
+            return Optional.empty();
+        }
+        int idx = 0;
+        for (K k : this.nav.keySet())
+        {
+            if (idx == i)
+            {
+                return Optional.of(k);
+            }
+            idx++;
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The {@code i}-th smallest entry (0-based), or empty when {@code i} is out
+     * of range (same index domain as {@link #selectKey}). Returns an immutable
+     * snapshot entry.
+     *
+     * <p>Java carve-out: O(n) ordered scan (see {@link #rank}).
+     */
+    public Optional<Map.Entry<K, V>> selectEntry(int i)
+    {
+        if (i < 0 || i >= this.nav.size())
+        {
+            return Optional.empty();
+        }
+        int idx = 0;
+        for (Map.Entry<K, V> e : this.nav.entrySet())
+        {
+            if (idx == i)
+            {
+                return Optional.of(new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue()));
+            }
+            idx++;
+        }
+        return Optional.empty();
+    }
+
     // ---- range slice & descending (consume Range<K>) ----------------------
 
     /** Keys in {@code range}, ascending (materialized snapshot). */
