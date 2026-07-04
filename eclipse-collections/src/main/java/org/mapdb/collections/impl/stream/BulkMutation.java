@@ -61,10 +61,15 @@ public final class BulkMutation
             this.delete = delete;
         }
 
-        /** Insert {@code key} or overwrite its existing value with {@code value}. */
+        /**
+         * Insert {@code key} or overwrite its existing value with {@code value}.
+         * The packed map has a non-null value contract (it reports absence with
+         * {@code Optional}), so a null value is rejected here rather than
+         * detonating on a later read.
+         */
         public static <K, V> Change<K, V> upsert(K key, V value)
         {
-            return new Change<>(key, value, false);
+            return new Change<>(key, Objects.requireNonNull(value, "value"), false);
         }
 
         /** Remove {@code key} if present (a no-op if absent). */
@@ -227,8 +232,9 @@ public final class BulkMutation
 
     /**
      * Delete every key contained in {@code range}, returning a fresh packed map
-     * built in one O(n) pass (range-delete + rebuild compaction). Because the
-     * base is sorted, this is a single contiguous cut.
+     * built in one O(n) linear pass (range-delete + rebuild compaction). Because
+     * the base is sorted and a {@link Range} is convex, the removed keys form a
+     * single contiguous block.
      */
     public static <K extends Comparable<? super K>, V> ImmutableSortedMap<K, V> rangeDelete(
             ImmutableSortedMap<K, V> base, Range<K> range)
@@ -255,9 +261,10 @@ public final class BulkMutation
     private static <K extends Comparable<? super K>, V> void requireStrictlyAscendingChanges(
             List<Change<K, V>> changes)
     {
-        for (int i = 1; i < changes.size(); i++)
+        for (int i = 0; i < changes.size(); i++)
         {
-            if (changes.get(i - 1).key().compareTo(changes.get(i).key()) >= 0)
+            Objects.requireNonNull(changes.get(i), "change element");
+            if (i > 0 && changes.get(i - 1).key().compareTo(changes.get(i).key()) >= 0)
             {
                 throw new IllegalArgumentException(
                         "changes must be strictly ascending by key (no duplicate or out-of-order keys): "

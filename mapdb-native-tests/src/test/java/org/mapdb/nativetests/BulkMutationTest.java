@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -113,6 +115,50 @@ public class BulkMutationTest
         assertThrows(IllegalArgumentException.class, () -> BulkMutation.applySorted(base, dup));
     }
 
+    @Test
+    public void applySortedOverwriteAndDeleteAtFirstAndLastKey()
+    {
+        ImmutableSortedMap<Integer, String> base = map(
+                new int[] {1, 3, 5, 7}, new String[] {"a", "c", "e", "g"});
+        // overwrite the first key, delete the last key
+        assertEquals("1=A,3=c,5=e", dump(BulkMutation.applySorted(base,
+                Arrays.asList(Change.upsert(1, "A"), Change.delete(7)))));
+        // delete the first key, overwrite the last key
+        assertEquals("3=c,5=e,7=G", dump(BulkMutation.applySorted(base,
+                Arrays.asList(Change.delete(1), Change.upsert(7, "G")))));
+    }
+
+    @Test
+    public void applySortedChangesEntirelyBelowBaseDrainsBaseTail()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {5, 7}, new String[] {"e", "g"});
+        // all change keys sort below the base -> base tail must still be emitted
+        assertEquals("1=z,5=e,7=g", dump(BulkMutation.applySorted(base,
+                Arrays.asList(Change.upsert(1, "z"), Change.delete(2)))));
+    }
+
+    @Test
+    public void applySortedDeleteThenUpsertAdjacentKey()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2}, new String[] {"a", "b"});
+        assertEquals("2=B", dump(BulkMutation.applySorted(base,
+                Arrays.asList(Change.delete(1), Change.upsert(2, "B")))));
+    }
+
+    @Test
+    public void applySortedRejectsNullChangeElement()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {1}, new String[] {"a"});
+        List<Change<Integer, String>> withNull = Arrays.asList(Change.upsert(2, "x"), null);
+        assertThrows(NullPointerException.class, () -> BulkMutation.applySorted(base, withNull));
+    }
+
+    @Test
+    public void upsertRejectsNullValue()
+    {
+        assertThrows(NullPointerException.class, () -> Change.upsert(1, null));
+    }
+
     // ---- mergeSortedDisjoint ----
 
     @Test
@@ -146,6 +192,28 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> empty = map(new int[] {}, new String[] {});
         assertEquals("1=a,2=b", dump(BulkMutation.mergeSortedDisjoint(a, empty)));
         assertEquals("1=a,2=b", dump(BulkMutation.mergeSortedDisjoint(empty, a)));
+        assertTrue(BulkMutation.mergeSortedDisjoint(empty, empty).isEmpty());
+    }
+
+    @Test
+    public void mergeSortedDisjointPrependsLowerRun()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {4, 5}, new String[] {"d", "e"});
+        ImmutableSortedMap<Integer, String> lower = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
+        assertEquals("1=a,2=b,3=c,4=d,5=e", dump(BulkMutation.mergeSortedDisjoint(base, lower)));
+    }
+
+    @Test
+    public void mergeSortedDisjointDetectsCollisionAtFirstAndLastPosition()
+    {
+        // collision on the very first pair
+        ImmutableSortedMap<Integer, String> a1 = map(new int[] {4, 8}, new String[] {"a", "b"});
+        ImmutableSortedMap<Integer, String> b1 = map(new int[] {4, 9}, new String[] {"X", "i"});
+        assertThrows(IllegalArgumentException.class, () -> BulkMutation.mergeSortedDisjoint(a1, b1));
+        // one map a strict prefix of the other's range, shared key last
+        ImmutableSortedMap<Integer, String> a2 = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
+        ImmutableSortedMap<Integer, String> b2 = map(new int[] {3}, new String[] {"X"});
+        assertThrows(IllegalArgumentException.class, () -> BulkMutation.mergeSortedDisjoint(a2, b2));
     }
 
     // ---- rangeDelete ----
@@ -172,6 +240,91 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
         assertTrue(BulkMutation.rangeDelete(base, Range.all()).isEmpty());
+    }
+
+    @Test
+    public void rangeDeleteDisjointRangeIsNoOp()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
+        assertEquals("1=a,2=b,3=c", dump(BulkMutation.rangeDelete(base, Range.closed(10, 20))));
+    }
+
+    @Test
+    public void rangeDeleteEmptyRangeIsNoOp()
+    {
+        ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
+        // closedOpen(2,2) is empty -> nothing removed
+        assertEquals("1=a,2=b,3=c", dump(BulkMutation.rangeDelete(base, Range.closedOpen(2, 2))));
+    }
+
+    @Test
+    public void rangeDeleteHalfUnboundedCutsPrefixAndSuffix()
+    {
+        ImmutableSortedMap<Integer, String> base = map(
+                new int[] {1, 2, 3, 4, 5}, new String[] {"a", "b", "c", "d", "e"});
+        // atLeast(3): remove 3,4,5 (inclusive lower)
+        assertEquals("1=a,2=b", dump(BulkMutation.rangeDelete(base, Range.atLeast(3))));
+        // lessThan(3): remove 1,2 (exclusive upper -> 3 survives)
+        assertEquals("3=c,4=d,5=e", dump(BulkMutation.rangeDelete(base, Range.lessThan(3))));
+    }
+
+    // ---- differential fuzz vs java.util.TreeMap ----
+
+    @Test
+    public void applySortedMatchesTreeMapReference()
+    {
+        Random rnd = new Random(20260704L);
+        for (int trial = 0; trial < 200; trial++)
+        {
+            // Build a random base.
+            TreeMap<Integer, String> ref = new TreeMap<>();
+            List<Integer> bk = new ArrayList<>();
+            List<String> bv = new ArrayList<>();
+            for (int k = 0; k < 40; k++)
+            {
+                if (rnd.nextBoolean())
+                {
+                    ref.put(k, "v" + k);
+                    bk.add(k);
+                    bv.add("v" + k);
+                }
+            }
+            ImmutableSortedMap<Integer, String> base = ImmutableSortedMap.fromSorted(bk, bv);
+
+            // Build a random strictly-ascending change list and mirror it on the reference.
+            List<Change<Integer, String>> changes = new ArrayList<>();
+            for (int k = 0; k < 40; k++)
+            {
+                if (!rnd.nextBoolean())
+                {
+                    continue;
+                }
+                if (rnd.nextBoolean())
+                {
+                    String nv = "n" + trial + "_" + k;
+                    changes.add(Change.upsert(k, nv));
+                    ref.put(k, nv);
+                }
+                else
+                {
+                    changes.add(Change.delete(k));
+                    ref.remove(k);
+                }
+            }
+
+            ImmutableSortedMap<Integer, String> got = BulkMutation.applySorted(base, changes);
+
+            StringBuilder expected = new StringBuilder();
+            for (Map.Entry<Integer, String> e : ref.entrySet())
+            {
+                if (expected.length() > 0)
+                {
+                    expected.append(',');
+                }
+                expected.append(e.getKey()).append('=').append(e.getValue());
+            }
+            assertEquals(expected.toString(), dump(got), "trial " + trial);
+        }
     }
 
     // ---- Change value type ----
