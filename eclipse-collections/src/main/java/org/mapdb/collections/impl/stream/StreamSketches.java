@@ -40,12 +40,26 @@ import org.mapdb.collections.impl.SpaceSaving;
  *
  * <p>Elements are {@code i32}, matching the sketches' surface and the Roaring /
  * int-keyed sources; the values are reinterpreted/zero-extended exactly as
- * {@link HyperLogLog#add(int)} does.
+ * {@link HyperLogLog#add(int)} does. Null elements are not supported (they NPE
+ * on auto-unbox).
  */
 public final class StreamSketches
 {
     /** Default HyperLogLog precision (2^14 registers, ~0.8% standard error). */
     public static final int DEFAULT_HLL_PRECISION = 14;
+
+    /**
+     * Fixed non-zero domain-separation constant for the sample hash. It keeps
+     * the sample decision independent of any collection/sketch that hashes the
+     * same value: in particular {@link HyperLogLog} derives its register index
+     * from the top bits of {@code hash64(value, 0)}, so a sample hashed with
+     * seed 0 and no salt would keep exactly the values landing in the first
+     * {@code p}-fraction of HLL registers — catastrophically biasing a
+     * {@code stream | sample | approxDistinctCount} pipeline. Salting then
+     * re-mixing the user seed removes that correlation. Ports MUST use this exact
+     * constant and two-round scheme to stay bit-identical.
+     */
+    private static final long SAMPLE_SALT = 0x9E3779B97F4A7C15L;
 
     private StreamSketches()
     {
@@ -151,8 +165,12 @@ public final class StreamSketches
      * cut, the sample is independent of stream order, and it is identical across
      * runs and language ports.
      *
-     * <p>The kept fraction of a value {@code v} is {@code u(v) < p} where
-     * {@code u(v) = (hash64Int32(v, seed) >>> 11) * 2^-53} lies in {@code [0, 1)}.
+     * <p>A value {@code v} is kept iff {@code u(v) < p}, where
+     * {@code u(v) = (h >>> 11) * 2^-53} lies in {@code [0, 1)} and
+     * {@code h = hash64(hash64Int32(v, SAMPLE_SALT), seed)} — two rounds so the
+     * user seed fully mixes (nearby seeds give independent samples) and the
+     * decision is domain-separated from the family's other hashes (see
+     * {@code SAMPLE_SALT}). Null elements are not supported (they NPE on unbox).
      *
      * @param p sampling probability in {@code [0, 1]}
      * @throws IllegalArgumentException if {@code p} is NaN or outside {@code [0, 1]}
@@ -173,7 +191,7 @@ public final class StreamSketches
         }
         return v ->
         {
-            long h = Hash.hash64Int32(v, seed);
+            long h = Hash.hash64(Hash.hash64Int32(v, SAMPLE_SALT), seed);
             double u = (h >>> 11) * 0x1.0p-53;
             return u < p;
         };

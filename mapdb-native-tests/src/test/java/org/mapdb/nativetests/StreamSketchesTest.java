@@ -81,6 +81,36 @@ public class StreamSketchesTest
         assertTrue(Math.abs(est - 7_500) <= 250, "estimate=" + est);
     }
 
+    @Test
+    public void approxDistinctCountEmptyIsZero()
+    {
+        assertEquals(0L, StreamSketches.approxDistinctCount(range(0, 0)));
+    }
+
+    @Test
+    public void approxDistinctCountHandlesNegativeAndExtremeInts()
+    {
+        // -1 and MIN_VALUE must hash cleanly (zero-extend convention), no dup collapse
+        long est = StreamSketches.approxDistinctCount(
+                sortedOf(Integer.MIN_VALUE, -1000, -1, 0, 1, Integer.MAX_VALUE), 14);
+        assertEquals(6, est);
+    }
+
+    @Test
+    public void sampleThenApproxDistinctIsUnbiasedEvenAtSeedZero()
+    {
+        // Regression for the sampleGate/HLL hash-correlation bug: with seed 0 the
+        // sample must NOT concentrate in a sub-range of HLL's registers.
+        for (long seed : new long[] {0L, 7L, 42L})
+        {
+            SortedStream<Integer> sampled = StreamSketches.sample(range(0, 100_000), 0.5, seed);
+            long distinctOfSample = StreamSketches.approxDistinctCount(sampled);
+            // ~50,000 kept and distinct; a biased hash produced ~11k here before the fix.
+            assertTrue(Math.abs(distinctOfSample - 50_000) <= 3_000,
+                    "seed=" + seed + " distinctOfSample=" + distinctOfSample);
+        }
+    }
+
     // ---- topK (Space-Saving) ----
 
     @Test
@@ -101,6 +131,33 @@ public class StreamSketchesTest
     {
         List<SpaceSaving.SSEntry> top = StreamSketches.topK(sortedOf(1, 2, 3), 10, 5);
         assertEquals(3, top.size());
+    }
+
+    @Test
+    public void topKOnEmptyStreamIsEmpty()
+    {
+        assertTrue(StreamSketches.topK(range(0, 0), 10, 3).isEmpty());
+    }
+
+    @Test
+    public void topKUnderCapacityPressureStillSurfacesDominantHeavyHitter()
+    {
+        // capacity 2 < distinct: eviction path exercised. One value hugely
+        // dominant; Space-Saving must still rank it first with count >= truth.
+        List<Integer> xs = new ArrayList<>();
+        for (int i = 0; i < 1_000; i++)
+        {
+            xs.add(0);          // the heavy hitter: 1000 occurrences
+        }
+        for (int i = 1; i <= 50; i++)
+        {
+            xs.add(i);          // 50 distinct singletons
+        }
+        // ascending order required by ofSorted: 0's first, then 1..50
+        List<SpaceSaving.SSEntry> top = StreamSketches.topK(SortedStream.ofSorted(xs), 2, 1);
+        assertEquals(1, top.size());
+        assertEquals(0, top.get(0).item);
+        assertTrue(top.get(0).count >= 1_000, "count=" + top.get(0).count);
     }
 
     // ---- frequencies (Count-Min) ----
