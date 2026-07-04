@@ -6,15 +6,17 @@
 
 package org.mapdb.collections.impl.columnar;
 
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
+import org.mapdb.collections.impl.Hash;
+import org.mapdb.collections.impl.digest.CollectionDigest;
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
@@ -58,6 +60,12 @@ public final class ColumnarTable
     private final int[] keys;               // strictly ascending, unique
     private final String[] columnNames;     // value-column names, in order
     private final int[][] columns;          // columns[c][row]; each length == keys.length
+
+    /** {@link #digest} composite domain for a table (see {@link CollectionDigest#combine}). */
+    private static final long TABLE_DIGEST_TAG = 0x7AB1E00000001L;
+
+    /** Domain seed for hashing a column name (its UTF-8 bytes) into the table digest. */
+    private static final long COLUMN_NAME_SEED = 0x7AB1E00000002L;
 
     private ColumnarTable(int[] keys, String[] columnNames, int[][] columns)
     {
@@ -326,6 +334,32 @@ public final class ColumnarTable
     {
         int c = this.requireColumn(name);
         return ImmutableSortedMap.fromSorted(this.keys.clone(), this.columns[c].clone());
+    }
+
+    // ---- Content address (C2, via the A2 digest) -------------------------
+
+    /**
+     * A 64-bit content digest / address of this table, built via the A2
+     * {@link CollectionDigest}: {@link CollectionDigest#combine} over the key
+     * column's digest followed by, for each value column in order, the column
+     * name's hash and the {@code key → value} column's digest. Two tables digest
+     * equally iff they have the same key column and the same <b>named</b> value
+     * columns in the same <b>order</b>; renaming or reordering a column changes the
+     * digest, as does any key or value. Column names are bound as their <b>UTF-8
+     * bytes</b> (the cross-language name encoding). Suitable as a C2 content
+     * address for dedupe / stage memoisation of tables.
+     */
+    public long digest()
+    {
+        long[] children = new long[1 + 2 * this.columnNames.length];
+        children[0] = CollectionDigest.ofSortedSet(this.keyColumnAsSet());
+        for (int c = 0; c < this.columnNames.length; c++)
+        {
+            children[1 + 2 * c] =
+                    Hash.hash64Bytes(this.columnNames[c].getBytes(StandardCharsets.UTF_8), COLUMN_NAME_SEED);
+            children[2 + 2 * c] = CollectionDigest.ofSortedMap(this.columnAsMap(this.columnNames[c]));
+        }
+        return CollectionDigest.combine(TABLE_DIGEST_TAG, children);
     }
 
     // ---- internals --------------------------------------------------------

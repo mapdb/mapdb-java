@@ -131,6 +131,31 @@ public final class CollectionDigest
     /** Type tag: {@link RoaringU32}. */
     private static final long TAG_ROARING = 0x03L;
 
+    /**
+     * Lane salt for the primary (only, for the 64-bit API) digest lane — zero, so
+     * every 64-bit result is byte-identical to a lane-unaware computation.
+     */
+    private static final long LANE_0 = 0L;
+
+    /**
+     * Salt for the second digest lane used by the 128-bit variants: XOR'd into
+     * every seed so lane 1 is a <b>decorrelated re-seeded</b> re-hash of the same
+     * Merkle structure — the same two-seed technique {@link Hash#positions} already
+     * uses ({@code hash32(x, 0)} vs {@code hash32(x, SALT2)}). The
+     * {@code (lane0, lane1)} pair raises the <i>accidental</i>-collision birthday
+     * bound toward ~{@code 2^64}; this is a heuristic under the non-cryptographic
+     * model, <b>not</b> a proven independent-lane / cryptographic 128-bit guarantee
+     * (a single fixed 64-bit finalizer cannot provide that).
+     */
+    private static final long LANE_1 = 0xC0FFEE1237A2D105L;
+
+    /**
+     * Domain XOR'd into the caller's tag inside {@link #combine}, so a composite
+     * digest of child digests can never share the finalize domain with a primitive
+     * collection digest even if the caller passes a colliding tag value.
+     */
+    private static final long COMPOSITE_DOMAIN = 0xC0117A11E0000009L;
+
     private CollectionDigest()
     {
     }
@@ -145,7 +170,13 @@ public final class CollectionDigest
      */
     private static long leafOfMember(int value)
     {
-        return Hash.hash64Int32(value, LEAF_SET_SEED);
+        return leafOfMember(value, LANE_0);
+    }
+
+    /** Lane-salted {@link #leafOfMember}: {@code fmix64(zext(v) ^ LEAF_SET_SEED ^ lane)}. */
+    private static long leafOfMember(int value, long lane)
+    {
+        return Hash.hash64Int32(value, LEAF_SET_SEED ^ lane);
     }
 
     /**
@@ -156,8 +187,14 @@ public final class CollectionDigest
      */
     private static long leafOfEntry(int key, int value)
     {
-        long k = Hash.hash64(Hash.encodeI32Word64(key), LEAF_MAP_KEY_SEED);
-        return Hash.hash64(k, Hash.encodeI32Word64(value) ^ LEAF_MAP_VAL_SEED);
+        return leafOfEntry(key, value, LANE_0);
+    }
+
+    /** Lane-salted {@link #leafOfEntry}. */
+    private static long leafOfEntry(int key, int value, long lane)
+    {
+        long k = Hash.hash64(Hash.encodeI32Word64(key), LEAF_MAP_KEY_SEED ^ lane);
+        return Hash.hash64(k, Hash.encodeI32Word64(value) ^ LEAF_MAP_VAL_SEED ^ lane);
     }
 
     /**
@@ -170,8 +207,14 @@ public final class CollectionDigest
      */
     private static long node(long left, long right)
     {
-        long l = Hash.hash64(left, NODE_LEFT_SEED);
-        return Hash.hash64(l, right ^ NODE_RIGHT_SEED);
+        return node(left, right, LANE_0);
+    }
+
+    /** Lane-salted {@link #node}. */
+    private static long node(long left, long right, long lane)
+    {
+        long l = Hash.hash64(left, NODE_LEFT_SEED ^ lane);
+        return Hash.hash64(l, right ^ NODE_RIGHT_SEED ^ lane);
     }
 
     /**
@@ -182,8 +225,14 @@ public final class CollectionDigest
      */
     private static long finalizeRoot(long root, long typeTag, long count)
     {
-        long t = Hash.hash64(root, typeTag ^ FINAL_TAG_SEED);
-        return Hash.hash64(t, count ^ FINAL_SIZE_SEED);
+        return finalizeRoot(root, typeTag, count, LANE_0);
+    }
+
+    /** Lane-salted {@link #finalizeRoot}. */
+    private static long finalizeRoot(long root, long typeTag, long count, long lane)
+    {
+        long t = Hash.hash64(root, typeTag ^ FINAL_TAG_SEED ^ lane);
+        return Hash.hash64(t, count ^ FINAL_SIZE_SEED ^ lane);
     }
 
     /**
@@ -192,12 +241,18 @@ public final class CollectionDigest
      */
     private static long[] nextLevel(long[] level)
     {
+        return nextLevel(level, LANE_0);
+    }
+
+    /** Lane-salted {@link #nextLevel}. */
+    private static long[] nextLevel(long[] level, long lane)
+    {
         int pairs = level.length >>> 1;
         boolean odd = (level.length & 1) == 1;
         long[] next = new long[pairs + (odd ? 1 : 0)];
         for (int i = 0; i < pairs; i++)
         {
-            next[i] = node(level[2 * i], level[2 * i + 1]);
+            next[i] = node(level[2 * i], level[2 * i + 1], lane);
         }
         if (odd)
         {
@@ -209,43 +264,36 @@ public final class CollectionDigest
     /** Merkle root over an ordered array of leaf hashes (empty ⇒ {@code EMPTY_ROOT}). */
     private static long merkleRoot(long[] leaves)
     {
+        return merkleRoot(leaves, LANE_0);
+    }
+
+    /** Lane-salted {@link #merkleRoot} (empty ⇒ {@code EMPTY_ROOT ^ lane}). */
+    private static long merkleRoot(long[] leaves, long lane)
+    {
         if (leaves.length == 0)
         {
-            return EMPTY_ROOT;
+            return EMPTY_ROOT ^ lane;
         }
         long[] level = leaves;
         while (level.length > 1)
         {
-            level = nextLevel(level);
+            level = nextLevel(level, lane);
         }
         return level[0];
     }
 
-    // ---- Typed digest entry points ---------------------------------------
+    // ---- Typed digest entry points (64-bit) ------------------------------
 
     /** Content digest of a sorted set of {@code i32} members (ascending order). */
     public static long ofSortedSet(ImmutableSortedSet<Integer> set)
     {
-        List<Integer> elems = set.elements();
-        long[] leaves = new long[elems.size()];
-        for (int i = 0; i < leaves.length; i++)
-        {
-            leaves[i] = leafOfMember(elems.get(i));
-        }
-        return finalizeRoot(merkleRoot(leaves), TAG_SORTED_SET, leaves.length);
+        return ofMembers(memberArray(set.elements()), TAG_SORTED_SET, LANE_0);
     }
 
     /** Content digest of a sorted {@code i32}→{@code i32} map (ascending by key). */
     public static long ofSortedMap(ImmutableSortedMap<Integer, Integer> map)
     {
-        List<Map.Entry<Integer, Integer>> entries = map.entries();
-        long[] leaves = new long[entries.size()];
-        for (int i = 0; i < leaves.length; i++)
-        {
-            Map.Entry<Integer, Integer> e = entries.get(i);
-            leaves[i] = leafOfEntry(e.getKey(), e.getValue());
-        }
-        return finalizeRoot(merkleRoot(leaves), TAG_SORTED_MAP, leaves.length);
+        return ofEntries(map.entries(), LANE_0);
     }
 
     /**
@@ -269,19 +317,110 @@ public final class CollectionDigest
      */
     public static long ofRoaring(RoaringU32 bits)
     {
+        return ofMembers(materializableMembers(bits), TAG_ROARING, LANE_0);
+    }
+
+    // ---- 128-bit variants (two independent lanes) ------------------------
+
+    /**
+     * 128-bit content digest of a sorted set as {@code {lane0, lane1}}. Lane 1 is a
+     * decorrelated re-seeded re-hash of the same tree under {@link #LANE_1}, so an
+     * accidental collision must hit <i>both</i> lanes — raising the birthday bound
+     * toward ~{@code 2^64} under the non-cryptographic model (heuristic, not a
+     * proven independent-lane guarantee — see {@link #LANE_1}). Lane 0 equals
+     * {@link #ofSortedSet}. Use when a memoisation or verification cache must be
+     * robust against accidental collisions at scale.
+     */
+    public static long[] ofSortedSet128(ImmutableSortedSet<Integer> set)
+    {
+        int[] m = memberArray(set.elements());
+        return new long[] {ofMembers(m, TAG_SORTED_SET, LANE_0), ofMembers(m, TAG_SORTED_SET, LANE_1)};
+    }
+
+    /** 128-bit content digest of a sorted map as {@code {lane0, lane1}} (lane 0 = {@link #ofSortedMap}). */
+    public static long[] ofSortedMap128(ImmutableSortedMap<Integer, Integer> map)
+    {
+        List<Map.Entry<Integer, Integer>> entries = map.entries();
+        return new long[] {ofEntries(entries, LANE_0), ofEntries(entries, LANE_1)};
+    }
+
+    /** 128-bit content digest of a Roaring set as {@code {lane0, lane1}} (lane 0 = {@link #ofRoaring}). */
+    public static long[] ofRoaring128(RoaringU32 bits)
+    {
+        int[] m = materializableMembers(bits);
+        return new long[] {ofMembers(m, TAG_ROARING, LANE_0), ofMembers(m, TAG_ROARING, LANE_1)};
+    }
+
+    // ---- Composite digest (digest of child digests) ----------------------
+
+    /**
+     * Compose an <b>ordered</b> list of child digests into one — a digest of
+     * digests, for content-addressing structures built from several collections
+     * (e.g. a columnar table = key column + value columns, or a multi-input
+     * pipeline stage keyed by all its inputs' digests). The children are the
+     * leaves of a Merkle tree finalized with a tag <b>derived by hashing</b> the
+     * caller's {@code typeTag} through a fixed composite domain
+     * ({@code hash64(typeTag, COMPOSITE_DOMAIN)}) plus the child count. Hashing
+     * (rather than a reversible XOR) means no caller {@code typeTag} can
+     * accidentally reproduce a primitive collection's finalize tag, so a composite
+     * digest is domain-separated from every primitive digest under the
+     * accidental-collision model (it is not an adversarial commitment — nothing
+     * here is). Order-sensitive: reordering the children changes the result.
+     *
+     * @param typeTag  a caller-chosen domain for this kind of composite
+     * @param children the child digests, in a canonical order the caller defines
+     */
+    public static long combine(long typeTag, long[] children)
+    {
+        long domainTag = Hash.hash64(typeTag, COMPOSITE_DOMAIN);
+        return finalizeRoot(merkleRoot(children, LANE_0), domainTag, children.length, LANE_0);
+    }
+
+    // ---- shared leaf-building helpers ------------------------------------
+
+    private static int[] memberArray(List<Integer> elems)
+    {
+        int[] a = new int[elems.size()];
+        for (int i = 0; i < a.length; i++)
+        {
+            a[i] = elems.get(i);
+        }
+        return a;
+    }
+
+    /** Digest of a member array under a type tag and lane (set / Roaring). */
+    private static long ofMembers(int[] members, long typeTag, long lane)
+    {
+        long[] leaves = new long[members.length];
+        for (int i = 0; i < members.length; i++)
+        {
+            leaves[i] = leafOfMember(members[i], lane);
+        }
+        return finalizeRoot(merkleRoot(leaves, lane), typeTag, members.length, lane);
+    }
+
+    /** Digest of map entries under a lane. */
+    private static long ofEntries(List<Map.Entry<Integer, Integer>> entries, long lane)
+    {
+        long[] leaves = new long[entries.size()];
+        for (int i = 0; i < leaves.length; i++)
+        {
+            Map.Entry<Integer, Integer> e = entries.get(i);
+            leaves[i] = leafOfEntry(e.getKey(), e.getValue(), lane);
+        }
+        return finalizeRoot(merkleRoot(leaves, lane), TAG_SORTED_MAP, entries.size(), lane);
+    }
+
+    /** Materialise a Roaring set's members, rejecting the &gt; {@code 2^31} case. */
+    private static int[] materializableMembers(RoaringU32 bits)
+    {
         if (bits.cardinality() > Integer.MAX_VALUE)
         {
             throw new IllegalArgumentException(
                     "CollectionDigest.ofRoaring is defined for cardinality <= Integer.MAX_VALUE"
                             + " (this slice materialises members); got " + bits.cardinality());
         }
-        int[] members = bits.toSortedArray();
-        long[] leaves = new long[members.length];
-        for (int i = 0; i < members.length; i++)
-        {
-            leaves[i] = leafOfMember(members[i]);
-        }
-        return finalizeRoot(merkleRoot(leaves), TAG_ROARING, bits.cardinality());
+        return bits.toSortedArray();
     }
 
     // ---- Inclusion proofs -------------------------------------------------

@@ -16,6 +16,7 @@ import org.mapdb.collections.impl.digest.CollectionDigest.MerkleProof;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -336,5 +337,94 @@ public class CollectionDigestTest
             MerkleProof p = CollectionDigest.proveMember(s, a[i]);
             assertTrue(CollectionDigest.verifyMember(d, a[i], p));
         }
+    }
+
+    // ---- 128-bit variants -------------------------------------------------
+
+    @Test
+    public void digest128Lane0EqualsScalar()
+    {
+        ImmutableSortedSet<Integer> s = set(1, 2, 3, 4, 5);
+        assertEquals(CollectionDigest.ofSortedSet(s), CollectionDigest.ofSortedSet128(s)[0]);
+
+        ImmutableSortedMap<Integer, Integer> m = map(new int[] {1, 2}, new int[] {9, 8});
+        assertEquals(CollectionDigest.ofSortedMap(m), CollectionDigest.ofSortedMap128(m)[0]);
+
+        RoaringU32 r = roaring(1, 70000, 200000);
+        assertEquals(CollectionDigest.ofRoaring(r), CollectionDigest.ofRoaring128(r)[0]);
+    }
+
+    @Test
+    public void digest128LanesAreIndependent()
+    {
+        long[] d = CollectionDigest.ofSortedSet128(set(1, 2, 3, 4, 5));
+        assertEquals(2, d.length);
+        assertNotEquals(d[0], d[1]);
+    }
+
+    @Test
+    public void digest128EqualityAndSensitivity()
+    {
+        long[] a = CollectionDigest.ofSortedSet128(set(1, 2, 3));
+        long[] b = CollectionDigest.ofSortedSet128(set(1, 2, 3));
+        long[] c = CollectionDigest.ofSortedSet128(set(1, 2, 4));
+        assertArrayEquals(a, b);
+        assertFalse(a[0] == c[0] && a[1] == c[1]); // differs in at least one lane
+    }
+
+    @Test
+    public void empty128DistinctByType()
+    {
+        assertFalse(java.util.Arrays.equals(
+                CollectionDigest.ofSortedSet128(set()),
+                CollectionDigest.ofRoaring128(roaring())));
+    }
+
+    // ---- Composite digest (combine) --------------------------------------
+
+    @Test
+    public void combineDeterministicAndOrderSensitive()
+    {
+        long[] children = {111L, 222L, 333L};
+        assertEquals(CollectionDigest.combine(7L, children.clone()),
+                CollectionDigest.combine(7L, children.clone()));
+        // Order matters.
+        assertNotEquals(CollectionDigest.combine(7L, new long[] {111L, 222L, 333L}),
+                CollectionDigest.combine(7L, new long[] {111L, 333L, 222L}));
+        // Tag matters.
+        assertNotEquals(CollectionDigest.combine(7L, children.clone()),
+                CollectionDigest.combine(8L, children.clone()));
+    }
+
+    @Test
+    public void combineEmptyAndSingleton()
+    {
+        long empty = CollectionDigest.combine(7L, new long[] {});
+        long one = CollectionDigest.combine(7L, new long[] {0L});
+        assertNotEquals(empty, one);
+        // A child value differing changes the composite.
+        assertNotEquals(CollectionDigest.combine(7L, new long[] {1L}),
+                CollectionDigest.combine(7L, new long[] {2L}));
+    }
+
+    @Test
+    public void combineDoesNotMutateChildren()
+    {
+        long[] children = {5L, 6L, 7L, 8L, 9L};
+        long[] snapshot = children.clone();
+        CollectionDigest.combine(1L, children);
+        assertArrayEquals(snapshot, children);
+    }
+
+    @Test
+    public void combineDomainNotCancellableIntoPrimitive()
+    {
+        // The XOR-cancelling attack (typeTag = TAG_SORTED_SET ^ COMPOSITE_DOMAIN)
+        // must NOT reproduce the empty sorted-set digest, because combine hashes
+        // the tag through the domain rather than XOR-ing it.
+        long cancellingTag = 0xC0117A11E0000008L; // COMPOSITE_DOMAIN ^ 0x01
+        long composite = CollectionDigest.combine(cancellingTag, new long[] {});
+        long emptySet = CollectionDigest.ofSortedSet(set());
+        assertNotEquals(emptySet, composite);
     }
 }

@@ -18,6 +18,7 @@ import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -262,5 +263,41 @@ public class ColumnarTableTest
         assertEquals(200, m.get(20).get());
         assertEquals(300, m.get(30).get());
         assertTrue(m.get(15).isEmpty());
+    }
+
+    // ---- Content address / digest (C2 via A2) ----------------------------
+
+    @Test
+    public void digestDeterministicAndEqualForEqualTables()
+    {
+        assertEquals(sample().digest(), sample().digest());
+    }
+
+    @Test
+    public void digestSensitiveToKeysValuesNamesOrder()
+    {
+        long base = sample().digest();
+        // Different value.
+        assertNotEquals(base, ColumnarTable.of(
+                new int[] {10, 20, 30}, new String[] {"age", "score"},
+                new int[][] {{1, 2, 3}, {100, 200, 999}}).digest());
+        // Different key.
+        assertNotEquals(base, ColumnarTable.of(
+                new int[] {10, 20, 31}, new String[] {"age", "score"},
+                new int[][] {{1, 2, 3}, {100, 200, 300}}).digest());
+        // Renamed column (same values) — names are part of the identity.
+        assertNotEquals(base, ColumnarTable.of(
+                new int[] {10, 20, 30}, new String[] {"age", "points"},
+                new int[][] {{1, 2, 3}, {100, 200, 300}}).digest());
+        // Reordered columns.
+        assertNotEquals(base, sample().project("score", "age").digest());
+    }
+
+    @Test
+    public void digestOfEmptyTablesDifferByColumns()
+    {
+        long a = ColumnarTable.of(new int[] {}, new String[] {"x"}, new int[][] {{}}).digest();
+        long b = ColumnarTable.of(new int[] {}, new String[] {"y"}, new int[][] {{}}).digest();
+        assertNotEquals(a, b);
     }
 }
