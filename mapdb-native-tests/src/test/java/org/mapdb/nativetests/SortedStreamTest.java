@@ -8,7 +8,9 @@ package org.mapdb.nativetests;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +28,7 @@ import org.mapdb.collections.impl.stream.SortedStream;
 import org.mapdb.collections.impl.tuple.Tuples;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -236,10 +239,20 @@ public class SortedStreamTest
     }
 
     @Test
-    public void intoPumpMaterializesImmutableSortedSetViaMerge()
+    public void mergeToListMaterializesMultiset()
     {
         MutableList<Integer> merged = ints(1, 4, 7).mergeWith(ints(2, 3, 8)).toList();
         assertEquals(Arrays.asList(1, 2, 3, 4, 7, 8), new ArrayList<>(merged));
+    }
+
+    @Test
+    public void intoPumpPropagatesDuplicateErrorFromMerge()
+    {
+        // mergeWith keeps duplicates; a strict (ERROR) sink must reject the dup
+        // it receives, crossing the Sink poisoning path from the stream side.
+        SortedStream<Integer> withDup = ints(1, 2, 3).mergeWith(ints(2, 4));
+        assertThrows(RuntimeException.class, () ->
+                withDup.into(Pump.treeSortedSet(Comparator.<Integer>naturalOrder(), DuplicatePolicy.ERROR)));
     }
 
     // ---- contract: validation + single-use ----
@@ -273,5 +286,123 @@ public class SortedStreamTest
     public void countTerminal()
     {
         assertTrue(ints(1, 2, 2, 3).union(ints(3, 4)).count() == 4);
+    }
+
+    // ---- tie stability + representative identity (needs distinguishable equals) ----
+
+    @Test
+    public void mergeIsStableAndSetOpsUseReceiverRepresentative()
+    {
+        Comparator<Pair<Integer, String>> byKey = Comparator.comparing(Pair::getOne);
+        List<Pair<Integer, String>> a = Arrays.asList(Tuples.pair(1, "a"), Tuples.pair(2, "L"));
+        List<Pair<Integer, String>> b = Arrays.asList(Tuples.pair(2, "R"), Tuples.pair(3, "c"));
+
+        // mergeWith on a tie emits the RECEIVER's element first (L before R).
+        List<String> merged = new ArrayList<>();
+        SortedStream.ofSorted(a, byKey).mergeWith(SortedStream.ofSorted(b, byKey))
+                .forEach(p -> merged.add(p.getTwo()));
+        assertEquals(Arrays.asList("a", "L", "R", "c"), merged);
+
+        // intersect emits the RECEIVER's representative (L, not R).
+        Pair<Integer, String> only = SortedStream.ofSorted(a, byKey)
+                .intersect(SortedStream.ofSorted(b, byKey)).toList().get(0);
+        assertEquals("L", only.getTwo());
+    }
+
+    // ---- merge-join edge cases ----
+
+    @Test
+    public void mergeJoinEmptySideYieldsNothing()
+    {
+        Comparator<Integer> nat = Comparator.naturalOrder();
+        assertEquals(List.of(), new ArrayList<>(SortedStream.mergeJoin(
+                ints(), (Integer x) -> x, ints(1, 2, 3), (Integer x) -> x,
+                nat, (l, r) -> l, nat).toList()));
+        assertEquals(List.of(), new ArrayList<>(SortedStream.mergeJoin(
+                ints(1, 2, 3), (Integer x) -> x, ints(), (Integer x) -> x,
+                nat, (l, r) -> l, nat).toList()));
+    }
+
+    @Test
+    public void mergeJoinAsymmetricGroupsAndInterleavedNonMatches()
+    {
+        // left keys 1,1,2,4,4,4 ; right keys 1,2,2,3,4 -> 2x1, 1x2, (3 skipped), 3x1
+        List<Pair<Integer, String>> left = Arrays.asList(
+                Tuples.pair(1, "la"), Tuples.pair(1, "lb"), Tuples.pair(2, "lc"),
+                Tuples.pair(4, "ld"), Tuples.pair(4, "le"), Tuples.pair(4, "lf"));
+        List<Pair<Integer, String>> right = Arrays.asList(
+                Tuples.pair(1, "ra"), Tuples.pair(2, "rb"), Tuples.pair(2, "rc"),
+                Tuples.pair(3, "rd"), Tuples.pair(4, "rf"));
+        Comparator<Pair<Integer, String>> byKey = Comparator.comparing(Pair::getOne);
+
+        SortedStream<Pair<Integer, String>> joined = SortedStream.mergeJoin(
+                SortedStream.ofSorted(left, byKey), Pair::getOne,
+                SortedStream.ofSorted(right, byKey), Pair::getOne,
+                Comparator.<Integer>naturalOrder(),
+                (l, r) -> Tuples.pair(l.getOne(), l.getTwo() + "-" + r.getTwo()),
+                Comparator.comparing(Pair::getOne));
+
+        List<String> rows = new ArrayList<>();
+        joined.forEach(p -> rows.add(p.getTwo()));
+        assertEquals(Arrays.asList(
+                "la-ra", "lb-ra",        // key 1: 2x1
+                "lc-rb", "lc-rc",        // key 2: 1x2 (consecutive matching group after key 1)
+                "ld-rf", "le-rf", "lf-rf" // key 4: 3x1 (last group, after skipped right-only key 3)
+        ), rows);
+    }
+
+    // ---- source-adapter edges ----
+
+    @Test
+    public void ofRoaringEmpty()
+    {
+        assertEquals(List.of(), drain(SortedStream.ofRoaring(new RoaringU32())));
+    }
+
+    @Test
+    public void ofRangesUnboundedLowerSortsFirst()
+    {
+        RangeSet<Integer> rs = new RangeSet<>();
+        rs.add(Range.closedOpen(10, 20));
+        rs.add(Range.lessThan(0));      // (-inf, 0): no lower bound
+        List<Boolean> hasLower = new ArrayList<>();
+        SortedStream.ofRanges(rs).forEach(r -> hasLower.add(r.hasLowerBound()));
+        assertEquals(Arrays.asList(false, true), hasLower);
+    }
+
+    // ---- cursor contract: poisoning + iterator exhaustion ----
+
+    @Test
+    public void iteratorIsSingleUse()
+    {
+        SortedStream<Integer> s = ints(1, 2, 3);
+        s.iterator();
+        assertThrows(IllegalStateException.class, s::toList);
+    }
+
+    @Test
+    public void exhaustedIteratorThrowsNoSuchElement()
+    {
+        Iterator<Integer> it = ints(1).iterator();
+        it.next();
+        assertFalse(it.hasNext());
+        assertThrows(NoSuchElementException.class, it::next);
+    }
+
+    @Test
+    public void operatorCursorPoisonsOnSourceError()
+    {
+        // A descending hand-sorted source fails validation mid-merge; the
+        // operator cursor must poison (not resume over half-advanced operands).
+        Iterator<Integer> it = SortedStream.ofSorted(Arrays.asList(3, 1))
+                .mergeWith(ints(2)).iterator();
+        assertThrows(IllegalStateException.class, () ->
+        {
+            while (it.hasNext())
+            {
+                it.next();
+            }
+        });
+        assertFalse(it.hasNext());
     }
 }

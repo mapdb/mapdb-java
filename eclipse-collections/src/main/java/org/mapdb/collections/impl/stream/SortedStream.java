@@ -216,7 +216,14 @@ public final class SortedStream<T>
      * Stream the disjoint ranges of a {@link RangeSet} in ascending order of
      * lower endpoint (a range with no lower bound sorts first). Because a
      * {@code RangeSet}'s canonical ranges are disjoint and coalesced, this order
-     * is total.
+     * is total <i>within one set</i>.
+     *
+     * <p><b>Binary-op hazard:</b> the comparator orders by lower endpoint only,
+     * so two ranges sharing a lower endpoint (e.g. {@code [1,5)} and
+     * {@code [1,9)}) compare equal. Combining {@code ofRanges} streams from
+     * <i>different</i> range sets via {@link #intersect}/{@link #difference}
+     * therefore treats such ranges as the same key; only combine range streams
+     * when that is the intended semantics.
      */
     public static <C extends Comparable<? super C>> SortedStream<Range<C>> ofRanges(RangeSet<C> set)
     {
@@ -232,9 +239,10 @@ public final class SortedStream<T>
     // ------------------------------------------------------------------
 
     /**
-     * K-way merge preserving <b>all</b> elements including duplicates. On a tie
-     * the receiver's element is emitted first (a stable merge). This is the
-     * multiset union; use {@link #union} for set semantics.
+     * Binary merge (chain calls for k-way) preserving <b>all</b> elements
+     * including duplicates. On a tie the receiver's element is emitted first (a
+     * stable merge). This is the multiset union; use {@link #union} for set
+     * semantics.
      */
     public SortedStream<T> mergeWith(SortedStream<T> other)
     {
@@ -278,7 +286,10 @@ public final class SortedStream<T>
 
     /**
      * Set intersection: elements whose key is present in both operands, emitted
-     * once each. Duplicate runs on either side collapse.
+     * once each. Duplicate runs on either side collapse. When comparator-equal
+     * elements differ by identity, the emitted representative is taken from the
+     * <b>receiver</b> (matching {@link #union}, whose stable merge keeps the
+     * receiver's element on a tie).
      */
     public SortedStream<T> intersect(SortedStream<T> other)
     {
@@ -457,20 +468,26 @@ public final class SortedStream<T>
             private int li;
             private int ri;
 
+            /** Emit one row of the buffered Cartesian product, advancing (li, ri). */
+            private O emitNextProductRow()
+            {
+                O row = combiner.apply(this.leftGroup.get(this.li), this.rightGroup.get(this.ri));
+                this.ri++;
+                if (this.ri == this.rightGroup.size())
+                {
+                    this.ri = 0;
+                    this.li++;
+                }
+                return row;
+            }
+
             @Override
             protected O computeNext()
             {
                 // Drain the current Cartesian product, right-inner then left-outer.
                 if (this.li < this.leftGroup.size())
                 {
-                    O row = combiner.apply(this.leftGroup.get(this.li), this.rightGroup.get(this.ri));
-                    this.ri++;
-                    if (this.ri == this.rightGroup.size())
-                    {
-                        this.ri = 0;
-                        this.li++;
-                    }
-                    return row;
+                    return this.emitNextProductRow();
                 }
                 // Advance to the next matching key and buffer both groups.
                 while (a.hasNext() && b.hasNext())
@@ -499,14 +516,7 @@ public final class SortedStream<T>
                         }
                         this.li = 0;
                         this.ri = 0;
-                        O row = combiner.apply(this.leftGroup.get(0), this.rightGroup.get(0));
-                        this.ri++;
-                        if (this.ri == this.rightGroup.size())
-                        {
-                            this.ri = 0;
-                            this.li++;
-                        }
-                        return row;
+                        return this.emitNextProductRow();
                     }
                 }
                 return endOfData();
@@ -743,7 +753,19 @@ public final class SortedStream<T>
 
         private boolean tryCompute()
         {
-            T candidate = this.computeNext();
+            T candidate;
+            try
+            {
+                candidate = this.computeNext();
+            }
+            catch (RuntimeException e)
+            {
+                // Poison the cursor: a source/validation failure must not be
+                // resumable over half-advanced operand cursors (mirrors the
+                // Pump.Sink poisoning discipline).
+                this.state = State.DONE;
+                throw e;
+            }
             if (this.state == State.DONE)
             {
                 return false;

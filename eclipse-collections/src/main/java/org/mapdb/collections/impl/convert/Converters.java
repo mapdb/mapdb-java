@@ -174,7 +174,11 @@ public final class Converters
     // SetMultimap <-> map-of-sets
     // ------------------------------------------------------------------
 
-    /** View a set-multimap as a plain {@code Map<K, Set<V>>} (one set per key). */
+    /**
+     * Snapshot a set-multimap as a plain {@code Map<K, Set<V>>} (one fresh set
+     * per key). This is a <b>copy</b>, not a live view: mutating the returned
+     * map or its sets does not write back to the multimap.
+     */
     public static <K, V> MutableMap<K, MutableSet<V>> asMapOfSets(SetMultimap<K, V> multimap)
     {
         MutableMap<K, MutableSet<V>> out = UnifiedMap.newMap();
@@ -187,7 +191,14 @@ public final class Converters
         return out;
     }
 
-    /** Build a set-multimap from a map-of-sets (inverse of {@link #asMapOfSets}). */
+    /**
+     * Build a set-multimap from a map-of-sets (inverse of {@link #asMapOfSets}).
+     *
+     * <p>Note the round-trip is asymmetric for empty value sets: a key mapped to
+     * an empty set produces no entries (a multimap has no notion of a key with
+     * zero values), so {@code asMapOfSets(setMultimapFromMapOfSets(m))} drops any
+     * such key.
+     */
     public static <K, V> MutableSetMultimap<K, V> setMultimapFromMapOfSets(Map<K, ? extends Set<V>> map)
     {
         MutableSetMultimap<K, V> out = UnifiedSetMultimap.newMultimap();

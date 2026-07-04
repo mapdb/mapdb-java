@@ -7,6 +7,7 @@ package org.mapdb.nativetests;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -97,6 +98,26 @@ public class ConvertersTest
                 r.toSortedArray());
     }
 
+    @Test
+    public void rangeSetNegativeEndpointsMaterializeInUnsignedOrder()
+    {
+        // The signed-range vs unsigned-Roaring seam: members {-2,-1,0,1} come
+        // back in unsigned order (0, 1, then 2^32-2, 2^32-1).
+        RangeSet<Integer> rs = new RangeSet<>();
+        rs.add(Range.closed(-2, 1));
+        RoaringU32 r = Converters.roaringFromRangeSet(rs);
+        assertArrayEquals(new int[] {0, 1, -2, -1}, r.toSortedArray());
+    }
+
+    @Test
+    public void rangeSetOpenDiscreteEmptyRangeYieldsNothing()
+    {
+        // (1,2) stores but covers no integer; the OPEN adjustments give lo>hi.
+        RangeSet<Integer> rs = new RangeSet<>();
+        rs.add(Range.open(1, 2));
+        assertTrue(Converters.roaringFromRangeSet(rs).isEmpty());
+    }
+
     // ---- freeze / thaw ----
 
     @Test
@@ -138,6 +159,27 @@ public class ConvertersTest
         plain.put("b", new java.util.HashSet<>(Arrays.asList(3)));
         MutableSetMultimap<String, Integer> rebuilt = Converters.setMultimapFromMapOfSets(plain);
         assertEquals(mm, rebuilt);
+    }
+
+    @Test
+    public void freezeThawEmpty()
+    {
+        MutableSortedMap<Integer, String> empty = TreeSortedMap.newMap();
+        ImmutableSortedMap<Integer, String> frozen = Converters.freeze(empty);
+        assertTrue(frozen.isEmpty());
+        assertTrue(Converters.thaw(frozen).isEmpty());
+    }
+
+    @Test
+    public void freezeRejectsNonNaturalOrder()
+    {
+        // A reverse-ordered tree map iterates descending; the packed form is
+        // natural-order only, so fromSorted's ascending check must reject it.
+        MutableSortedMap<Integer, String> rev = TreeSortedMap.newMap(Comparator.<Integer>reverseOrder());
+        rev.put(1, "a");
+        rev.put(2, "b");
+        rev.put(3, "c");
+        assertThrows(IllegalArgumentException.class, () -> Converters.freeze(rev));
     }
 
     @Test
