@@ -15,12 +15,22 @@ import java.util.Optional;
  * A mutable piecewise mapping from disjoint non-empty {@link Range}s to values
  * (v1 ships the {@code Integer -> Integer} / i32&rarr;i32 specialisation).
  *
- * <p><strong>Unlike {@link RangeSet}, a {@code RangeMap} does NOT coalesce across
- * different values.</strong> {@link #put} is last-writer-wins: it clips/splits
- * every overlapping prior entry and inserts the new {@code (range, value)}, but
- * leaves adjacent equal-valued entries <strong>distinct</strong>.
- * {@link #putCoalescing} is the variant that merges connected neighbours holding
- * an <strong>equal</strong> value.
+ * <p>Like {@link RangeSet}, a {@code RangeMap} is <strong>always maximally
+ * merged</strong> — but per value: {@link #put} is last-writer-wins (it
+ * clips/splits every overlapping prior entry) and then <strong>coalesces</strong>
+ * the inserted entry with connected neighbours holding an <strong>equal</strong>
+ * value. A <strong>different</strong> value is a barrier and is never absorbed
+ * or crossed. The normal form therefore carries a global invariant: <em>no two
+ * connected entries hold an equal value</em>.
+ *
+ * <p><strong>Divergence from Guava.</strong> {@code TreeRangeMap.put} does not
+ * coalesce; coalescing lives in a separate {@code putCoalescing}. We fold it
+ * into {@code put} and do <strong>not</strong> expose {@code putCoalescing}.
+ * Guava's split is a compatibility retrofit ({@code RangeMap} is
+ * {@code @since 14.0}, {@code putCoalescing} {@code @since 22.0}, by which point
+ * {@code put}'s behaviour was observable through {@code asMapOfRanges()} and
+ * could not be changed); we have no such constraint. See
+ * {@code spec/features/range-set-map.md} §Coalescing.
  *
  * <p>Every clip / split / merge / ordering decision reduces to the side-aware cut
  * comparisons of {@link Range}; there is <strong>no {@code +-1} endpoint
@@ -119,10 +129,10 @@ public final class RangeMap<C extends Comparable<? super C>, V>
      * <strong>last-writer-wins</strong> over any prior overlap. Existing entries
      * are clipped to the parts outside {@code range} (a straddling entry
      * <strong>splits into two</strong>, both keeping the old value); the new
-     * {@code (range, value)} is then inserted. A <strong>cut-empty</strong>
-     * {@code range} is a <strong>no-op</strong>. {@code put} does
-     * <strong>not</strong> coalesce — an adjacent equal value stays a distinct
-     * entry.
+     * {@code (range, value)} is then <strong>coalesced</strong> with any
+     * connected neighbour holding an <strong>equal</strong> value and inserted.
+     * A <strong>cut-empty</strong> {@code range} is a <strong>no-op</strong>,
+     * decided before any clipping.
      */
     public void put(Range<C> range, V value)
     {
@@ -136,42 +146,44 @@ public final class RangeMap<C extends Comparable<? super C>, V>
             return;
         }
         this.clipOut(range);
-        this.insertEntry(range, value);
-    }
 
-    /**
-     * Like {@link #put}, then <strong>merge</strong> the inserted entry with any
-     * <strong>connected</strong> (overlapping <em>or</em> abutting) neighbour
-     * whose value <strong>equals</strong> {@code value}, producing one entry
-     * spanning the union. Neighbours with a different value are left untouched
-     * (clipped by the {@code put} step as usual).
-     */
-    public void putCoalescing(Range<C> range, V value)
-    {
-        Objects.requireNonNull(range, "range");
-        Objects.requireNonNull(value, "value");
-        if (range.isEmpty())
-        {
-            return;
-        }
-        this.clipOut(range);
-        // Span over every connected entry with an EQUAL value, dropping them.
+        // Coalesce outward from the insertion position. Because the normal form
+        // is maintained by every put, AT MOST ONE entry per side is absorbable:
+        // if the neighbour is absorbed, the entry beyond it was already either
+        // disconnected from it or differently-valued, and stays so against the
+        // grown range. Each loop therefore runs at most once. They are written
+        // as loops rather than ifs so that a normal form violated by a bug
+        // elsewhere degrades into a correct (if slower) result instead of a
+        // malformed map.
+        int pos = this.insertionPoint(range);
         Range<C> merged = range;
-        List<Entry<C, V>> out = new ArrayList<>(this.entries.size() + 1);
-        for (Entry<C, V> e : this.entries)
+
+        int lo = pos;
+        while (lo > 0)
         {
-            if (Objects.equals(e.value, value) && e.range.isConnected(merged))
+            Entry<C, V> e = this.entries.get(lo - 1);
+            if (!Objects.equals(e.value, value) || !e.range.isConnected(merged))
             {
-                merged = e.range.span(merged);
+                break;
             }
-            else
-            {
-                out.add(e);
-            }
+            merged = e.range.span(merged);
+            lo--;
         }
-        this.entries.clear();
-        this.entries.addAll(out);
-        this.insertEntry(merged, value);
+
+        int hi = pos;
+        while (hi < this.entries.size())
+        {
+            Entry<C, V> e = this.entries.get(hi);
+            if (!Objects.equals(e.value, value) || !e.range.isConnected(merged))
+            {
+                break;
+            }
+            merged = e.range.span(merged);
+            hi++;
+        }
+
+        this.entries.subList(lo, hi).clear();
+        this.entries.add(lo, new Entry<>(merged, value));
     }
 
     /** The value mapped at {@code value}, or {@link Optional#empty()} if uncovered. */
@@ -313,22 +325,22 @@ public final class RangeMap<C extends Comparable<? super C>, V>
     }
 
     /**
-     * Insert {@code (range, value)} at its ascending-by-lower-cut position.
-     * Callers must have already cleared the overlap (via {@link #clipOut});
-     * {@code range} is disjoint from every remaining entry.
+     * The ascending-by-lower-cut index at which {@code range} belongs: the first
+     * index whose lower cut is above {@code range}'s. Callers must have already
+     * cleared the overlap (via {@link #clipOut}), so {@code range} is disjoint
+     * from every remaining entry and every entry below the returned index lies
+     * strictly to its left.
      */
-    private void insertEntry(Range<C> range, V value)
+    private int insertionPoint(Range<C> range)
     {
-        int pos = this.entries.size();
         for (int i = 0; i < this.entries.size(); i++)
         {
             if (this.entries.get(i).range.lowerCut().compareTo(range.lowerCut()) > 0)
             {
-                pos = i;
-                break;
+                return i;
             }
         }
-        this.entries.add(pos, new Entry<>(range, value));
+        return this.entries.size();
     }
 
     @Override

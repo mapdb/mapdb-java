@@ -1651,7 +1651,6 @@ public final class ValidationRunner {
     //   RangeSet: {"op":"add","range":{...}} / {"op":"remove_range","range":{...}}
     //             / {"op":"clear"}
     //   RangeMap: {"op":"put","range":{...},"value":<i32>}
-    //             / {"op":"put_coalescing","range":{...},"value":<i32>}
     //             / {"op":"remove_range","range":{...}} / {"op":"clear"}
     // An optional top-level "query" (same builder shape) supplies the range for
     // encloses_query / intersects_query / sub_range_set_ranges /
@@ -1846,9 +1845,6 @@ public final class ValidationRunner {
                 switch (op.path("op").asText()) {
                     case "put":
                         map.put(buildRangeFromNode(op.get("range")), op.get("value").asInt());
-                        break;
-                    case "put_coalescing":
-                        map.putCoalescing(buildRangeFromNode(op.get("range")), op.get("value").asInt());
                         break;
                     case "remove_range":
                         map.remove(buildRangeFromNode(op.get("range")));
