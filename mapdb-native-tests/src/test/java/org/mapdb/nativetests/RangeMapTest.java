@@ -22,9 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Native (port-specific) tests for the boxed {@link RangeMap}
  * (spec/features/range-set-map.md), mirroring the Rust reference battery and
  * pinning the parity traps + the native-only obligations: put-split /
- * put-no-coalesce / putCoalescing equal-value both-sides, getEntry, snapshot
- * independence of {@code subRangeMap}, and no-{@code +-1} signed-extreme
- * arithmetic.
+ * put-coalesces / equal-value both-sides / value-barrier / order-independence,
+ * getEntry, snapshot independence of {@code subRangeMap}, and no-{@code +-1}
+ * signed-extreme arithmetic.
  */
 public class RangeMapTest
 {
@@ -90,42 +90,111 @@ public class RangeMapTest
     }
 
     @Test
-    public void putDoesNotCoalesce()
+    public void putCoalescesEqualValueAbut()
     {
         RangeMap<Integer, Integer> m = new RangeMap<>();
         m.put(Range.closedOpen(1, 5), 100);
         m.put(Range.closedOpen(5, 9), 100);
-        // TWO entries even though value equal and they abut.
-        assertEntries(m, Range.closedOpen(1, 5), 100, Range.closedOpen(5, 9), 100);
+        // ONE entry: equal value and abutting, so plain put merges them.
+        // Guava's TreeRangeMap leaves two here; this is the divergence.
+        assertEntries(m, Range.closedOpen(1, 9), 100);
         assertEquals(Optional.of(100), m.get(5));
     }
 
     @Test
-    public void putCoalescingEqualValueAbut()
+    public void putDifferentValueNoMerge()
     {
         RangeMap<Integer, Integer> m = new RangeMap<>();
         m.put(Range.closedOpen(1, 5), 100);
-        m.putCoalescing(Range.closedOpen(5, 9), 100);
-        assertEntries(m, Range.closedOpen(1, 9), 100);
-    }
-
-    @Test
-    public void putCoalescingDifferentValueNoMerge()
-    {
-        RangeMap<Integer, Integer> m = new RangeMap<>();
-        m.put(Range.closedOpen(1, 5), 100);
-        m.putCoalescing(Range.closedOpen(5, 9), 200);
+        m.put(Range.closedOpen(5, 9), 200);
         assertEntries(m, Range.closedOpen(1, 5), 100, Range.closedOpen(5, 9), 200);
     }
 
     @Test
-    public void putCoalescingBothSides()
+    public void putCoalescesBothSides()
     {
         RangeMap<Integer, Integer> m = new RangeMap<>();
         m.put(Range.closedOpen(1, 5), 100);
         m.put(Range.closedOpen(9, 12), 100);
-        m.putCoalescing(Range.closedOpen(5, 9), 100);
+        m.put(Range.closedOpen(5, 9), 100);
         assertEntries(m, Range.closedOpen(1, 12), 100);
+    }
+
+    @Test
+    public void putCoalescesChainAscendingOrder()
+    {
+        RangeMap<Integer, Integer> m = new RangeMap<>();
+        m.put(Range.closedOpen(1, 2), 7);
+        m.put(Range.closedOpen(2, 3), 7);
+        // A chain never forms: the map is already [1,3) here.
+        assertEntries(m, Range.closedOpen(1, 3), 7);
+        m.put(Range.closedOpen(3, 4), 7);
+        assertEntries(m, Range.closedOpen(1, 4), 7);
+    }
+
+    @Test
+    public void putCoalescesChainOrderIndependent()
+    {
+        // Mirror of putCoalescesChainAscendingOrder: same three puts, inserted so
+        // the existing entries lie to the RIGHT of the last one. Identical result.
+        RangeMap<Integer, Integer> m = new RangeMap<>();
+        m.put(Range.closedOpen(2, 3), 7);
+        m.put(Range.closedOpen(3, 4), 7);
+        m.put(Range.closedOpen(1, 2), 7);
+        assertEntries(m, Range.closedOpen(1, 4), 7);
+    }
+
+    @Test
+    public void putDifferentValueIsAHardBarrier()
+    {
+        RangeMap<Integer, Integer> m = new RangeMap<>();
+        m.put(Range.closedOpen(1, 2), 7);
+        m.put(Range.closedOpen(2, 3), 8);
+        m.put(Range.closedOpen(3, 4), 7);
+        // The 8 entry is neither absorbed nor crossed, so the far [1,2) -> 7 is
+        // unreachable even though both hold 7.
+        assertEntries(m, Range.closedOpen(1, 2), 7,
+                Range.closedOpen(2, 3), 8,
+                Range.closedOpen(3, 4), 7);
+    }
+
+    @Test
+    public void putSplitFragmentsDoNotRejoinAcrossTheInsert()
+    {
+        RangeMap<Integer, Integer> m = new RangeMap<>();
+        m.put(Range.closedOpen(1, 9), 100);
+        m.put(Range.closedOpen(3, 5), 200);
+        // The two 100 fragments are separated by the 200 entry, so they are not
+        // connected and must not be re-merged by the coalescing step.
+        assertEntries(m, Range.closedOpen(1, 3), 100,
+                Range.closedOpen(3, 5), 200,
+                Range.closedOpen(5, 9), 100);
+    }
+
+    @Test
+    public void normalFormHasNoConnectedEqualValuedPair()
+    {
+        // The global invariant that the old put/putCoalescing split could not
+        // state: after every operation, no two connected entries hold an equal
+        // value.
+        RangeMap<Integer, Integer> m = new RangeMap<>();
+        m.put(Range.closedOpen(1, 2), 7);
+        m.put(Range.closedOpen(2, 3), 7);
+        m.put(Range.closedOpen(3, 4), 8);
+        m.put(Range.closedOpen(4, 5), 8);
+        m.put(Range.closedOpen(5, 6), 7);
+        List<RangeMap.Entry<Integer, Integer>> v = m.asMapOfRanges();
+        for (int i = 0; i + 1 < v.size(); i++)
+        {
+            RangeMap.Entry<Integer, Integer> a = v.get(i);
+            RangeMap.Entry<Integer, Integer> b = v.get(i + 1);
+            assertFalse(a.getRange().isConnected(b.getRange())
+                            && a.getValue().equals(b.getValue()),
+                    "connected entries must not hold an equal value");
+        }
+        assertEntries(m, Range.closedOpen(1, 3), 7,
+                Range.closedOpen(3, 5), 8,
+                Range.closedOpen(5, 6), 7);
     }
 
     @Test
@@ -213,7 +282,7 @@ public class RangeMapTest
         m.put(Range.closedOpen(1, 10), 1);
         m.put(Range.closedOpen(3, 5), 2);
         m.put(Range.closedOpen(7, 20), 3);
-        m.putCoalescing(Range.closedOpen(20, 25), 3);
+        m.put(Range.closedOpen(20, 25), 3);
         List<RangeMap.Entry<Integer, Integer>> v = m.asMapOfRanges();
         for (int i = 0; i + 1 < v.size(); i++)
         {
