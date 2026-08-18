@@ -34,8 +34,10 @@ import org.mapdb.collections.impl.list.mutable.FastList;
 import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.multimap.list.FastListMultimap;
 import org.mapdb.collections.impl.multimap.set.UnifiedSetMultimap;
+import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.mutable.UnifiedSet;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
+import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.tuple.Tuples;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
@@ -79,6 +81,199 @@ public final class Pump
     {
         ERROR,
         IGNORE
+    }
+
+    /**
+     * A prepared change for {@link #applySorted}: either an upsert or a delete.
+     * Keeping this value in {@code Pump} makes mutation of an existing packed
+     * map another sorted-input pump mode rather than a parallel bulk API.
+     */
+    public static final class Change<K, V>
+    {
+        private final K key;
+        private final V value;
+        private final boolean delete;
+
+        private Change(K key, V value, boolean delete)
+        {
+            this.key = Objects.requireNonNull(key, "key");
+            this.value = value;
+            this.delete = delete;
+        }
+
+        public static <K, V> Change<K, V> upsert(K key, V value)
+        {
+            return new Change<>(key, Objects.requireNonNull(value, "value"), false);
+        }
+
+        public static <K, V> Change<K, V> delete(K key)
+        {
+            return new Change<>(key, null, true);
+        }
+
+        public K key()
+        {
+            return this.key;
+        }
+
+        public boolean isDelete()
+        {
+            return this.delete;
+        }
+
+        public V value()
+        {
+            if (this.delete)
+            {
+                throw new IllegalStateException("delete change has no value");
+            }
+            return this.value;
+        }
+
+        @Override
+        public String toString()
+        {
+            return this.delete ? ("delete(" + this.key + ")") : ("upsert(" + this.key + "=" + this.value + ")");
+        }
+    }
+
+    /**
+     * Apply strictly key-ascending changes to an immutable packed map in one
+     * O(n + m) merge pass.
+     */
+    public static <K extends Comparable<? super K>, V> ImmutableSortedMap<K, V> applySorted(
+            ImmutableSortedMap<K, V> base, List<Change<K, V>> changes)
+    {
+        requireStrictlyAscendingChanges(changes);
+        List<Map.Entry<K, V>> entries = base.entries();
+        List<K> keys = new ArrayList<>(entries.size() + changes.size());
+        List<V> values = new ArrayList<>(entries.size() + changes.size());
+        int i = 0;
+        int j = 0;
+        while (i < entries.size() && j < changes.size())
+        {
+            Map.Entry<K, V> entry = entries.get(i);
+            Change<K, V> change = changes.get(j);
+            int comparison = entry.getKey().compareTo(change.key());
+            if (comparison < 0)
+            {
+                emit(keys, values, entry.getKey(), entry.getValue());
+                i++;
+            }
+            else if (comparison > 0)
+            {
+                if (!change.isDelete())
+                {
+                    emit(keys, values, change.key(), change.value());
+                }
+                j++;
+            }
+            else
+            {
+                if (!change.isDelete())
+                {
+                    emit(keys, values, change.key(), change.value());
+                }
+                i++;
+                j++;
+            }
+        }
+        while (i < entries.size())
+        {
+            Map.Entry<K, V> entry = entries.get(i++);
+            emit(keys, values, entry.getKey(), entry.getValue());
+        }
+        while (j < changes.size())
+        {
+            Change<K, V> change = changes.get(j++);
+            if (!change.isDelete())
+            {
+                emit(keys, values, change.key(), change.value());
+            }
+        }
+        return ImmutableSortedMap.fromSorted(keys, values);
+    }
+
+    /** Merge two key-disjoint packed maps in one O(n + m) pass. */
+    public static <K extends Comparable<? super K>, V> ImmutableSortedMap<K, V> mergeSortedDisjoint(
+            ImmutableSortedMap<K, V> base, ImmutableSortedMap<K, V> addition)
+    {
+        List<Map.Entry<K, V>> left = base.entries();
+        List<Map.Entry<K, V>> right = addition.entries();
+        List<K> keys = new ArrayList<>(left.size() + right.size());
+        List<V> values = new ArrayList<>(left.size() + right.size());
+        int i = 0;
+        int j = 0;
+        while (i < left.size() && j < right.size())
+        {
+            Map.Entry<K, V> a = left.get(i);
+            Map.Entry<K, V> b = right.get(j);
+            int comparison = a.getKey().compareTo(b.getKey());
+            if (comparison < 0)
+            {
+                emit(keys, values, a.getKey(), a.getValue());
+                i++;
+            }
+            else if (comparison > 0)
+            {
+                emit(keys, values, b.getKey(), b.getValue());
+                j++;
+            }
+            else
+            {
+                throw new IllegalArgumentException(
+                        "mergeSortedDisjoint: maps are not disjoint (shared key " + a.getKey() + ")");
+            }
+        }
+        while (i < left.size())
+        {
+            Map.Entry<K, V> entry = left.get(i++);
+            emit(keys, values, entry.getKey(), entry.getValue());
+        }
+        while (j < right.size())
+        {
+            Map.Entry<K, V> entry = right.get(j++);
+            emit(keys, values, entry.getKey(), entry.getValue());
+        }
+        return ImmutableSortedMap.fromSorted(keys, values);
+    }
+
+    /** Delete all packed-map entries in {@code range} during one rebuild pass. */
+    public static <K extends Comparable<? super K>, V> ImmutableSortedMap<K, V> rangeDelete(
+            ImmutableSortedMap<K, V> base, Range<K> range)
+    {
+        List<K> keys = new ArrayList<>(base.size());
+        List<V> values = new ArrayList<>(base.size());
+        for (Map.Entry<K, V> entry : base.entries())
+        {
+            if (!range.contains(entry.getKey()))
+            {
+                emit(keys, values, entry.getKey(), entry.getValue());
+            }
+        }
+        return ImmutableSortedMap.fromSorted(keys, values);
+    }
+
+    private static <K, V> void emit(List<K> keys, List<V> values, K key, V value)
+    {
+        keys.add(key);
+        values.add(value);
+    }
+
+    private static <K extends Comparable<? super K>, V> void requireStrictlyAscendingChanges(
+            List<Change<K, V>> changes)
+    {
+        Objects.requireNonNull(changes, "changes");
+        for (int i = 0; i < changes.size(); i++)
+        {
+            Objects.requireNonNull(changes.get(i), "change element");
+            if (i > 0 && changes.get(i - 1).key().compareTo(changes.get(i).key()) >= 0)
+            {
+                throw new IllegalArgumentException(
+                        "changes must be strictly ascending by key (no duplicate or out-of-order keys): "
+                                + changes.get(i - 1).key() + " then " + changes.get(i).key());
+            }
+        }
     }
 
     /**

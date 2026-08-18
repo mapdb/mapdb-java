@@ -16,15 +16,15 @@ import org.junit.jupiter.api.Test;
 
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
-import org.mapdb.collections.impl.stream.BulkMutation;
-import org.mapdb.collections.impl.stream.BulkMutation.Change;
+import org.mapdb.collections.impl.Pump;
+import org.mapdb.collections.impl.Pump.Change;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Native battery for the archeology-2 "A3" bulk mutation ({@link BulkMutation}).
+ * Native battery for the archeology-2 "A3" bulk mutation ({@link Pump}).
  */
 public class BulkMutationTest
 {
@@ -68,7 +68,7 @@ public class BulkMutationTest
                 Change.delete(6),        // delete absent -> no-op
                 Change.upsert(9, "i"));  // append after all
 
-        ImmutableSortedMap<Integer, String> out = BulkMutation.applySorted(base, changes);
+        ImmutableSortedMap<Integer, String> out = Pump.applySorted(base, changes);
         assertEquals("0=z,1=a,5=E,7=g,9=i", dump(out));
         // base untouched (immutable)
         assertEquals("1=a,3=c,5=e,7=g", dump(base));
@@ -78,7 +78,7 @@ public class BulkMutationTest
     public void applySortedEmptyChangesReturnsEquivalent()
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2}, new String[] {"a", "b"});
-        assertEquals("1=a,2=b", dump(BulkMutation.applySorted(base, List.of())));
+        assertEquals("1=a,2=b", dump(Pump.applySorted(base, List.of())));
     }
 
     @Test
@@ -87,7 +87,7 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> empty = map(new int[] {}, new String[] {});
         List<Change<Integer, String>> changes = Arrays.asList(
                 Change.upsert(2, "b"), Change.delete(5), Change.upsert(8, "h"));
-        assertEquals("2=b,8=h", dump(BulkMutation.applySorted(empty, changes)));
+        assertEquals("2=b,8=h", dump(Pump.applySorted(empty, changes)));
     }
 
     @Test
@@ -96,7 +96,7 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
         List<Change<Integer, String>> changes = Arrays.asList(
                 Change.delete(1), Change.delete(2), Change.delete(3));
-        assertTrue(BulkMutation.applySorted(base, changes).isEmpty());
+        assertTrue(Pump.applySorted(base, changes).isEmpty());
     }
 
     @Test
@@ -104,7 +104,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1}, new String[] {"a"});
         List<Change<Integer, String>> bad = Arrays.asList(Change.upsert(5, "x"), Change.upsert(2, "y"));
-        assertThrows(IllegalArgumentException.class, () -> BulkMutation.applySorted(base, bad));
+        assertThrows(IllegalArgumentException.class, () -> Pump.applySorted(base, bad));
     }
 
     @Test
@@ -112,7 +112,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1}, new String[] {"a"});
         List<Change<Integer, String>> dup = Arrays.asList(Change.upsert(2, "x"), Change.delete(2));
-        assertThrows(IllegalArgumentException.class, () -> BulkMutation.applySorted(base, dup));
+        assertThrows(IllegalArgumentException.class, () -> Pump.applySorted(base, dup));
     }
 
     @Test
@@ -121,10 +121,10 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> base = map(
                 new int[] {1, 3, 5, 7}, new String[] {"a", "c", "e", "g"});
         // overwrite the first key, delete the last key
-        assertEquals("1=A,3=c,5=e", dump(BulkMutation.applySorted(base,
+        assertEquals("1=A,3=c,5=e", dump(Pump.applySorted(base,
                 Arrays.asList(Change.upsert(1, "A"), Change.delete(7)))));
         // delete the first key, overwrite the last key
-        assertEquals("3=c,5=e,7=G", dump(BulkMutation.applySorted(base,
+        assertEquals("3=c,5=e,7=G", dump(Pump.applySorted(base,
                 Arrays.asList(Change.delete(1), Change.upsert(7, "G")))));
     }
 
@@ -133,7 +133,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {5, 7}, new String[] {"e", "g"});
         // all change keys sort below the base -> base tail must still be emitted
-        assertEquals("1=z,5=e,7=g", dump(BulkMutation.applySorted(base,
+        assertEquals("1=z,5=e,7=g", dump(Pump.applySorted(base,
                 Arrays.asList(Change.upsert(1, "z"), Change.delete(2)))));
     }
 
@@ -141,7 +141,7 @@ public class BulkMutationTest
     public void applySortedDeleteThenUpsertAdjacentKey()
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2}, new String[] {"a", "b"});
-        assertEquals("2=B", dump(BulkMutation.applySorted(base,
+        assertEquals("2=B", dump(Pump.applySorted(base,
                 Arrays.asList(Change.delete(1), Change.upsert(2, "B")))));
     }
 
@@ -150,7 +150,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1}, new String[] {"a"});
         List<Change<Integer, String>> withNull = Arrays.asList(Change.upsert(2, "x"), null);
-        assertThrows(NullPointerException.class, () -> BulkMutation.applySorted(base, withNull));
+        assertThrows(NullPointerException.class, () -> Pump.applySorted(base, withNull));
     }
 
     @Test
@@ -166,7 +166,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> a = map(new int[] {1, 4, 7}, new String[] {"a", "d", "g"});
         ImmutableSortedMap<Integer, String> b = map(new int[] {2, 5, 9}, new String[] {"b", "e", "i"});
-        assertEquals("1=a,2=b,4=d,5=e,7=g,9=i", dump(BulkMutation.mergeSortedDisjoint(a, b)));
+        assertEquals("1=a,2=b,4=d,5=e,7=g,9=i", dump(Pump.mergeSortedDisjoint(a, b)));
     }
 
     @Test
@@ -174,7 +174,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> a = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
         ImmutableSortedMap<Integer, String> b = map(new int[] {4, 5}, new String[] {"d", "e"});
-        assertEquals("1=a,2=b,3=c,4=d,5=e", dump(BulkMutation.mergeSortedDisjoint(a, b)));
+        assertEquals("1=a,2=b,3=c,4=d,5=e", dump(Pump.mergeSortedDisjoint(a, b)));
     }
 
     @Test
@@ -182,7 +182,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> a = map(new int[] {1, 4}, new String[] {"a", "d"});
         ImmutableSortedMap<Integer, String> b = map(new int[] {4, 9}, new String[] {"X", "i"});
-        assertThrows(IllegalArgumentException.class, () -> BulkMutation.mergeSortedDisjoint(a, b));
+        assertThrows(IllegalArgumentException.class, () -> Pump.mergeSortedDisjoint(a, b));
     }
 
     @Test
@@ -190,9 +190,9 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> a = map(new int[] {1, 2}, new String[] {"a", "b"});
         ImmutableSortedMap<Integer, String> empty = map(new int[] {}, new String[] {});
-        assertEquals("1=a,2=b", dump(BulkMutation.mergeSortedDisjoint(a, empty)));
-        assertEquals("1=a,2=b", dump(BulkMutation.mergeSortedDisjoint(empty, a)));
-        assertTrue(BulkMutation.mergeSortedDisjoint(empty, empty).isEmpty());
+        assertEquals("1=a,2=b", dump(Pump.mergeSortedDisjoint(a, empty)));
+        assertEquals("1=a,2=b", dump(Pump.mergeSortedDisjoint(empty, a)));
+        assertTrue(Pump.mergeSortedDisjoint(empty, empty).isEmpty());
     }
 
     @Test
@@ -200,7 +200,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {4, 5}, new String[] {"d", "e"});
         ImmutableSortedMap<Integer, String> lower = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
-        assertEquals("1=a,2=b,3=c,4=d,5=e", dump(BulkMutation.mergeSortedDisjoint(base, lower)));
+        assertEquals("1=a,2=b,3=c,4=d,5=e", dump(Pump.mergeSortedDisjoint(base, lower)));
     }
 
     @Test
@@ -209,11 +209,11 @@ public class BulkMutationTest
         // collision on the very first pair
         ImmutableSortedMap<Integer, String> a1 = map(new int[] {4, 8}, new String[] {"a", "b"});
         ImmutableSortedMap<Integer, String> b1 = map(new int[] {4, 9}, new String[] {"X", "i"});
-        assertThrows(IllegalArgumentException.class, () -> BulkMutation.mergeSortedDisjoint(a1, b1));
+        assertThrows(IllegalArgumentException.class, () -> Pump.mergeSortedDisjoint(a1, b1));
         // one map a strict prefix of the other's range, shared key last
         ImmutableSortedMap<Integer, String> a2 = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
         ImmutableSortedMap<Integer, String> b2 = map(new int[] {3}, new String[] {"X"});
-        assertThrows(IllegalArgumentException.class, () -> BulkMutation.mergeSortedDisjoint(a2, b2));
+        assertThrows(IllegalArgumentException.class, () -> Pump.mergeSortedDisjoint(a2, b2));
     }
 
     // ---- rangeDelete ----
@@ -224,7 +224,7 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> base = map(
                 new int[] {1, 2, 3, 4, 5, 6}, new String[] {"a", "b", "c", "d", "e", "f"});
         // [3,5) removes 3,4 ; 5 stays (open upper)
-        assertEquals("1=a,2=b,5=e,6=f", dump(BulkMutation.rangeDelete(base, Range.closedOpen(3, 5))));
+        assertEquals("1=a,2=b,5=e,6=f", dump(Pump.rangeDelete(base, Range.closedOpen(3, 5))));
     }
 
     @Test
@@ -232,21 +232,21 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(
                 new int[] {1, 2, 3, 4, 5}, new String[] {"a", "b", "c", "d", "e"});
-        assertEquals("1=a,5=e", dump(BulkMutation.rangeDelete(base, Range.closed(2, 4))));
+        assertEquals("1=a,5=e", dump(Pump.rangeDelete(base, Range.closed(2, 4))));
     }
 
     @Test
     public void rangeDeleteAllYieldsEmpty()
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
-        assertTrue(BulkMutation.rangeDelete(base, Range.all()).isEmpty());
+        assertTrue(Pump.rangeDelete(base, Range.all()).isEmpty());
     }
 
     @Test
     public void rangeDeleteDisjointRangeIsNoOp()
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
-        assertEquals("1=a,2=b,3=c", dump(BulkMutation.rangeDelete(base, Range.closed(10, 20))));
+        assertEquals("1=a,2=b,3=c", dump(Pump.rangeDelete(base, Range.closed(10, 20))));
     }
 
     @Test
@@ -254,7 +254,7 @@ public class BulkMutationTest
     {
         ImmutableSortedMap<Integer, String> base = map(new int[] {1, 2, 3}, new String[] {"a", "b", "c"});
         // closedOpen(2,2) is empty -> nothing removed
-        assertEquals("1=a,2=b,3=c", dump(BulkMutation.rangeDelete(base, Range.closedOpen(2, 2))));
+        assertEquals("1=a,2=b,3=c", dump(Pump.rangeDelete(base, Range.closedOpen(2, 2))));
     }
 
     @Test
@@ -263,9 +263,9 @@ public class BulkMutationTest
         ImmutableSortedMap<Integer, String> base = map(
                 new int[] {1, 2, 3, 4, 5}, new String[] {"a", "b", "c", "d", "e"});
         // atLeast(3): remove 3,4,5 (inclusive lower)
-        assertEquals("1=a,2=b", dump(BulkMutation.rangeDelete(base, Range.atLeast(3))));
+        assertEquals("1=a,2=b", dump(Pump.rangeDelete(base, Range.atLeast(3))));
         // lessThan(3): remove 1,2 (exclusive upper -> 3 survives)
-        assertEquals("3=c,4=d,5=e", dump(BulkMutation.rangeDelete(base, Range.lessThan(3))));
+        assertEquals("3=c,4=d,5=e", dump(Pump.rangeDelete(base, Range.lessThan(3))));
     }
 
     // ---- differential fuzz vs java.util.TreeMap ----
@@ -312,7 +312,7 @@ public class BulkMutationTest
                 }
             }
 
-            ImmutableSortedMap<Integer, String> got = BulkMutation.applySorted(base, changes);
+            ImmutableSortedMap<Integer, String> got = Pump.applySorted(base, changes);
 
             StringBuilder expected = new StringBuilder();
             for (Map.Entry<Integer, String> e : ref.entrySet())

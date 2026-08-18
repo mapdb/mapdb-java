@@ -1,8 +1,12 @@
-// Copyright (c) 2026 Jan Kotek.
-// Derived from Eclipse Collections (Copyright (c) Goldman Sachs and others).
-// Licensed under the Eclipse Public License v1.0 and Eclipse Distribution License v1.0.
-// See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
-// USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
+/*
+ * Copyright (c) 2026 Goldman Sachs and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v. 1.0 which accompany this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
 
 package org.mapdb.collections.impl.columnar;
 
@@ -57,15 +61,15 @@ import org.mapdb.collections.impl.stream.SortedStream;
  */
 public final class ColumnarTable
 {
-    private final int[] keys;               // strictly ascending, unique
-    private final String[] columnNames;     // value-column names, in order
-    private final int[][] columns;          // columns[c][row]; each length == keys.length
-
     /** {@link #digest} composite domain for a table (see {@link CollectionDigest#combine}). */
     private static final long TABLE_DIGEST_TAG = 0x7AB1E00000001L;
 
     /** Domain seed for hashing a column name (its UTF-8 bytes) into the table digest. */
     private static final long COLUMN_NAME_SEED = 0x7AB1E00000002L;
+
+    private final int[] keys;               // strictly ascending, unique
+    private final String[] columnNames;     // value-column names, in order
+    private final int[][] columns;          // columns[c][row]; each length == keys.length
 
     private ColumnarTable(int[] keys, String[] columnNames, int[][] columns)
     {

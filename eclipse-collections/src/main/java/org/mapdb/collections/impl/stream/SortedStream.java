@@ -1,8 +1,12 @@
-// Copyright (c) 2026 Jan Kotek.
-// Derived from Eclipse Collections (Copyright (c) Goldman Sachs and others).
-// Licensed under the Eclipse Public License v1.0 and Eclipse Distribution License v1.0.
-// See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
-// USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
+/*
+ * Copyright (c) 2026 Goldman Sachs and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v. 1.0 which accompany this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
 
 package org.mapdb.collections.impl.stream;
 
@@ -19,6 +23,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.mapdb.collections.api.list.MutableList;
+import org.mapdb.collections.impl.Hash;
 import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.RoaringU32;
 import org.mapdb.collections.impl.list.mutable.FastList;
@@ -67,6 +72,11 @@ import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
  */
 public final class SortedStream<T>
 {
+    /** The unsigned-{@code int} comparator used by {@link #ofRoaring}. */
+    public static final Comparator<Integer> UNSIGNED_INT = Integer::compareUnsigned;
+
+    private static final long SAMPLE_SALT = 0x9E3779B97F4A7C15L;
+
     /**
      * A one-element look-ahead cursor over ascending elements. Custom ordered
      * sources implement this to plug into the algebra.
@@ -230,9 +240,6 @@ public final class SortedStream<T>
         List<Range<C>> ranges = set.asRanges();
         return new SortedStream<>(byLowerEndpoint(), cursorOf(ranges.iterator()));
     }
-
-    /** The unsigned-{@code int} comparator used by {@link #ofRoaring}. */
-    public static final Comparator<Integer> UNSIGNED_INT = Integer::compareUnsigned;
 
     // ------------------------------------------------------------------
     // Intermediate operators (lazy; each consumes the receiver)
@@ -425,6 +432,40 @@ public final class SortedStream<T>
             }
         };
         return new SortedStream<>(cmp, out);
+    }
+
+    /**
+     * Return a deterministic, order-preserving Bernoulli sample of an integer
+     * stream. The decision is a pure function of value and seed, so equal
+     * values are sampled consistently across runs and input orderings.
+     */
+    public static SortedStream<Integer> sampleIntegers(
+            SortedStream<Integer> stream, double probability, long seed)
+    {
+        return stream.filter(integerSampleGate(probability, seed));
+    }
+
+    /** Build the deterministic predicate used by {@link #sampleIntegers}. */
+    public static Predicate<Integer> integerSampleGate(double probability, long seed)
+    {
+        if (Double.isNaN(probability) || probability < 0.0 || probability > 1.0)
+        {
+            throw new IllegalArgumentException("sample probability must be in [0,1], got " + probability);
+        }
+        if (probability == 0.0)
+        {
+            return value -> false;
+        }
+        if (probability == 1.0)
+        {
+            return value -> true;
+        }
+        return value ->
+        {
+            long hash = Hash.hash64(Hash.hash64Int32(value, SAMPLE_SALT), seed);
+            double uniform = (hash >>> 11) * 0x1.0p-53;
+            return uniform < probability;
+        };
     }
 
     // ------------------------------------------------------------------

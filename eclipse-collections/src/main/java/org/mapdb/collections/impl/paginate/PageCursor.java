@@ -1,8 +1,12 @@
-// Copyright (c) 2026 Jan Kotek.
-// Derived from Eclipse Collections (Copyright (c) Goldman Sachs and others).
-// Licensed under the Eclipse Public License v1.0 and Eclipse Distribution License v1.0.
-// See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
-// USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
+/*
+ * Copyright (c) 2026 Goldman Sachs and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v. 1.0 which accompany this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
 
 package org.mapdb.collections.impl.paginate;
 
@@ -64,6 +68,8 @@ import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
  */
 public final class PageCursor<K extends Comparable<? super K>, V>
 {
+    private static final String TOKEN_PREFIX = "mdbpc1";
+
     /** Travel direction of a scan: ascending or descending key order. */
     public enum Direction
     {
@@ -294,8 +300,6 @@ public final class PageCursor<K extends Comparable<? super K>, V>
     //           | 'o' int                   ; open    v)
     //   after  := '*'                       ; fresh (no resume point)
     //           | int                       ; last key yielded (exclusive)
-
-    private static final String TOKEN_PREFIX = "mdbpc1";
 
     /**
      * Encode an {@code i32}-keyed cursor as a compact, language-neutral token.
