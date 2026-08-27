@@ -5,7 +5,7 @@ Internal, unpublished Maven module. It runs the
 under the scenarios root) against the built **mapdb-collections** artifacts
 (`org.mapdb:mapdb-collections-*`, version `1.0.0-SNAPSHOT`, installed in the
 local `~/.m2`) and prints a red/green conformance list. After the behavioral
-fixes + rename, this runner is GREEN (57/57).
+fixes + rename, this runner exercises the full 298-scenario suite.
 
 > Historical note: the type-mapping table and the "expected RED" float
 > discussion below were written during the *stock Eclipse Collections* probe

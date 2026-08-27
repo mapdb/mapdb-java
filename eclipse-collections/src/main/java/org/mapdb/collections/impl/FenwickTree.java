@@ -61,13 +61,15 @@ public final class FenwickTree
      * Construct an all-zero tree of size {@code n}. {@code withSize(0)} is a
      * valid empty tree ({@code total() == 0}, {@code isEmpty() == true}).
      *
-     * @throws IllegalArgumentException if {@code n < 0}.
+     * @throws IllegalArgumentException if {@code n < 0} or {@code n == Integer.MAX_VALUE}
+     *     ({@code n + 1} would overflow the backing {@code long[]} length).
      */
     public static FenwickTree withSize(int n)
     {
-        if (n < 0)
+        if (n < 0 || n == Integer.MAX_VALUE)
         {
-            throw new IllegalArgumentException("FenwickTree size must be non-negative: " + n);
+            throw new IllegalArgumentException(
+                    "FenwickTree size must be in [0, Integer.MAX_VALUE): " + n);
         }
         return new FenwickTree(new long[n + 1], n);
     }

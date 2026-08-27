@@ -147,6 +147,14 @@ public final class CountMin
         {
             throw new IllegalArgumentException("CountMin.optimal produced a non-finite (d, w)");
         }
+        // Java's saturating double→int cast would turn a huge finite w/d into
+        // Integer.MAX_VALUE and either OOM or raise a misleading d*w overflow.
+        if (w > Integer.MAX_VALUE || d > Integer.MAX_VALUE)
+        {
+            throw new IllegalArgumentException(
+                    "CountMin.optimal produced a (d, w) that does not fit in int: d="
+                            + d + ", w=" + w);
+        }
         return withParams((int) d, (int) w);
     }
 

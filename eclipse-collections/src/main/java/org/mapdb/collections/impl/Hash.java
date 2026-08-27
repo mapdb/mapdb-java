@@ -315,6 +315,13 @@ public final class Hash
      */
     public static int[] hllSplit(byte[] input, int p)
     {
+        // Documented 4 <= p <= 18 (HyperLogLog.MIN/MAX_PRECISION). Java
+        // shift counts are masked mod 64, so p=0 / p>=32 silently corrupt idx.
+        if (p < 4 || p > 18)
+        {
+            throw new IllegalArgumentException(
+                    "hllSplit precision " + p + " out of range 4..18");
+        }
         long x = hash64Bytes(input, 0L);
         int idx = (int) (x >>> (64 - p));
         long w = (x << p) | (1L << (p - 1));

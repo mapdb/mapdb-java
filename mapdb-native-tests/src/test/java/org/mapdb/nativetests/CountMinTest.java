@@ -330,4 +330,11 @@ class CountMinTest
         assertThrows(IllegalArgumentException.class, () -> CountMin.optimal(Double.NaN, 0.5));
         assertThrows(IllegalArgumentException.class, () -> CountMin.optimal(0.5, Double.POSITIVE_INFINITY));
     }
+
+    @Test
+    void optimalRejectsDerivedDimensionsThatDoNotFitInInt()
+    {
+        // w = ceil(e / 1e-10) ≈ 2.7e10, past Integer.MAX_VALUE.
+        assertThrows(IllegalArgumentException.class, () -> CountMin.optimal(1e-10, 0.5));
+    }
 }

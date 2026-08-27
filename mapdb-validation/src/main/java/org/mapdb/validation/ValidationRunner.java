@@ -2127,7 +2127,16 @@ public final class ValidationRunner {
                         if (el.isNull()) {
                             parts.add("null");
                         } else if (el.isTextual()) {
-                            parts.add("\"" + el.asText() + "\"");
+                            // Fenwick `tree` is an i64 decimal-string array in JSON;
+                            // the runner emits a bare-decimal array. Unquote to match.
+                            if ("tree".equals(key))
+                            {
+                                parts.add(el.asText());
+                            }
+                            else
+                            {
+                                parts.add("\"" + el.asText() + "\"");
+                            }
                         } else {
                             parts.add(el.asText());
                         }
@@ -3174,8 +3183,8 @@ public final class ValidationRunner {
     // and wire-encoded as DECIMAL STRINGS (Long.toString -- signed). The `tree`
     // assertion is the canonical 1-based BIT array in 1-based index order (an
     // explicit-order key, NOT sorted), each element a BARE signed decimal (the
-    // rust/go/ts/zig reference wire form `[v1,v2,...]`); renderExpected normalises
-    // the expected JSON's quoted-string `tree` elements quote-free to match.
+    // rust/go/ts/zig reference wire form `[v1,v2,...]`). renderExpected unquotes
+    // textual `tree` elements so they match that bare-decimal form.
     // Unknown ops / kinds / assertion keys SKIP (forward-compat).
 
     private static final Pattern FENWICK_GET_KEY = Pattern.compile("^get_([0-9]+)$");

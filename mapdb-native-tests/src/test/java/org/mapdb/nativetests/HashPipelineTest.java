@@ -265,6 +265,20 @@ class HashPipelineTest
         org.junit.jupiter.api.Assertions.assertTrue(Integer.compareUnsigned(r[0], 1 << 12) < 0);
     }
 
+    @Test
+    void hllSplitRejectsOutOfRangePrecision()
+    {
+        byte[] input = {(byte) 'x'};
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> Hash.hllSplit(input, 0));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> Hash.hllSplit(input, 3));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> Hash.hllSplit(input, 19));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> Hash.hllSplit(input, 32));
+    }
+
     // ---- helpers: compare as bit patterns, never signed decimal -----------
 
     private static String hex32(int v)

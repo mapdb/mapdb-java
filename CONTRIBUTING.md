@@ -44,7 +44,7 @@ the native test suite. All three are run in CI
 green:
 
 - `mvn clean install` of the core plus the inherited unit-test suites,
-- the `mapdb-validation` runner (57 cross-language scenarios),
+- the `mapdb-validation` runner (298 cross-language scenarios),
 - the `mapdb-native-tests` suite (the port-specific battery).
 
 Coding style

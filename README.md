@@ -78,7 +78,7 @@ v1; the Maven artifactIds are `mapdb-collections-*`.)
 ### Conformance: cross-language validation
 
 The internal, unpublished `mapdb-validation` module runs the spec's
-cross-language scenarios (57 scenarios) against the built collections. The
+cross-language scenarios (298 scenarios) against the built collections. The
 scenarios live in the sibling `mapdb-collection-spec` repo:
 
 ```

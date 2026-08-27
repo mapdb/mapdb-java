@@ -325,6 +325,7 @@ public class FenwickTreeTest
     public void negativeSizeThrows()
     {
         assertThrows(IllegalArgumentException.class, () -> FenwickTree.withSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> FenwickTree.withSize(Integer.MAX_VALUE));
     }
 
     @Test
