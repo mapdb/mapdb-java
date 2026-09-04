@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 
@@ -62,6 +63,41 @@ public final class NavigableTreeSet<T extends Comparable<? super T>>
         MutableSortedSet<T> ecSet = comparator == null
                 ? TreeSortedSet.newSet()
                 : TreeSortedSet.newSet(comparator);
+        return new NavigableTreeSet<>(nav, ecSet);
+    }
+
+    /**
+     * Bulk build (data pump) from input already sorted ascending under natural
+     * order, rejecting duplicates — the element analogue of
+     * {@link NavigableTreeMap#fromSorted(Iterable)}.
+     */
+    public static <T extends Comparable<? super T>> NavigableTreeSet<T> fromSorted(Iterable<T> input)
+    {
+        return fromSorted(null, input, Pump.DuplicatePolicy.ERROR);
+    }
+
+    /**
+     * Bulk build (data pump) from input already sorted ascending under
+     * {@code comparator} ({@code null} = natural order).
+     *
+     * <p>The pump ({@link Pump#treeSortedSetFromSorted(Comparator, Iterable,
+     * Pump.DuplicatePolicy)}) validates order and duplicates and builds the
+     * backing EC {@link TreeSortedSet} in one pass; the navigation view is then
+     * built from that sorted set through the JDK {@code TreeSet(SortedSet)}
+     * bulk constructor (O(n) {@code buildFromSorted}), sharing the same
+     * comparator. No element is added one-by-one.
+     *
+     * <p>Out-of-order input throws {@link Pump.PumpSourceNotSorted}; a duplicate
+     * under {@link Pump.DuplicatePolicy#ERROR} throws
+     * {@link Pump.PumpSourceDuplicate}.
+     */
+    public static <T extends Comparable<? super T>> NavigableTreeSet<T> fromSorted(
+            Comparator<? super T> comparator, Iterable<T> input, Pump.DuplicatePolicy policy)
+    {
+        MutableSortedSet<T> ecSet = Pump.treeSortedSetFromSorted(comparator, input, policy);
+        // TreeSet(SortedSet) adopts the source comparator and uses the O(n)
+        // bottom-up build -- no per-element add/rebalance.
+        TreeSet<T> nav = new TreeSet<>(ecSet);
         return new NavigableTreeSet<>(nav, ecSet);
     }
 

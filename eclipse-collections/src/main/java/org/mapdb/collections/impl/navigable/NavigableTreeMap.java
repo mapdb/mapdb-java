@@ -15,6 +15,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 import org.mapdb.collections.api.map.sorted.MutableSortedMap;
+import org.mapdb.collections.api.tuple.Pair;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.range.Range;
 
@@ -90,6 +92,49 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         MutableSortedMap<K, V> ecMap = comparator == null
                 ? TreeSortedMap.newMap()
                 : TreeSortedMap.newMap(comparator);
+        return new NavigableTreeMap<>(nav, ecMap);
+    }
+
+    /**
+     * Bulk build (data pump) from input already sorted ascending by key under
+     * natural order, rejecting duplicates — see {@code features/data-pump.md}.
+     * Equivalent to {@link #fromSorted(Comparator, Iterable, Pump.DuplicatePolicy)}
+     * with a {@code null} comparator and {@link Pump.DuplicatePolicy#ERROR}.
+     */
+    public static <K extends Comparable<? super K>, V> NavigableTreeMap<K, V> fromSorted(
+            Iterable<Pair<K, V>> input)
+    {
+        return fromSorted(null, input, Pump.DuplicatePolicy.ERROR);
+    }
+
+    /**
+     * Bulk build (data pump) from input already sorted ascending by key under
+     * {@code comparator} ({@code null} = natural order).
+     *
+     * <p>The pump ({@link Pump#treeSortedMapFromSorted(Comparator, Iterable,
+     * Pump.DuplicatePolicy)}) validates order and duplicates and builds the
+     * backing EC {@link TreeSortedMap} in one pass; the navigation view is then
+     * built from that sorted map through the JDK {@code TreeMap(SortedMap)}
+     * bulk constructor (O(n) {@code buildFromSorted}), sharing the same
+     * comparator. No entry is inserted one-by-one.
+     *
+     * <p>Out-of-order input throws {@link Pump.PumpSourceNotSorted}; a duplicate
+     * key under {@link Pump.DuplicatePolicy#ERROR} throws
+     * {@link Pump.PumpSourceDuplicate} ({@link Pump.DuplicatePolicy#IGNORE}
+     * keeps the first of an equal run). Nothing half-built is returned.
+     *
+     * <p>Order statistics ({@link #rank} / {@link #selectKey} /
+     * {@link #selectEntry}) on the result are exactly those of the same entries
+     * inserted one-by-one — the Java carve-out computes them by ordered scan,
+     * so there is no separate subtree-size augmentation to keep in step.
+     */
+    public static <K extends Comparable<? super K>, V> NavigableTreeMap<K, V> fromSorted(
+            Comparator<? super K> comparator, Iterable<Pair<K, V>> input, Pump.DuplicatePolicy policy)
+    {
+        MutableSortedMap<K, V> ecMap = Pump.treeSortedMapFromSorted(comparator, input, policy);
+        // TreeMap(SortedMap) adopts the source comparator and uses the O(n)
+        // bottom-up buildFromSorted -- no per-entry put/rebalance.
+        TreeMap<K, V> nav = new TreeMap<>(ecMap);
         return new NavigableTreeMap<>(nav, ecMap);
     }
 

@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
-import org.mapdb.collections.api.map.sorted.MutableSortedMap;
 import org.mapdb.collections.api.tuple.Pair;
 import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.bounded.BoundedLruMap;
@@ -983,12 +982,24 @@ public final class ValidationRunner {
     // ---- TreeSet<i32> (NavigableTreeSet<Integer> over the boxed tree) -----
 
     private void runIntTreeSet(JsonNode scenario, ScenarioResult r) {
-        NavigableTreeSet<Integer> set = NavigableTreeSet.newSet();
+        NavigableTreeSet<Integer> set;
         // Operation result logs: poll values and removeRange counts in
         // execution order (cross-language-observable per the harness).
         List<Integer> pollFirstKeys = new ArrayList<>();
         List<Integer> pollLastKeys = new ArrayList<>();
         List<Integer> removeRangeCounts = new ArrayList<>();
+        if ("fromSorted".equals(scenario.path("construction").asText())) {
+            // Same contract as runIntTreeMap: the bulk-built set IS the object
+            // under test, never a copy-out into an add-by-add set (G1-F7).
+            List<Integer> elements = new ArrayList<>();
+            for (JsonNode op : scenario.path("operations")) {
+                elements.add(op.get("value").asInt());
+            }
+            set = NavigableTreeSet.fromSorted(null, elements, Pump.DuplicatePolicy.ERROR);
+            emitIntTreeSet(scenario, r, set, pollFirstKeys, pollLastKeys, removeRangeCounts);
+            return;
+        }
+        set = NavigableTreeSet.newSet();
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "add":
@@ -1014,6 +1025,12 @@ public final class ValidationRunner {
                     break;
             }
         }
+        emitIntTreeSet(scenario, r, set, pollFirstKeys, pollLastKeys, removeRangeCounts);
+    }
+
+    private void emitIntTreeSet(JsonNode scenario, ScenarioResult r, NavigableTreeSet<Integer> set,
+                                List<Integer> pollFirstKeys, List<Integer> pollLastKeys,
+                                List<Integer> removeRangeCounts) {
         Range<Integer> query = scenario.has("query") ? buildRangeFromNode(scenario.get("query")) : null;
         for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
             String key = e.getKey();
@@ -1095,24 +1112,23 @@ public final class ValidationRunner {
     // ---- TreeMap<i32, i32> (NavigableTreeMap<Integer,Integer> over the boxed tree)
 
     private void runIntTreeMap(JsonNode scenario, ScenarioResult r) {
-        NavigableTreeMap<Integer, Integer> map = NavigableTreeMap.newMap();
+        NavigableTreeMap<Integer, Integer> map;
         List<Integer> pollFirstKeys = new ArrayList<>();
         List<Integer> pollFirstValues = new ArrayList<>();
         List<Integer> pollLastKeys = new ArrayList<>();
         List<Integer> pollLastValues = new ArrayList<>();
         List<Integer> removeRangeCounts = new ArrayList<>();
         if ("fromSorted".equals(scenario.path("construction").asText())) {
+            // The bulk-built map IS the object under test: no entry is copied
+            // out of the pump result into a put-by-put map (finding G1-F7).
             List<Pair<Integer, Integer>> pairs = new ArrayList<>();
             for (JsonNode op : scenario.path("operations")) {
                 pairs.add(Tuples.pair(op.get("key").asInt(), op.get("value").asInt()));
             }
-            MutableSortedMap<Integer, Integer> pumped =
-                    Pump.treeSortedMapFromSorted(null, pairs, Pump.DuplicatePolicy.ERROR);
-            for (Map.Entry<Integer, Integer> entry : pumped.entrySet()) {
-                map.put(entry.getKey(), entry.getValue());
-            }
+            map = NavigableTreeMap.fromSorted(null, pairs, Pump.DuplicatePolicy.ERROR);
         }
         else {
+            map = NavigableTreeMap.newMap();
             for (JsonNode op : scenario.path("operations")) {
                 switch (op.path("op").asText()) {
                     case "put":
