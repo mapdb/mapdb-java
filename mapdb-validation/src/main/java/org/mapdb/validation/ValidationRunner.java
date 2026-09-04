@@ -937,6 +937,11 @@ public final class ValidationRunner {
                 case "add":
                     bag.add(op.get("value").asInt());
                     break;
+                case "add_occurrences":
+                    // {"op":"add_occurrences","value":v,"count":n}: the production
+                    // bulk add (count 0 is a no-op, never creates the item).
+                    bag.addOccurrences(op.get("value").asInt(), op.get("count").asInt());
+                    break;
                 case "remove":
                     bag.remove(op.get("value").asInt());
                     break;
