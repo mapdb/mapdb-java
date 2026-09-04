@@ -58,12 +58,23 @@ jobs:
           git clone --depth 1 https://github.com/mapdb/mapdb-collection-spec.git \
             "${{ runner.temp }}/mapdb-collection-spec"
 
-      - name: Build + run cross-language validator (57 scenarios)
+      - name: Build + run cross-language validator (298 scenarios)
         if: steps.clone_spec.outcome == 'success'
         run: |
           mvn -f mapdb-validation/pom.xml clean package
           java -jar mapdb-validation/target/mapdb-validation.jar \
             "${{ runner.temp }}/mapdb-collection-spec/cross-language-validation/scenarios"
+
+      # Without this, a green build is ambiguous: it can mean "conformance
+      # passed" or "conformance never ran because the clone failed". Say which.
+      - name: Warn that conformance did not run
+        if: steps.clone_spec.outcome != 'success'
+        run: |
+          echo "::warning title=Conformance suite skipped::Spec clone failed \
+          (repo is private); the 298 cross-language scenarios did NOT run in \
+          this build. This job being green says nothing about conformance."
+          echo "> **Conformance suite did NOT run** — the spec clone failed." \
+            >> "$GITHUB_STEP_SUMMARY"
 
       # Native (port-specific) tests depend on the locally-installed core
       # SNAPSHOTs from the "Build core modules" step.
