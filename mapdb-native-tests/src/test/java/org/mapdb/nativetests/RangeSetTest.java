@@ -76,6 +76,52 @@ public class RangeSetTest
         assertEquals(List.of(Range.closed(1, 3), Range.closed(4, 5)), s.asRanges());
     }
 
+    /**
+     * {@code RangeSet.add} is a single ascending pass that commits each stored
+     * range's keep/absorb decision at visit time — a shape that is wrong for a
+     * {@code RangeMap} (a value barrier can leave a connected neighbour pair
+     * stored, so growing the merged span leftward can reconnect an entry the
+     * pass already kept). It is nonetheless correct here, because a
+     * {@code RangeSet}'s normal form is pairwise <strong>non-connected</strong>:
+     * growing the merged span can never reconnect an already-visited range.
+     * This pins that: an abutting run coalesces to the same single range
+     * whichever end is added last, and a range that bridges a gap absorbs BOTH
+     * sides.
+     */
+    @Test
+    public void addCoalescesWholeRunFromEitherDirection()
+    {
+        // Chain to the LEFT of the last added range.
+        RangeSet<Integer> left = rs(
+                Range.closedOpen(1, 2), Range.closedOpen(2, 3), Range.closedOpen(3, 4));
+        // Mirror: chain to the RIGHT of the last added range.
+        RangeSet<Integer> right = rs(
+                Range.closedOpen(2, 3), Range.closedOpen(3, 4), Range.closedOpen(1, 2));
+        assertEquals(List.of(Range.closedOpen(1, 4)), left.asRanges());
+        assertEquals(left.asRanges(), right.asRanges());
+
+        // Bridging a gap between two already-separate ranges absorbs both.
+        RangeSet<Integer> bridge = rs(Range.closedOpen(1, 3), Range.closedOpen(5, 7));
+        assertEquals(2, bridge.asRanges().size());
+        bridge.add(Range.closedOpen(3, 5));
+        assertEquals(List.of(Range.closedOpen(1, 7)), bridge.asRanges());
+    }
+
+    /**
+     * The non-connected normal form survives {@code remove}-derived states too:
+     * {@code remove} only ever emits fragments separated by the (non-empty)
+     * removed range, so re-adding that range re-joins them into exactly one.
+     */
+    @Test
+    public void addRejoinsFragmentsLeftBehindByRemove()
+    {
+        RangeSet<Integer> s = rs(Range.closedOpen(0, 10));
+        s.remove(Range.closedOpen(3, 7));
+        assertEquals(List.of(Range.closedOpen(0, 3), Range.closedOpen(7, 10)), s.asRanges());
+        s.add(Range.closedOpen(3, 7));
+        assertEquals(List.of(Range.closedOpen(0, 10)), s.asRanges());
+    }
+
     @Test
     public void addEmptyIsNoop()
     {
