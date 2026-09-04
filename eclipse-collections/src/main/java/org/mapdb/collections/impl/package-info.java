@@ -10,5 +10,10 @@
 
 /**
  * This package contains implementations for the mapdb-collections API.
+ * <p>
+ * Only the types listed in the cross-language spec inventory
+ * ({@code spec/collections.md}) carry the cross-language conformance
+ * promise. The rest of the surface inherited from Eclipse Collections is
+ * shipped as-is: inherited, no conformance promise.
  */
 package org.mapdb.collections.impl;

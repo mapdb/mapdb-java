@@ -9,8 +9,12 @@
  */
 
 /**
- * This package contains interfaces for the mapdb-collections API.
+ * This package contains interfaces for the mapdb-collections API:
+ * object collections, primitive collections and lazy iterables.
  * <p>
- *     This package contains interfaces for object collections, primitive collections and lazy iterables.
+ * Only the types listed in the cross-language spec inventory
+ * ({@code spec/collections.md}) carry the cross-language conformance
+ * promise. The rest of the surface inherited from Eclipse Collections is
+ * shipped as-is: inherited, no conformance promise.
  */
 package org.mapdb.collections.api;

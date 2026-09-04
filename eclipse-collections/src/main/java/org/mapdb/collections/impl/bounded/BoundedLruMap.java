@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -231,9 +232,15 @@ public final class BoundedLruMap<K, V>
      * Insert-or-update with a logical write tick. Refreshes recency of {@code key};
      * a new-key insert at capacity evicts the LRU entry first (evict-before-insert).
      * Returns the previous value, or {@link Optional#empty()}.
+     *
+     * @throws NullPointerException if {@code key} or {@code value} is {@code null}
+     *         (the class contract forbids them; a stored {@code null} value would
+     *         be indistinguishable from absence through {@link Optional})
      */
     public Optional<V> putAt(K key, V value, long now)
     {
+        Objects.requireNonNull(key, "key");
+        Objects.requireNonNull(value, "value");
         long expireAt = writeExpireAt(now);
 
         Node<V> existing = map.get(key); // access-order: refreshes recency of an existing key
