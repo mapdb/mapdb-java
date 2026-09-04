@@ -1374,7 +1374,7 @@ public final class ValidationRunner {
         }
     }
 
-    // ---- TreeSet<f32> (object TreeSortedSet<Float>, Float::compare) -------
+    // ---- TreeSet<f32> (object TreeSortedSet<Float>, FloatTotalOrder) ------
 
     private void runF32TreeSet(JsonNode scenario, ScenarioResult r) {
         // mapdb-java fallback type (no primitive sorted set yet), but ordered by
@@ -1384,6 +1384,27 @@ public final class ValidationRunner {
         // (signed-zero split, +NaN at top) is unchanged by construction; the
         // non-portable parts (-NaN below -Inf, distinct NaN payloads) are
         // covered by native tests, not the shared suite.
+        //
+        // Why TreeSortedSet here and NavigableTreeSet in runIntTreeSet (iso2
+        // finding G1-F5): this wiring is what the spec names. collections.md
+        // ("TreeSet, TreeMap, TreeBag -- ordered", the mapdb-java note) states
+        // that "the validation runner wires
+        // TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR) for the
+        // TreeSet<f32> scenarios", and the runners.json Java cell for
+        // TreeSet<f32> pins symbol "TreeSortedSet" with that carve-out note.
+        // Both are production types configured with the same comparator
+        // semantics -- NavigableTreeSet owns a JDK TreeSet navigation store
+        // plus an EC TreeSortedSet backing store and keeps the two in sync,
+        // whereas this path drives the EC TreeSortedSet directly. The two f32
+        // scenarios assert only size / min / max / contains / to_sorted_array,
+        // none of which is navigational, so every assertion value comes from the
+        // production sorted set's own methods -- this is an inconsistency, not
+        // an oracle violation. Switching to NavigableTreeSet would contradict
+        // collections.md and fail check-runners.sh until the manifest cell is
+        // changed too; both edits belong to the spec repo. The coverage the
+        // shared suite therefore never reaches -- the navigable wrapper's
+        // comparator propagation and navigation/rank/select on the float axis
+        // -- is pinned by NavigableTreeSetTest/NavigableTreeMapTest instead.
         MutableSortedSet<Float> set = TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR);
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {

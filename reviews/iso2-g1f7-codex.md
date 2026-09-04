@@ -144,3 +144,102 @@ instead):
   identical; wording only).
 - The `ecMap()`/`ecSet()` mutable-backing-store escape hatch, which is
   pre-existing and already on the iso2 REAL WORK list.
+
+---
+
+# Round 2 — iso2 G1-F5 (`TreeSet<f32>` drives `TreeSortedSet`, not `NavigableTreeSet`)
+
+Brief: `reviews/iso2-g1f5-brief.md`. Codex output verbatim below; it ran
+source-review only (no builds, no repo writes).
+
+## Disposition reached before the review
+
+The type switch was NOT made. Documented reason, cited at the call site:
+
+- `spec/collections.md` ("TreeSet, TreeMap, TreeBag — ordered", mapdb-java
+  note) states verbatim that "the validation runner wires
+  `TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR)` for the
+  `TreeSet<f32>` scenarios".
+- `runners.json`'s Java cell for `TreeSet<f32>` pins `symbol:
+  "TreeSortedSet"` with a matching carve-out note.
+- The two `TreeSet<f32>` scenarios assert only size / min / max / contains /
+  to_sorted_array — nothing navigational — so every assertion value already
+  comes from the production sorted set's own methods under the spec
+  comparator. This is an inconsistency, not an oracle violation.
+- Switching unilaterally would contradict the normative note AND turn
+  `check-runners.sh` red for java; both edits belong to the spec repo, which
+  this task must not touch. Satisfying the pinned symbol by naming
+  `TreeSortedSet` in a comment would be gaming the guard, which the manifest
+  forbids outright.
+
+Scan for other f32/i32 production-type divergences: none. The other pairs are
+`FloatArrayList`/`IntArrayList`, `FloatHashSet`/`IntHashSet`,
+`FloatIntHashMap`/`IntIntHashMap`. `TreeSet<f32>` vs `TreeSet<i32>` is the only
+one — codex independently confirmed this, assertion-side helpers included.
+
+## Codex review (verbatim)
+
+# Second opinion: iso2 G1-F5
+
+## Findings
+
+1. **The disposition is sound, but the new runner comment misdescribes the implementation.** `NavigableTreeSet` does not operate “over the same boxed EC tree.” It owns two separate stores: a direct JDK `TreeSet` and an EC `TreeSortedSet` (which itself wraps another JDK `TreeSet`), and synchronizes mutations between them (`NavigableTreeSet.java:40-46, 60-66, 129-140`; the map is analogous). Replace that sentence with something like: “Both are production classes using the same comparator semantics; `NavigableTreeSet` owns a separate navigation store and `TreeSortedSet` backing store and keeps them synchronized.” This does not change the no-oracle-violation conclusion: `runF32TreeSet` directly queries the production `TreeSortedSet` for every asserted value.
+
+2. **The new tests do not fully pin their claimed NaN ordering.** Assertions such as `assertEquals(negNan, s.first())`, `assertEquals(posNan, s.last())`, and expected `List<Float>` comparisons (`NavigableTreeSetTest.java:184-200`, map lines 235-248) use `Float.equals`, under which all NaNs compare equal. A defect that swapped negative and positive NaNs at the two ends could therefore pass those particular assertions. Compare `Float.floatToRawIntBits(...)` at the NaN positions/navigation results, as `FloatTotalOrderTest.floatSortMatchesTotalOrder` already does. Also consider inserting two same-sign NaN payloads and proving that both survive as distinct set elements/map keys; the comparator test covers payload ordering, but these wrapper tests do not cover payload identity through the two stores.
+
+3. **The “no float-comparator coverage at all before” premise is overstated.** Existing `NavigableFromSortedTest.mapFromSortedUnderFloatTotalOrder` and `setFromSortedUnderFloatTotalOrder` (`NavigableFromSortedTest.java:251-307`) already test comparator identity on both stores, signed-zero distinction, and float rank/select. The new tests still add useful coverage of the ordinary `newSet`/`newMap` plus incremental-add path, point navigation, and comparator preservation in a materialized snapshot. Describe that incremental coverage rather than implying all float navigable coverage is new. The new map test also omits `-1/+1` and does not call `floorKey`/`ceilingKey`, contrary to the broad summary in the brief; the set test covers those cases.
+
+## Answers to the questions
+
+1. **Yes.** For the two actual `TreeSet<f32>` scenarios, this is a runner/type inconsistency, not a conformance or oracle violation. They perform only `add`, and the asserted size/min/max/contains/in-order traversal all come directly from the production EC `TreeSortedSet` configured with `FloatTotalOrder.FLOAT_COMPARATOR`. There is no runner-side reference collection or runner-side sort on this path.
+
+2. **Deferring the switch is the stronger call.** The spec explicitly says the Java validation runner wires `TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR)`, and `runners.json` pins that production symbol. A Java-only switch would knowingly contradict both sources and make the guard fail. The proper change is coordinated: update the normative note and manifest cell, then switch the runner in the same change set. Merely breaking the manifest and reporting it would leave the repository intentionally inconsistent, with no scenario-level behavioral benefit today.
+
+3. **The tests are useful but partly redundant and slightly incomplete as claims of exact float-total-order coverage.** They newly cover the incremental constructor/mutation path and point navigation. Add raw-bit NaN assertions and, ideally, distinct same-sign NaN payloads plus an assertion that the EC backing store contains the same float keys/elements after incremental insertion. No current v1 conformance obligation is blocked: `features/navigable-map.md:67-71` explicitly defers float Range/navigation with the rest of the float matrix. Comparator-preserving snapshots are still worth testing, but the chosen `[-0.0,+Inf]` bounds intentionally avoid the fact that Java `Range<Float>` itself uses natural `Float.compare`, not the tree comparator.
+
+4. **No other production-type divergence was found in the requested paths.** The pairs are `FloatArrayList`/`IntArrayList`, `FloatHashSet`/`IntHashSet`, and `FloatIntHashMap`/`IntIntHashMap`; only the tree-set pair differs. The f32 hash/list assertion-side `Arrays.sort` calls canonicalize unordered/list output just as the i32 helpers do; they do not replace the production collection under test. The f32 tree-set output is correctly a direct in-order traversal.
+
+5. Besides findings 1-3, the adjacent pre-existing heading at `ValidationRunner.java:1377` still says `Float::compare`, contradicting the actual `FloatTotalOrder.FLOAT_COMPARATOR`; it should be corrected when this area is next edited. Otherwise the new tests are coherent and the decision note reaches the right conclusion.
+
+Per the brief, I performed source review only and did not run builds, tests, Maven, or validation scripts.
+
+## Actions taken on this round's findings
+
+- Finding 1 (comment misdescribed the implementation): corrected — the note
+  now says the two are production types with the same comparator semantics,
+  and that `NavigableTreeSet` owns a JDK `TreeSet` navigation store plus an EC
+  `TreeSortedSet` backing store kept in sync, whereas this path drives the EC
+  set directly. Codex is right; "over the same boxed EC tree" was wrong.
+- Finding 2 (NaN assertions were `Float.equals`, which cannot see payloads or
+  a swapped pair of ends): all NaN positions in both new tests now assert on
+  `Float.floatToRawIntBits`, including first/last, `lower` past -Inf, and the
+  first/last elements of the full in-order traversal. Added
+  `floatTotalOrderKeepsDistinctSameSignNanPayloads` (set) and
+  `floatTotalOrderKeepsDistinctSameSignNanKeyPayloads` (map): two positive
+  NaNs with different payloads stay distinct, keep ascending payload order,
+  keep their own values (map), and survive in the EC backing store.
+- Finding 3 (premise overstated; map test thinner than described): test
+  javadocs now say they cover the incremental `add`/`put` path and point to
+  `NavigableFromSortedTest` for the bulk float path. The map test gained
+  `-1.0f`/`1.0f` keys and `floorKey`/`ceilingKey` assertions, so it matches
+  the set test's breadth; both now also assert the EC backing store holds the
+  same keys/elements after incremental mutation.
+- Finding 5 (pre-existing wrong section heading): the `runF32TreeSet` heading
+  said `Float::compare`; corrected to `FloatTotalOrder`.
+- Not acted on: codex's note that Java `Range<Float>` uses natural
+  `Float.compare` rather than the tree comparator. That is a real pre-existing
+  question about `Range` on the float axis, out of this task's scope, and
+  `spec/features/navigable-map.md` defers float Range/navigation with the rest
+  of the float matrix. Reported upward instead.
+
+Gates after these changes: native tests 621 -> 623 (604 at the start of this
+workstream); `check-runners.sh --root /home/play2/mapdb` PASS for all five
+ports; `validate.sh --skip-go --skip-rust --skip-ts --skip-zig` 306/306 pass,
+0 fail.
+
+## Still needs a spec-repo decision (not done here)
+
+To make `TreeSet<f32>` drive `NavigableTreeSet` like `TreeSet<i32>`, three
+edits must land together: the `collections.md` sentence naming the wiring, the
+`runners.json` Java cell (`symbol` -> `NavigableTreeSet`, drop the carve-out
+note), and the runner. Until then the runner stays as the spec describes it.

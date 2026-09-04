@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mapdb.collections.impl.navigable.NavigableTreeMap;
 import org.mapdb.collections.impl.range.Range;
+import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -207,5 +208,99 @@ public class NavigableTreeMapTest
         // the reverse order, i.e. the numerically-smallest >= 25 ... pin via firstKey.
         assertEquals(40, sub.firstKey());
         assertEquals(20, sub.lastKey());
+    }
+
+    /**
+     * Float-keyed axis under the spec IEEE-754 totalOrder comparator, built by
+     * incremental {@code put} (the bulk {@code fromSorted} float path is
+     * covered by {@code NavigableFromSortedTest}). There is no
+     * {@code TreeMap<f32, i32>} scenario at all, so the navigable map's float
+     * comparator propagation and navigation are native-test-only — the
+     * map-side counterpart of iso2 finding G1-F5.
+     *
+     * <p>NaN positions are asserted on raw bits: {@code Float.equals} treats
+     * all NaNs as equal, so a defect swapping the two ends would survive a
+     * plain {@code assertEquals}.
+     */
+    @Test
+    public void floatTotalOrderKeysNavigationAndRankSelect()
+    {
+        Float negNan = Float.intBitsToFloat(0xFFC00000);
+        Float posNan = Float.intBitsToFloat(0x7FC00000);
+        NavigableTreeMap<Float, Integer> m = NavigableTreeMap.newMap(FloatTotalOrder.FLOAT_COMPARATOR);
+        m.put(0.0f, 5);
+        m.put(posNan, 8);
+        m.put(Float.NEGATIVE_INFINITY, 2);
+        m.put(-0.0f, 4);
+        m.put(Float.POSITIVE_INFINITY, 7);
+        m.put(negNan, 1);
+        m.put(-1.0f, 3);
+        m.put(1.0f, 6);
+
+        assertEquals(FloatTotalOrder.FLOAT_COMPARATOR, m.comparator());
+        assertEquals(FloatTotalOrder.FLOAT_COMPARATOR, m.ecMap().comparator());
+        assertEquals(8, m.size());
+        assertEquals(List.of(negNan, Float.NEGATIVE_INFINITY, -1.0f, -0.0f, 0.0f,
+                1.0f, Float.POSITIVE_INFINITY, posNan), m.rangeKeys(Range.all()));
+        // signed zeros are distinct keys and do NOT overwrite each other
+        assertEquals(Integer.valueOf(4), m.get(-0.0f));
+        assertEquals(Integer.valueOf(5), m.get(0.0f));
+        assertEquals(3, m.rank(-0.0f));
+        assertEquals(4, m.rank(0.0f));
+        assertEquals(Integer.valueOf(4), m.selectEntry(3).map(Map.Entry::getValue).orElse(null));
+        assertEquals(Integer.valueOf(5), m.selectEntry(4).map(Map.Entry::getValue).orElse(null));
+        // navigation follows the total order, not Float.compare
+        assertEquals(Float.valueOf(-0.0f), m.lowerKey(0.0f));
+        assertEquals(Float.valueOf(1.0f), m.higherKey(0.0f));
+        assertEquals(Float.valueOf(Float.NEGATIVE_INFINITY), m.floorKey(-2.0f));
+        assertEquals(Float.valueOf(-1.0f), m.ceilingKey(-2.0f));
+        assertEquals(Float.valueOf(-0.0f), m.floorKey(-0.0f));
+        assertEquals(Float.valueOf(0.0f), m.ceilingKey(0.0f));
+        assertEquals(Float.floatToRawIntBits(negNan), Float.floatToRawIntBits(m.firstKey()));
+        assertEquals(Float.floatToRawIntBits(posNan), Float.floatToRawIntBits(m.lastKey()));
+        assertEquals(Float.floatToRawIntBits(negNan),
+                Float.floatToRawIntBits(m.lowerKey(Float.NEGATIVE_INFINITY)));
+        assertNull(m.lowerKey(negNan));
+        assertNull(m.higherKey(posNan));
+        // raw-bit order of the whole traversal, so NaN ends cannot be swapped
+        List<Float> orderedKeys = m.rangeKeys(Range.all());
+        assertEquals(Float.floatToRawIntBits(negNan), Float.floatToRawIntBits(orderedKeys.get(0)));
+        assertEquals(Float.floatToRawIntBits(posNan),
+                Float.floatToRawIntBits(orderedKeys.get(orderedKeys.size() - 1)));
+        // the EC backing store holds the same keys after incremental puts
+        assertEquals(m.size(), m.ecMap().size());
+        assertEquals(orderedKeys, m.ecMap().keySet().stream().toList());
+        // a materialized snapshot keeps the float comparator
+        NavigableTreeMap<Float, Integer> sub = m.subMap(Range.closed(-0.0f, Float.POSITIVE_INFINITY));
+        assertEquals(FloatTotalOrder.FLOAT_COMPARATOR, sub.comparator());
+        assertEquals(List.of(-0.0f, 0.0f, 1.0f, Float.POSITIVE_INFINITY),
+                sub.rangeKeys(Range.all()));
+    }
+
+    /**
+     * Two NaN keys of the same sign but different payloads stay distinct and
+     * keep their payloads (and their own values) through both backing stores.
+     * Asserted on raw bits, which is the only way to see it.
+     */
+    @Test
+    public void floatTotalOrderKeepsDistinctSameSignNanKeyPayloads()
+    {
+        Float nanLow = Float.intBitsToFloat(0x7FC00000);
+        Float nanHigh = Float.intBitsToFloat(0x7FC00001);
+        NavigableTreeMap<Float, Integer> m = NavigableTreeMap.newMap(FloatTotalOrder.FLOAT_COMPARATOR);
+        m.put(nanHigh, 2);
+        m.put(nanLow, 1);
+        m.put(1.0f, 0);
+        assertEquals(3, m.size());
+        List<Float> keys = m.rangeKeys(Range.all());
+        assertEquals(Float.floatToRawIntBits(1.0f), Float.floatToRawIntBits(keys.get(0)));
+        assertEquals(0x7FC00000, Float.floatToRawIntBits(keys.get(1)));
+        assertEquals(0x7FC00001, Float.floatToRawIntBits(keys.get(2)));
+        // distinct keys -> distinct values, no collapse
+        assertEquals(Integer.valueOf(1), m.get(nanLow));
+        assertEquals(Integer.valueOf(2), m.get(nanHigh));
+        assertEquals(1, m.rank(nanLow));
+        assertEquals(2, m.rank(nanHigh));
+        assertEquals(3, m.ecMap().size());
     }
 }
