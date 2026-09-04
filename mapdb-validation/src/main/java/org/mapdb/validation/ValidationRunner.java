@@ -7,7 +7,6 @@ package org.mapdb.validation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
 import org.mapdb.collections.api.tuple.Pair;
@@ -30,7 +29,6 @@ import org.mapdb.collections.impl.range.BoundType;
 import org.mapdb.collections.impl.range.Range;
 import org.mapdb.collections.impl.range.RangeMap;
 import org.mapdb.collections.impl.range.RangeSet;
-import org.mapdb.collections.impl.set.sorted.mutable.TreeSortedSet;
 import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedMap;
 import org.mapdb.collections.impl.sorted.ImmutableSortedSet;
@@ -1379,38 +1377,22 @@ public final class ValidationRunner {
         }
     }
 
-    // ---- TreeSet<f32> (object TreeSortedSet<Float>, FloatTotalOrder) ------
+    // ---- TreeSet<f32> (NavigableTreeSet<Float>, FloatTotalOrder) ---------
 
     private void runF32TreeSet(JsonNode scenario, ScenarioResult r) {
-        // mapdb-java fallback type (no primitive sorted set yet), but ordered by
-        // the IEEE 754 totalOrder comparator FloatTotalOrder.FLOAT_COMPARATOR
-        // (sign-flip construction, Rust total_cmp equivalent) rather than
-        // Float::compare. The portable subset asserted by the shared suite
-        // (signed-zero split, +NaN at top) is unchanged by construction; the
-        // non-portable parts (-NaN below -Inf, distinct NaN payloads) are
-        // covered by native tests, not the shared suite.
-        //
-        // Why TreeSortedSet here and NavigableTreeSet in runIntTreeSet (iso2
-        // finding G1-F5): this wiring is what the spec names. collections.md
-        // ("TreeSet, TreeMap, TreeBag -- ordered", the mapdb-java note) states
-        // that "the validation runner wires
-        // TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR) for the
-        // TreeSet<f32> scenarios", and the runners.json Java cell for
-        // TreeSet<f32> pins symbol "TreeSortedSet" with that carve-out note.
-        // Both are production types configured with the same comparator
-        // semantics -- NavigableTreeSet owns a JDK TreeSet navigation store
-        // plus an EC TreeSortedSet backing store and keeps the two in sync,
-        // whereas this path drives the EC TreeSortedSet directly. The two f32
-        // scenarios assert only size / min / max / contains / to_sorted_array,
-        // none of which is navigational, so every assertion value comes from the
-        // production sorted set's own methods -- this is an inconsistency, not
-        // an oracle violation. Switching to NavigableTreeSet would contradict
-        // collections.md and fail check-runners.sh until the manifest cell is
-        // changed too; both edits belong to the spec repo. The coverage the
-        // shared suite therefore never reaches -- the navigable wrapper's
-        // comparator propagation and navigation/rank/select on the float axis
-        // -- is pinned by NavigableTreeSetTest/NavigableTreeMapTest instead.
-        MutableSortedSet<Float> set = TreeSortedSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR);
+        // Same production tree as runIntTreeSet (iso2 finding G1-F5, resolved
+        // 2026-09-04 by switching from a bare TreeSortedSet to the navigable
+        // wrapper), ordered by the IEEE 754 totalOrder comparator
+        // FloatTotalOrder.FLOAT_COMPARATOR (sign-flip construction, Rust
+        // total_cmp equivalent) rather than Float::compare. The portable subset
+        // asserted by the shared suite (signed-zero split, +NaN at top) is
+        // unchanged by construction; the non-portable parts (-NaN below -Inf,
+        // distinct NaN payloads) are covered by native tests, not the shared
+        // suite. NavigableTreeSet.newSet(comparator) feeds the same comparator
+        // to both its JDK navigation store and its EC TreeSortedSet backing
+        // store, so every assertion value below comes from the production
+        // sorted set's own methods.
+        NavigableTreeSet<Float> set = NavigableTreeSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR);
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "add":
@@ -1440,17 +1422,17 @@ public final class ValidationRunner {
                     computed = String.valueOf(set.isEmpty());
                     break;
                 case "min":
-                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.getFirst());
+                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.first());
                     break;
                 case "max":
-                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.getLast());
+                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.last());
                     break;
                 case "sorted":
                 case "sorted_values":
                 case "to_sorted_array": {
                     // In-order traversal straight from the tree (NOT runner-sorted).
                     List<String> parts = new ArrayList<>();
-                    for (Float f : set) {
+                    for (Float f : set.rangeElements(Range.all())) {
                         parts.add("\"" + FloatCodec.format(f) + "\"");
                     }
                     computed = "[" + String.join(",", parts) + "]";
