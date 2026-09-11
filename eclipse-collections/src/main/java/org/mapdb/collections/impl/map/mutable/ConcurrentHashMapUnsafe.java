@@ -1844,8 +1844,7 @@ public class ConcurrentHashMapUnsafe<K, V>
         @Override
         public Spliterator<V> spliterator()
         {
-            return Spliterators.spliteratorUnknownSize(this.iterator(),
-                    Spliterator.CONCURRENT | Spliterator.NONNULL);
+            return Spliterators.spliteratorUnknownSize(this.iterator(), Spliterator.CONCURRENT);
         }
 
         @Override

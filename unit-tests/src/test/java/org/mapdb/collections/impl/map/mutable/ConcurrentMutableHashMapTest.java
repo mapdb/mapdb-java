@@ -42,6 +42,13 @@ public class ConcurrentMutableHashMapTest extends ConcurrentHashMapTestCase
     }
 
     @Override
+    protected boolean valuesSpliteratorIsNonNull()
+    {
+        // Delegates to java.util.concurrent.ConcurrentHashMap, which rejects null values.
+        return true;
+    }
+
+    @Override
     public <K, V> ConcurrentMutableMap<K, V> newMapWithKeyValue(K key, V value)
     {
         return ConcurrentMutableHashMap.<K, V>newMap().withKeyValue(key, value);

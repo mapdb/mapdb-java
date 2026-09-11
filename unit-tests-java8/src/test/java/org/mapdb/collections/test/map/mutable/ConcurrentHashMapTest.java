@@ -14,7 +14,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.Spliterator;
 
 import org.mapdb.collections.api.map.MutableMap;
 import org.mapdb.collections.impl.map.mutable.ConcurrentHashMap;
@@ -193,23 +192,6 @@ public class ConcurrentHashMapTest implements MutableMapTestCase
         });
         assertEquals("One", value4);
         assertEquals("One", map2.get(1));
-    }
-
-    // TODO: Fix bug in ConcurrentHashMap: values().spliterator() reports NONNULL but the map supports null values.
-    // When fixed, delete this override to inherit the correct assertion from MapTestCase.
-    @Override
-    @Test
-    public void Map_values()
-    {
-        Map<Integer, String> map = this.newWithKeysValues(3, "Three", 2, "Two", 1, "One");
-        assertEquals(3, map.values().size());
-        assertFalse(map.values().isEmpty());
-        assertTrue(map.values().contains("One"));
-        assertFalse(map.values().contains("Four"));
-
-        Map<Integer, String> map2 = this.newWithKeysValues(1, null, 2, "2");
-        assertTrue(map2.values().contains(null));
-        assertTrue(map2.values().spliterator().hasCharacteristics(Spliterator.NONNULL));
     }
 
     @Nested

@@ -54,6 +54,16 @@ public abstract class ConcurrentHashMapTestCase extends MutableMapTestCase
     @Override
     protected abstract <K, V> ConcurrentMutableMap<K, V> newMap();
 
+    /**
+     * Whether {@code values().spliterator()} may advertise {@link Spliterator#NONNULL}. Only maps that
+     * reject null values (the JDK-delegating implementations) are allowed to; the mapdb implementations
+     * accept null values and must not.
+     */
+    protected boolean valuesSpliteratorIsNonNull()
+    {
+        return false;
+    }
+
     @Override
     @Test
     public void updateValue()
@@ -137,7 +147,7 @@ public abstract class ConcurrentHashMapTestCase extends MutableMapTestCase
         assertFalse(vs.hasCharacteristics(Spliterator.DISTINCT));
         assertFalse(vs.hasCharacteristics(Spliterator.SORTED));
         assertFalse(vs.hasCharacteristics(Spliterator.SIZED));
-        assertTrue(vs.hasCharacteristics(Spliterator.NONNULL));
+        assertEquals(this.valuesSpliteratorIsNonNull(), vs.hasCharacteristics(Spliterator.NONNULL));
         assertFalse(vs.hasCharacteristics(Spliterator.IMMUTABLE));
         assertTrue(vs.hasCharacteristics(Spliterator.CONCURRENT));
         assertFalse(vs.hasCharacteristics(Spliterator.SUBSIZED));
