@@ -26,6 +26,7 @@ import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.api.tuple.Pair;
 import org.mapdb.collections.impl.Counter;
+import org.mapdb.collections.impl.Fibonacci;
 import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
 import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
@@ -35,6 +36,13 @@ import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
+import org.mapdb.collections.impl.list.mutable.primitive.BooleanArrayList;
+import org.mapdb.collections.impl.list.mutable.FastList;
+import org.mapdb.collections.impl.map.mutable.primitive.FloatBooleanHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.FloatObjectHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.IntBooleanHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.IntObjectHashMap;
+import org.mapdb.collections.impl.map.mutable.primitive.ObjectIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.mapdb.collections.impl.set.mutable.primitive.DoubleHashSet;
 import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
@@ -44,6 +52,8 @@ import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -834,6 +844,659 @@ public class PumpTest
         }
     }
 
+    // ==================================================================
+    // primitive -> object  (<name>ObjectHashMap)
+    // ==================================================================
+
+    @Test
+    public void primObjBulkLoadEqualsPutLoop()
+    {
+        int n = 1000;
+        IntArrayList keys = new IntArrayList();
+        FastList<String> values = new FastList<>();
+        IntObjectHashMap<String> putLoop = new IntObjectHashMap<>();
+        for (int i = 0; i < n; i++)
+        {
+            int k = i * 7 + 100;   // keep clear of the 0/1 sentinels
+            keys.add(k);
+            values.add("v" + i);
+            putLoop.put(k, "v" + i);
+        }
+
+        IntObjectHashMap<String> pumped = IntObjectHashMap.bulkLoad(n, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(putLoop, pumped);
+        assertEquals(putLoop.size(), pumped.size());
+        for (int i = 0; i < n; i++)
+        {
+            assertTrue(pumped.containsKey(i * 7 + 100));
+            assertEquals("v" + i, pumped.get(i * 7 + 100));
+        }
+    }
+
+    @Test
+    public void primObjBulkLoadExactZeroRehashAt3TimesPowerOfTwo() throws Exception
+    {
+        for (int k = 0; k <= 4; k++)
+        {
+            int n = 3 << k;  // 3, 6, 12, 24, 48
+            IntArrayList keys = new IntArrayList();
+            FastList<String> values = new FastList<>();
+            for (int i = 0; i < n; i++)
+            {
+                keys.add(100 + i);
+                values.add("v" + i);
+            }
+
+            IntObjectHashMap<String> map = IntObjectHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+
+            int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+            // The pre-sized table survived the whole load untouched. rehashAndGrow()
+            // can only ever produce a STRICTLY larger table here (no removals => no
+            // sentinels => newCapacity == nextPow2(2*(occupied+1)) > capacity at the
+            // trigger point), so an unchanged capacity proves zero rehash fired.
+            assertEquals(expectedCap, primitiveKeysLength(IntObjectHashMap.class, map),
+                    "keys table length wrong at n=" + n);
+            assertTrue(n <= expectedCap / 2, "sizing does not clear 50% threshold at n=" + n);
+            assertEquals(n, map.size());
+        }
+    }
+
+    @Test
+    public void primObjBulkLoadExactMatchesPreSizedPutLoopLayoutWithCollisions() throws Exception
+    {
+        int n = 20;
+        int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+        // IntObjectHashMap probes the raw key first (mask(element), the documented
+        // first-probe carve-out), so k & (cap-1) picks the bucket.
+        IntArrayList keys = keysSharingFirstProbe(n, expectedCap, false);
+        FastList<String> values = new FastList<>();
+        for (int i = 0; i < n; i++)
+        {
+            values.add("v" + i);
+        }
+
+        IntObjectHashMap<String> pumped = IntObjectHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+        IntObjectHashMap<String> putLoop = new IntObjectHashMap<>(n);
+        for (int i = 0; i < n; i++)
+        {
+            putLoop.put(keys.get(i), values.get(i));
+        }
+
+        // Identical slot-for-slot layout => the pump walked the same probe sequence
+        // as an equally pre-sized put loop. (This is a layout-compatibility check;
+        // the zero-rehash claim is carried by the capacity assertions in
+        // primObjBulkLoadExactZeroRehashAt3TimesPowerOfTwo, not by this one.)
+        assertArrayEquals(primitiveKeys(IntObjectHashMap.class, putLoop),
+                primitiveKeys(IntObjectHashMap.class, pumped));
+    }
+
+    @Test
+    public void primObjBulkLoadExactRejectsOversizedSource()
+    {
+        IntArrayList keys = IntArrayList.newListWith(10, 11, 12, 13);
+        FastList<String> values = FastList.newListWith("a", "b", "c", "d");
+        assertThrows(IllegalArgumentException.class,
+                () -> IntObjectHashMap.bulkLoadExact(3, keys, values, DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjBulkLoadRejectsOverflowingSizeHint()
+    {
+        int tooLargeForTable = (1 << 29) + 1;   // 2 * n overflows the 2^30 table bound
+        assertThrows(IllegalArgumentException.class,
+                () -> IntObjectHashMap.bulkLoad(
+                        tooLargeForTable, new IntArrayList(), new FastList<String>(), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntObjectHashMap.bulkLoad(
+                        -1, new IntArrayList(), new FastList<String>(), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjLargePracticalHintPreSizesToNextPowerOfTwo() throws Exception
+    {
+        // 1 << 29 is the largest ACCEPTED hint (the next value up is rejected --
+        // see primObjBulkLoadRejectsOverflowingSizeHint); we do not allocate that
+        // here. This only checks that a practically large hint pre-sizes to
+        // exactly nextPow2(2n) and does so without consuming any input.
+        int n = 1 << 16;
+        IntObjectHashMap<String> map = IntObjectHashMap.bulkLoad(
+                n, new IntArrayList(), new FastList<String>(), DuplicatePolicy.ERROR);
+        assertEquals(1 << 17, primitiveKeysLength(IntObjectHashMap.class, map));
+        assertTrue(map.isEmpty());
+    }
+
+    @Test
+    public void allThreeFamiliesLoadExactlyAtTheHalfFullThreshold() throws Exception
+    {
+        // n == capacity / 2 is the tightest load the sizing promises: one more
+        // element would trip the grow trigger. All three families must still come
+        // out at the pre-sized capacity (i.e. no rehash fired).
+        int n = 32;
+        int expectedCap = 64;   // nextPow2(2 * 32)
+        assertEquals(expectedCap, smallestPowerOfTwoGreaterThan(2 * n));
+
+        IntArrayList intKeys = new IntArrayList();
+        FastList<String> strValues = new FastList<>();
+        FastList<String> strKeys = new FastList<>();
+        IntArrayList intValues = new IntArrayList();
+        BooleanArrayList boolValues = new BooleanArrayList();
+        for (int i = 0; i < n; i++)
+        {
+            intKeys.add(100 + i);
+            intValues.add(i);
+            strKeys.add("k" + i);
+            strValues.add("v" + i);
+            boolValues.add((i & 1) == 0);
+        }
+
+        IntObjectHashMap<String> primObj =
+                IntObjectHashMap.bulkLoadExact(n, intKeys, strValues, DuplicatePolicy.ERROR);
+        assertEquals(n, primObj.size());
+        assertEquals(expectedCap, primitiveKeysLength(IntObjectHashMap.class, primObj));
+
+        ObjectIntHashMap<String> objPrim =
+                ObjectIntHashMap.bulkLoadExact(n, strKeys, intValues, DuplicatePolicy.ERROR);
+        assertEquals(n, objPrim.size());
+        assertEquals(expectedCap, objectKeysLength(ObjectIntHashMap.class, objPrim));
+
+        IntBooleanHashMap primBool =
+                IntBooleanHashMap.bulkLoadExact(n, intKeys, boolValues, DuplicatePolicy.ERROR);
+        assertEquals(n, primBool.size());
+        assertEquals(expectedCap, primitiveKeysLength(IntBooleanHashMap.class, primBool));
+    }
+
+    @Test
+    public void primObjDuplicateError()
+    {
+        IntArrayList keys = IntArrayList.newListWith(5, 6, 5);
+        FastList<String> values = FastList.newListWith("a", "b", "c");
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> IntObjectHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjDuplicateIgnoreKeepsFirst()
+    {
+        IntArrayList keys = IntArrayList.newListWith(5, 6, 5);
+        FastList<String> values = FastList.newListWith("first", "b", "later");
+        IntObjectHashMap<String> map = IntObjectHashMap.bulkLoad(3, keys, values, DuplicatePolicy.IGNORE);
+        assertEquals(2, map.size());
+        assertEquals("first", map.get(5));
+        assertEquals("b", map.get(6));
+    }
+
+    @Test
+    public void primObjNullValuesAreSupportedAndDoNotConfuseDuplicateDetection()
+    {
+        // primitive->object maps permit null VALUES; duplicate detection keys off
+        // containsKey, not get() != null, so a null first value still wins.
+        IntArrayList keys = IntArrayList.newListWith(5, 6, 5);
+        FastList<String> values = FastList.newListWith(null, "b", "later");
+        IntObjectHashMap<String> map = IntObjectHashMap.bulkLoad(3, keys, values, DuplicatePolicy.IGNORE);
+        assertEquals(2, map.size());
+        assertTrue(map.containsKey(5));
+        assertNull(map.get(5));
+
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> IntObjectHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjMismatchedKeyValueLengthsThrow()
+    {
+        IntArrayList keys = IntArrayList.newListWith(1, 2, 3);
+        assertThrows(IllegalArgumentException.class,
+                () -> IntObjectHashMap.bulkLoad(3, keys, FastList.newListWith("a", "b"), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntObjectHashMap.bulkLoad(
+                        3, keys, FastList.newListWith("a", "b", "c", "d"), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjEmptyBulkLoad()
+    {
+        IntObjectHashMap<String> map = IntObjectHashMap.bulkLoad(
+                0, new IntArrayList(), new FastList<String>(), DuplicatePolicy.ERROR);
+        assertTrue(map.isEmpty());
+        assertEquals(new IntObjectHashMap<String>(), map);
+
+        IntObjectHashMap<String> exact = IntObjectHashMap.bulkLoadExact(
+                0, new IntArrayList(), new FastList<String>(), DuplicatePolicy.ERROR);
+        assertTrue(exact.isEmpty());
+    }
+
+    @Test
+    public void primObjSentinelKeysSurvivePump()
+    {
+        // 0 and 1 are EC's reserved sentinel keys; they live in sentinelValues.
+        IntArrayList keys = IntArrayList.newListWith(0, 1, 2);
+        FastList<String> values = FastList.newListWith("zero", "one", "two");
+        IntObjectHashMap<String> map = IntObjectHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(3, map.size());
+        assertEquals("zero", map.get(0));
+        assertEquals("one", map.get(1));
+        assertEquals("two", map.get(2));
+
+        // and a duplicated sentinel key is still caught
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> IntObjectHashMap.bulkLoad(
+                        3, IntArrayList.newListWith(0, 0), FastList.newListWith("a", "b"), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primObjFloatKeysPreserveRawBitIdentity()
+    {
+        float nan1 = Float.intBitsToFloat(0x7fc00000);
+        float nan2 = Float.intBitsToFloat(0x7fc00001);   // distinct NaN payload
+        FloatArrayList keys = FloatArrayList.newListWith(-0.0f, 0.0f, nan1, nan2, Float.POSITIVE_INFINITY);
+        FastList<String> values = FastList.newListWith("nz", "pz", "n1", "n2", "inf");
+
+        FloatObjectHashMap<String> map = FloatObjectHashMap.bulkLoad(5, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(5, map.size());
+        assertEquals("nz", map.get(-0.0f));
+        assertEquals("pz", map.get(0.0f));
+        assertEquals("n1", map.get(nan1));
+        assertEquals("n2", map.get(nan2));
+        assertEquals("inf", map.get(Float.POSITIVE_INFINITY));
+    }
+
+    // ==================================================================
+    // object -> primitive  (Object<name>HashMap)
+    // ==================================================================
+
+    @Test
+    public void objPrimBulkLoadEqualsPutLoop()
+    {
+        int n = 1000;
+        FastList<String> keys = new FastList<>();
+        IntArrayList values = new IntArrayList();
+        ObjectIntHashMap<String> putLoop = new ObjectIntHashMap<>();
+        for (int i = 0; i < n; i++)
+        {
+            keys.add("k" + i);
+            values.add(i);
+            putLoop.put("k" + i, i);
+        }
+
+        ObjectIntHashMap<String> pumped = ObjectIntHashMap.bulkLoad(n, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(putLoop, pumped);
+        assertEquals(putLoop.size(), pumped.size());
+        for (int i = 0; i < n; i++)
+        {
+            assertTrue(pumped.containsKey("k" + i));
+            assertEquals(i, pumped.get("k" + i));
+        }
+    }
+
+    @Test
+    public void objPrimBulkLoadExactZeroRehashAt3TimesPowerOfTwo() throws Exception
+    {
+        for (int k = 0; k <= 4; k++)
+        {
+            int n = 3 << k;
+            FastList<String> keys = new FastList<>();
+            IntArrayList values = new IntArrayList();
+            for (int i = 0; i < n; i++)
+            {
+                keys.add("k" + i);
+                values.add(i);
+            }
+
+            ObjectIntHashMap<String> map = ObjectIntHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+
+            int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+            assertEquals(expectedCap, objectKeysLength(ObjectIntHashMap.class, map),
+                    "keys table length wrong at n=" + n);
+            assertTrue(n <= expectedCap / 2, "sizing does not clear 50% threshold at n=" + n);
+            assertEquals(n, map.size());
+        }
+    }
+
+    @Test
+    public void objPrimBulkLoadExactMatchesPreSizedPutLoopLayout() throws Exception
+    {
+        int n = 20;
+        FastList<CollidingKey> keys = new FastList<>();
+        IntArrayList values = new IntArrayList();
+        for (int i = 0; i < n; i++)
+        {
+            keys.add(new CollidingKey(i));   // all keys hash to the same bucket
+            values.add(i);
+        }
+
+        ObjectIntHashMap<CollidingKey> pumped = ObjectIntHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+        ObjectIntHashMap<CollidingKey> putLoop = new ObjectIntHashMap<>(n);
+        for (int i = 0; i < n; i++)
+        {
+            putLoop.put(keys.get(i), values.get(i));
+        }
+
+        assertArrayEquals(objectKeys(ObjectIntHashMap.class, putLoop),
+                objectKeys(ObjectIntHashMap.class, pumped));
+    }
+
+    @Test
+    public void objPrimNullKeyIsSupported()
+    {
+        // Object-keyed maps store a null key via the NULL_KEY sentinel.
+        FastList<String> keys = FastList.newListWith(null, "a");
+        IntArrayList values = IntArrayList.newListWith(7, 8);
+        ObjectIntHashMap<String> map = ObjectIntHashMap.bulkLoad(2, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(2, map.size());
+        assertTrue(map.containsKey(null));
+        assertEquals(7, map.get(null));
+        assertEquals(8, map.get("a"));
+
+        // a duplicated null key is caught like any other duplicate
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> ObjectIntHashMap.bulkLoad(
+                        2, FastList.newListWith(null, null), IntArrayList.newListWith(1, 2), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void objPrimDuplicateErrorAndIgnore()
+    {
+        FastList<String> keys = FastList.newListWith("a", "b", "a");
+        IntArrayList values = IntArrayList.newListWith(10, 11, 99);
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> ObjectIntHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR));
+
+        ObjectIntHashMap<String> map = ObjectIntHashMap.bulkLoad(3, keys, values, DuplicatePolicy.IGNORE);
+        assertEquals(2, map.size());
+        assertEquals(10, map.get("a"));   // first wins
+        assertEquals(11, map.get("b"));
+    }
+
+    @Test
+    public void objPrimEqualButNotIdenticalKeysAreDuplicates()
+    {
+        FastList<String> keys = FastList.newListWith("x", new String("x"));
+        IntArrayList values = IntArrayList.newListWith(1, 2);
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> ObjectIntHashMap.bulkLoad(2, keys, values, DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void objPrimFloatKeysUseBoxedEqualsNotRawBits()
+    {
+        // Object-keyed maps compare with Float.equals: -0.0f != 0.0f and NaN
+        // equals NaN. That is the boxed contract, NOT the primitive raw-bit one.
+        FastList<Float> keys = FastList.newListWith(-0.0f, 0.0f, Float.NaN);
+        IntArrayList values = IntArrayList.newListWith(1, 2, 3);
+        ObjectIntHashMap<Float> map = ObjectIntHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(3, map.size());
+        assertEquals(1, map.get(-0.0f));
+        assertEquals(2, map.get(0.0f));
+        assertEquals(3, map.get(Float.NaN));
+
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> ObjectIntHashMap.bulkLoad(
+                        2, FastList.newListWith(Float.NaN, Float.NaN),
+                        IntArrayList.newListWith(1, 2), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void objPrimMismatchedLengthsAndOversizeAndBadHint()
+    {
+        FastList<String> keys = FastList.newListWith("a", "b", "c");
+        assertThrows(IllegalArgumentException.class,
+                () -> ObjectIntHashMap.bulkLoad(3, keys, IntArrayList.newListWith(1, 2), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> ObjectIntHashMap.bulkLoad(3, keys, IntArrayList.newListWith(1, 2, 3, 4), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> ObjectIntHashMap.bulkLoadExact(
+                        2, keys, IntArrayList.newListWith(1, 2, 3), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> ObjectIntHashMap.bulkLoad(
+                        (1 << 29) + 1, new FastList<String>(), new IntArrayList(), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> ObjectIntHashMap.bulkLoad(
+                        -1, new FastList<String>(), new IntArrayList(), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void objPrimEmptyBulkLoad()
+    {
+        ObjectIntHashMap<String> map = ObjectIntHashMap.bulkLoad(
+                0, new FastList<String>(), new IntArrayList(), DuplicatePolicy.ERROR);
+        assertTrue(map.isEmpty());
+        assertEquals(new ObjectIntHashMap<String>(), map);
+    }
+
+    // ==================================================================
+    // primitive -> boolean  (<name>BooleanHashMap)
+    // ==================================================================
+
+    @Test
+    public void primBoolBulkLoadEqualsPutLoop()
+    {
+        int n = 1000;
+        IntArrayList keys = new IntArrayList();
+        BooleanArrayList values = new BooleanArrayList();
+        IntBooleanHashMap putLoop = new IntBooleanHashMap();
+        for (int i = 0; i < n; i++)
+        {
+            int k = i * 7 + 100;
+            boolean v = (i % 3) == 0;
+            keys.add(k);
+            values.add(v);
+            putLoop.put(k, v);
+        }
+
+        IntBooleanHashMap pumped = IntBooleanHashMap.bulkLoad(n, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(putLoop, pumped);
+        assertEquals(putLoop.size(), pumped.size());
+        for (int i = 0; i < n; i++)
+        {
+            assertEquals((i % 3) == 0, pumped.get(i * 7 + 100));
+        }
+    }
+
+    @Test
+    public void primBoolBothValuesRoundTrip()
+    {
+        IntArrayList keys = IntArrayList.newListWith(10, 11, 12);
+        BooleanArrayList values = BooleanArrayList.newListWith(true, false, true);
+        IntBooleanHashMap map = IntBooleanHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(3, map.size());
+        assertTrue(map.get(10));
+        assertFalse(map.get(11));
+        assertTrue(map.get(12));
+        assertTrue(map.containsKey(11));   // present with value false
+    }
+
+    @Test
+    public void primBoolBulkLoadExactZeroRehashAt3TimesPowerOfTwo() throws Exception
+    {
+        for (int k = 0; k <= 4; k++)
+        {
+            int n = 3 << k;
+            IntArrayList keys = new IntArrayList();
+            BooleanArrayList values = new BooleanArrayList();
+            for (int i = 0; i < n; i++)
+            {
+                keys.add(100 + i);
+                values.add((i & 1) == 0);
+            }
+
+            IntBooleanHashMap map = IntBooleanHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+
+            int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+            assertEquals(expectedCap, primitiveKeysLength(IntBooleanHashMap.class, map),
+                    "keys table length wrong at n=" + n);
+            assertTrue(n <= expectedCap / 2, "sizing does not clear 50% threshold at n=" + n);
+            assertEquals(n, map.size());
+        }
+    }
+
+    @Test
+    public void primBoolBulkLoadExactMatchesPreSizedPutLoopLayoutWithCollisions() throws Exception
+    {
+        int n = 20;
+        int expectedCap = smallestPowerOfTwoGreaterThan(2 * n);
+        // IntBooleanHashMap probes spreadAndMask(element) first, so the bucket is
+        // chosen through the Fibonacci spread rather than the raw key.
+        IntArrayList keys = keysSharingFirstProbe(n, expectedCap, true);
+        BooleanArrayList values = new BooleanArrayList();
+        for (int i = 0; i < n; i++)
+        {
+            values.add((i & 1) == 0);
+        }
+
+        IntBooleanHashMap pumped = IntBooleanHashMap.bulkLoadExact(n, keys, values, DuplicatePolicy.ERROR);
+        IntBooleanHashMap putLoop = new IntBooleanHashMap(n);
+        for (int i = 0; i < n; i++)
+        {
+            putLoop.put(keys.get(i), values.get(i));
+        }
+
+        // Layout-compatibility check; see the note on the primitive->object twin.
+        assertArrayEquals(primitiveKeys(IntBooleanHashMap.class, putLoop),
+                primitiveKeys(IntBooleanHashMap.class, pumped));
+        assertEquals(putLoop, pumped);
+    }
+
+    @Test
+    public void primBoolSentinelKeysSurvivePumpWithBothValues()
+    {
+        IntArrayList keys = IntArrayList.newListWith(0, 1, 2);
+        BooleanArrayList values = BooleanArrayList.newListWith(false, true, false);
+        IntBooleanHashMap map = IntBooleanHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(3, map.size());
+        assertTrue(map.containsKey(0));
+        assertFalse(map.get(0));
+        assertTrue(map.containsKey(1));
+        assertTrue(map.get(1));
+        assertFalse(map.get(2));
+
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> IntBooleanHashMap.bulkLoad(
+                        2, IntArrayList.newListWith(1, 1), BooleanArrayList.newListWith(false, true),
+                        DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primBoolDuplicateErrorAndIgnore()
+    {
+        IntArrayList keys = IntArrayList.newListWith(5, 6, 5);
+        BooleanArrayList values = BooleanArrayList.newListWith(false, true, true);
+        assertThrows(Pump.PumpSourceDuplicate.class,
+                () -> IntBooleanHashMap.bulkLoad(3, keys, values, DuplicatePolicy.ERROR));
+
+        IntBooleanHashMap map = IntBooleanHashMap.bulkLoad(3, keys, values, DuplicatePolicy.IGNORE);
+        assertEquals(2, map.size());
+        assertFalse(map.get(5));   // first value wins even though it is `false`
+        assertTrue(map.get(6));
+    }
+
+    @Test
+    public void primBoolMismatchedLengthsAndOversizeAndBadHint()
+    {
+        IntArrayList keys = IntArrayList.newListWith(1, 2, 3);
+        assertThrows(IllegalArgumentException.class,
+                () -> IntBooleanHashMap.bulkLoad(
+                        3, keys, BooleanArrayList.newListWith(true, false), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntBooleanHashMap.bulkLoad(
+                        3, keys, BooleanArrayList.newListWith(true, false, true, false), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntBooleanHashMap.bulkLoadExact(
+                        2, keys, BooleanArrayList.newListWith(true, false, true), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntBooleanHashMap.bulkLoad(
+                        (1 << 29) + 1, new IntArrayList(), new BooleanArrayList(), DuplicatePolicy.ERROR));
+        assertThrows(IllegalArgumentException.class,
+                () -> IntBooleanHashMap.bulkLoad(
+                        -1, new IntArrayList(), new BooleanArrayList(), DuplicatePolicy.ERROR));
+    }
+
+    @Test
+    public void primBoolEmptyBulkLoad()
+    {
+        IntBooleanHashMap map = IntBooleanHashMap.bulkLoad(
+                0, new IntArrayList(), new BooleanArrayList(), DuplicatePolicy.ERROR);
+        assertTrue(map.isEmpty());
+        assertEquals(new IntBooleanHashMap(), map);
+    }
+
+    @Test
+    public void primBoolFloatKeysPreserveRawBitIdentity()
+    {
+        float nan1 = Float.intBitsToFloat(0x7fc00000);
+        float nan2 = Float.intBitsToFloat(0x7fc00001);
+        FloatArrayList keys = FloatArrayList.newListWith(-0.0f, 0.0f, nan1, nan2);
+        BooleanArrayList values = BooleanArrayList.newListWith(true, false, true, false);
+
+        FloatBooleanHashMap map = FloatBooleanHashMap.bulkLoad(4, keys, values, DuplicatePolicy.ERROR);
+        assertEquals(4, map.size());
+        assertTrue(map.get(-0.0f));
+        assertFalse(map.get(0.0f));
+        assertTrue(map.get(nan1));
+        assertFalse(map.get(nan2));
+    }
+
+    /**
+     * {@code count} distinct int keys that all land on the SAME initial bucket of a
+     * table of {@code capacity} slots, so every key after the first must probe.
+     * The callers disagree about the first probe: {@code IntObjectHashMap} (like
+     * {@code IntIntHashMap}) masks the raw key, while {@code IntBooleanHashMap}
+     * masks the Fibonacci spread -- so the fixture mirrors whichever one is under
+     * test ({@code spread}). Do not read this as a family-wide rule: the emitted
+     * {@code Byte*} classes spread nothing in either family, and the other
+     * object-valued classes mask an {@code int} cast of the key.
+     */
+    private static IntArrayList keysSharingFirstProbe(int count, int capacity, boolean spread)
+    {
+        IntArrayList keys = new IntArrayList();
+        int bucket = -1;
+        for (int k = 100; keys.size() < count; k++)
+        {
+            int slot = firstProbeSlot(k, capacity, spread);
+            if (bucket < 0)
+            {
+                bucket = slot;
+            }
+            if (slot == bucket)
+            {
+                keys.add(k);
+            }
+        }
+        for (int i = 0; i < keys.size(); i++)
+        {
+            assertEquals(bucket, firstProbeSlot(keys.get(i), capacity, spread),
+                    "fixture key does not share the first probe slot");
+        }
+        return keys;
+    }
+
+    private static int firstProbeSlot(int key, int capacity, boolean spread)
+    {
+        return (spread ? Fibonacci.intSpreadOne(key) : key) & (capacity - 1);
+    }
+
+    /** Object key whose hash forces every instance into the same bucket. */
+    private static final class CollidingKey
+    {
+        private final int id;
+
+        CollidingKey(int id)
+        {
+            this.id = id;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return 42;
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            return o instanceof CollidingKey && ((CollidingKey) o).id == this.id;
+        }
+    }
+
     // ------------------------------------------------------------------
     // reflection / arithmetic helpers
     // ------------------------------------------------------------------
@@ -862,5 +1525,32 @@ public class PumpTest
         Field f = IntHashSet.class.getDeclaredField("table");
         f.setAccessible(true);
         return ((int[]) f.get(set)).length;
+    }
+
+    private static int primitiveKeysLength(Class<?> cls, Object map) throws Exception
+    {
+        return java.lang.reflect.Array.getLength(rawKeys(cls, map));
+    }
+
+    private static int objectKeysLength(Class<?> cls, Object map) throws Exception
+    {
+        return ((Object[]) rawKeys(cls, map)).length;
+    }
+
+    private static int[] primitiveKeys(Class<?> cls, Object map) throws Exception
+    {
+        return ((int[]) rawKeys(cls, map)).clone();
+    }
+
+    private static Object[] objectKeys(Class<?> cls, Object map) throws Exception
+    {
+        return ((Object[]) rawKeys(cls, map)).clone();
+    }
+
+    private static Object rawKeys(Class<?> cls, Object map) throws Exception
+    {
+        Field f = cls.getDeclaredField("keys");
+        f.setAccessible(true);
+        return f.get(map);
     }
 }

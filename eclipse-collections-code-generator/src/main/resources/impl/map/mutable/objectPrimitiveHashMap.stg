@@ -66,6 +66,7 @@ import org.mapdb.collections.api.map.primitive.Object<name>Map;
 import org.mapdb.collections.api.set.primitive.<name>Set;
 import org.mapdb.collections.api.set.primitive.Mutable<name>Set;
 import org.mapdb.collections.api.tuple.primitive.Object<name>Pair;
+import org.mapdb.collections.impl.Pump;
 import org.mapdb.collections.impl.collection.mutable.primitive.Synchronized<name>Collection;
 import org.mapdb.collections.impl.collection.mutable.primitive.Unmodifiable<name>Collection;
 import org.mapdb.collections.impl.lazy.AbstractLazyIterable;
@@ -177,6 +178,107 @@ public class Object<name>HashMap\<K> implements MutableObject<name>Map\<K>, Exte
     public static \<K> Object<name>HashMap\<K> newWithKeysValues(K key1, <type> value1, K key2, <type> value2, K key3, <type> value3, K key4, <type> value4)
     {
         return new Object<name>HashMap\<K>(4).withKeysValues(key1, value1, key2, value2, key3, value3, key4, value4);
+    }
+
+    /**
+     * Bulk-import (data pump) factory: builds a fresh map from the supplied keys
+     * and values, pre-sizing the open-addressing table once so the load runs in a
+     * single O(n) pass with no mid-load rehash. See the mapdb spec data-pump
+     * feature. The {@code expectedSize} is a hint: if the source turns out to be
+     * larger, the table grows normally (this overload does NOT guarantee
+     * zero-rehash; use {@link #bulkLoadExact} for that). Keys and values are
+     * consumed in lock-step; the iterables must be the same length.
+     *
+     * Insert-only / fresh-target: a new map is returned. Duplicate keys are
+     * handled per {@code policy} ({@link Pump.DuplicatePolicy#ERROR} throws
+     * {@link Pump.PumpSourceDuplicate}; {@link Pump.DuplicatePolicy#IGNORE} keeps
+     * the first value and skips later occurrences).
+     */
+    public static \<K> Object<name>HashMap\<K> bulkLoad(int expectedSize, Iterable\<? extends K> keys, <name>Iterable values, Pump.DuplicatePolicy policy)
+    {
+        Object<name>HashMap\<K> map = new Object<name>HashMap\<>();
+        map.allocateTableForBulk(expectedSize);
+        map.bulkPut(keys, values, policy, -1);
+        return map;
+    }
+
+    /**
+     * Exact bulk-import (data pump) factory: pre-sizes the table to hold exactly
+     * {@code exactSize} elements with a GUARANTEED zero mid-load rehash, and
+     * throws {@link IllegalArgumentException} if the source yields more than
+     * {@code exactSize} elements (preserving the zero-rehash contract). Duplicate
+     * handling is the same as {@link #bulkLoad}.
+     */
+    public static \<K> Object<name>HashMap\<K> bulkLoadExact(int exactSize, Iterable\<? extends K> keys, <name>Iterable values, Pump.DuplicatePolicy policy)
+    {
+        Object<name>HashMap\<K> map = new Object<name>HashMap\<>();
+        map.allocateTableForBulk(exactSize);
+        map.bulkPut(keys, values, policy, exactSize);
+        return map;
+    }
+
+    private void bulkPut(Iterable\<? extends K> keys, <name>Iterable values, Pump.DuplicatePolicy policy, int maxElements)
+    {
+        Iterator\<? extends K> ki = keys.iterator();
+        <name>Iterator vi = values.<type>Iterator();
+        int consumed = 0;
+        while (ki.hasNext())
+        {
+            if (!vi.hasNext())
+            {
+                throw new IllegalArgumentException("bulkLoad: fewer values than keys");
+            }
+            K key = ki.next();
+            <type> value = vi.next();
+            consumed++;
+            if (maxElements >= 0 && consumed > maxElements)
+            {
+                throw new IllegalArgumentException("bulkLoadExact: source exceeds exactSize " + maxElements);
+            }
+            if (this.containsKey(key))
+            {
+                if (policy == Pump.DuplicatePolicy.ERROR)
+                {
+                    throw new Pump.PumpSourceDuplicate(key);
+                }
+                // IGNORE: keep the first value, skip this one.
+                continue;
+            }
+            this.put(key, value);
+        }
+        if (vi.hasNext())
+        {
+            throw new IllegalArgumentException("bulkLoad: more values than keys");
+        }
+    }
+
+    /**
+     * Allocate the backing table once so it can hold {@code expectedSize} entries
+     * with no rehash during a bulk load. EC grows at ~50% occupancy
+     * (maxOccupiedWithData == capacity / 2), so a table of capacity
+     * nextPow2(2 * expectedSize) keeps occupiedWithData at or below capacity / 2
+     * for the whole load and never trips the strict rehash trigger. See
+     * spec/algorithms.md and spec/features/data-pump.md (the formula is the
+     * EC-50%-threshold adaptation of nextPow2(floor(4n/3)+1)).
+     */
+    private void allocateTableForBulk(int expectedSize)
+    {
+        if (expectedSize \< 0)
+        {
+            throw new IllegalArgumentException("expectedSize cannot be less than 0");
+        }
+        if (expectedSize == 0)
+        {
+            return; // keep the default empty table allocated by the constructor
+        }
+        // 2 * expectedSize, overflow-safe. Keys and values live in separate arrays
+        // here, so the table itself is the only power-of-two bound that applies.
+        long needed = 2L * expectedSize;
+        if (needed > (1L \<\< 30))
+        {
+            throw new IllegalArgumentException("expectedSize too large for a single bulk allocation: " + expectedSize);
+        }
+        this.allocateTable(this.smallestPowerOfTwoGreaterThan((int) needed));
     }
 
     private int smallestPowerOfTwoGreaterThan(int n)
