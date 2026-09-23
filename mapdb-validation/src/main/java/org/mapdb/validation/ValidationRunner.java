@@ -6,6 +6,7 @@ package org.mapdb.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
@@ -43,15 +44,21 @@ import org.mapdb.collections.impl.tuple.Tuples;
 import org.mapdb.collections.impl.utility.FloatTotalOrder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -83,6 +90,11 @@ public final class ValidationRunner {
     private final Map<String, int[]> dirStats = new java.util.TreeMap<>(); // dir -> [pass, fail, skipUnsupported]
 
     public static void main(String[] args) throws IOException {
+        if (hasTraceFlag(args)) {
+            String[] parsed = parseTraceArgs(args);
+            new ValidationRunner().runTrace(Path.of(parsed[0]), Path.of(parsed[1]));
+            return;
+        }
         if (args.length < 1) {
             System.err.println("Usage: ValidationRunner <scenarios-root-or-file>");
             System.exit(2);
@@ -90,6 +102,340 @@ public final class ValidationRunner {
         ValidationRunner runner = new ValidationRunner();
         int code = runner.run(Path.of(args[0]));
         System.exit(code);
+    }
+
+    /** True when either trace-mode flag is present. Other args stay the positional walk. */
+    private static boolean hasTraceFlag(String[] args) {
+        for (String a : args) {
+            if ("--trace".equals(a) || "--emit-observations".equals(a)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@code --trace <file> --emit-observations <out>} in either order.
+     * A missing partner flag, a duplicate, or any positional path is exit 2.
+     */
+    private static String[] parseTraceArgs(String[] args) {
+        String trace = null;
+        String out = null;
+        int positional = 0;
+        for (int i = 0; i < args.length; i++) {
+            String a = args[i];
+            if ("--trace".equals(a)) {
+                if (trace != null || i + 1 >= args.length || args[i + 1].startsWith("--")) {
+                    usageTrace();
+                }
+                trace = args[++i];
+            } else if ("--emit-observations".equals(a)) {
+                if (out != null || i + 1 >= args.length || args[i + 1].startsWith("--")) {
+                    usageTrace();
+                }
+                out = args[++i];
+            } else {
+                positional++;
+            }
+        }
+        if (trace == null || out == null || positional > 0) {
+            usageTrace();
+        }
+        return new String[] {trace, out};
+    }
+
+    private static void usageTrace() {
+        System.err.println("Usage: ValidationRunner --trace <file> --emit-observations <out.json>");
+        System.exit(2);
+    }
+
+    /**
+     * Replay one scenario and write observations. Does not read assertions.
+     * Unknown top-level keys (including {@code generator}) are ignored.
+     * The final file is created only after every op succeeds, via a same-directory
+     * temp file renamed into place ({@code ATOMIC_MOVE}, else a plain move).
+     */
+    private void runTrace(Path file, Path out) {
+        try {
+            JsonNode scenario = MAPPER.readTree(Files.readString(file));
+            String collection = scenario.path("collection").asText("");
+            if (!"HashMap<i32, i32>".equals(collection)
+                    && !"ArrayList<i32>".equals(collection)
+                    && !"TreeMap<i32, i32>".equals(collection)) {
+                System.err.println("skip: unsupported collection kind (forward-compat): " + collection);
+                System.exit(0);
+            }
+            String construction = scenario.path("construction").asText("");
+            if (!construction.isEmpty()) {
+                throw new TraceAbort("non-empty construction not supported in trace mode: " + construction);
+            }
+            String name = scenario.path("name").asText(file.getFileName().toString());
+            Map<String, String> observations;
+            if ("HashMap<i32, i32>".equals(collection)) {
+                observations = traceIntIntMap(scenario);
+            } else if ("ArrayList<i32>".equals(collection)) {
+                observations = traceIntList(scenario);
+            } else {
+                observations = traceIntTreeMap(scenario);
+            }
+            atomicWrite(out, renderObservations(name, collection, observations));
+        } catch (TraceAbort e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+        } catch (Exception e) {
+            String msg = e.getMessage() == null ? e.toString() : e.getMessage();
+            System.err.println(msg.replace('\n', ' ').replace('\r', ' '));
+            System.exit(1);
+        }
+        System.exit(0);
+    }
+
+    private static JsonNode traceOps(JsonNode scenario) {
+        JsonNode ops = scenario.get("operations");
+        if (ops == null || ops.isNull() || ops.isMissingNode()) {
+            return null;
+        }
+        if (!ops.isArray()) {
+            throw new TraceAbort("malformed trace: operations is not an array");
+        }
+        return ops;
+    }
+
+    /** Integer JSON field, or exit 1. Missing nodes are not passed to {@code asInt}. */
+    private static int requireInt(JsonNode op, String field) {
+        JsonNode n = op.get(field);
+        if (n == null || n.isNull() || !n.isIntegralNumber() || !n.canConvertToInt()) {
+            throw new TraceAbort("malformed op: " + op.path("op").asText("") + " requires integer " + field);
+        }
+        return n.intValue();
+    }
+
+    /** Records a put/remove key. Integer 99 anywhere in a key field suppresses the absent-99 probes. */
+    private static int noteKey(JsonNode op, Set<Integer> keys, boolean[] saw99) {
+        int k = requireInt(op, "key");
+        keys.add(k);
+        if (k == 99) {
+            saw99[0] = true;
+        }
+        return k;
+    }
+
+    /** A {@code get} key does not join the probe set, but 99 still counts as seen. */
+    private static void noteSeenKey(JsonNode op, boolean[] saw99) {
+        if (requireInt(op, "key") == 99) {
+            saw99[0] = true;
+        }
+    }
+
+    private static void addObs(Map<String, String> obs, String key, String value) {
+        if (value != null) {
+            obs.put(key, value);
+        }
+    }
+
+    private Map<String, String> traceIntIntMap(JsonNode scenario) {
+        IntIntHashMap map = new IntIntHashMap();
+        Set<Integer> keys = new LinkedHashSet<>();
+        boolean[] saw99 = new boolean[1];
+        applyMapOps(scenario, keys, saw99, new MapTraceOps() {
+            @Override
+            public void put(int k, int v) {
+                map.put(k, v);
+            }
+
+            @Override
+            public void remove(int k) {
+                map.removeKey(k);
+            }
+
+            @Override
+            public void clear() {
+                map.clear();
+            }
+        }, "hashmap");
+        Map<String, String> obs = new TreeMap<>();
+        addObs(obs, "size", evalIntIntMap("size", map));
+        addObs(obs, "is_empty", evalIntIntMap("is_empty", map));
+        addObs(obs, "sorted_keys", evalIntIntMap("sorted_keys", map));
+        addObs(obs, "sorted_values", evalIntIntMap("sorted_values", map));
+        for (int k : keys) {
+            addObs(obs, "get_" + k, evalIntIntMap("get_" + k, map));
+            addObs(obs, "contains_" + k, evalIntIntMap("contains_" + k, map));
+        }
+        if (!saw99[0]) {
+            addObs(obs, "get_99", evalIntIntMap("get_99", map));
+            addObs(obs, "contains_99", evalIntIntMap("contains_99", map));
+        }
+        return obs;
+    }
+
+    private Map<String, String> traceIntList(JsonNode scenario) {
+        IntArrayList list = new IntArrayList();
+        JsonNode ops = traceOps(scenario);
+        if (ops != null) {
+            for (JsonNode op : ops) {
+                if (op == null || !op.isObject()) {
+                    throw new TraceAbort("malformed trace op");
+                }
+                switch (op.path("op").asText("")) {
+                    case "add":
+                        list.add(requireInt(op, "value"));
+                        break;
+                    case "add_at":
+                        list.addAtIndex(requireInt(op, "index"), requireInt(op, "value"));
+                        break;
+                    case "remove":
+                        list.remove(requireInt(op, "value"));
+                        break;
+                    case "clear":
+                        list.clear();
+                        break;
+                    default:
+                        throw new TraceAbort("unknown arraylist op: " + op.path("op").asText(""));
+                }
+            }
+        }
+        Map<String, String> obs = new TreeMap<>();
+        addObs(obs, "size", evalIntList("size", list));
+        addObs(obs, "is_empty", evalIntList("is_empty", list));
+        addObs(obs, "to_sorted_array", evalIntList("to_sorted_array", list));
+        addObs(obs, "sum", evalIntList("sum", list));
+        for (int i = 0; i < list.size(); i++) {
+            addObs(obs, "get_at_" + i, evalIntList("get_at_" + i, list));
+        }
+        return obs;
+    }
+
+    private Map<String, String> traceIntTreeMap(JsonNode scenario) {
+        NavigableTreeMap<Integer, Integer> map = NavigableTreeMap.newMap();
+        Set<Integer> keys = new LinkedHashSet<>();
+        boolean[] saw99 = new boolean[1];
+        applyMapOps(scenario, keys, saw99, new MapTraceOps() {
+            @Override
+            public void put(int k, int v) {
+                map.put(k, v);
+            }
+
+            @Override
+            public void remove(int k) {
+                map.remove(k);
+            }
+
+            @Override
+            public void clear() {
+                map.clear();
+            }
+        }, "treemap");
+        List<Integer> empty = List.of();
+        Map<String, String> obs = new TreeMap<>();
+        addObs(obs, "size", evalIntTreeMap("size", map, null, empty, empty, empty, empty, empty));
+        addObs(obs, "is_empty", evalIntTreeMap("is_empty", map, null, empty, empty, empty, empty, empty));
+        addObs(obs, "sorted_keys", evalIntTreeMap("sorted_keys", map, null, empty, empty, empty, empty, empty));
+        addObs(obs, "sorted_values", evalIntTreeMap("sorted_values", map, null, empty, empty, empty, empty, empty));
+        if (map.size() > 0) {
+            addObs(obs, "first_key", evalIntTreeMap("first_key", map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "last_key", evalIntTreeMap("last_key", map, null, empty, empty, empty, empty, empty));
+        }
+        for (int k : keys) {
+            addObs(obs, "get_" + k, evalIntTreeMap("get_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "contains_" + k, evalIntTreeMap("contains_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "floor_" + k, evalIntTreeMap("floor_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "ceiling_" + k, evalIntTreeMap("ceiling_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "lower_" + k, evalIntTreeMap("lower_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "higher_" + k, evalIntTreeMap("higher_" + k, map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "rank_" + k, evalIntTreeMap("rank_" + k, map, null, empty, empty, empty, empty, empty));
+        }
+        if (!saw99[0]) {
+            addObs(obs, "get_99", evalIntTreeMap("get_99", map, null, empty, empty, empty, empty, empty));
+            addObs(obs, "contains_99", evalIntTreeMap("contains_99", map, null, empty, empty, empty, empty, empty));
+        }
+        int n = map.size();
+        if (n >= 1 && n <= 32) {
+            for (int i = 0; i < n; i++) {
+                addObs(obs, "select_" + i, evalIntTreeMap("select_" + i, map, null, empty, empty, empty, empty, empty));
+            }
+        }
+        return obs;
+    }
+
+    private interface MapTraceOps {
+        void put(int k, int v);
+
+        void remove(int k);
+
+        void clear();
+    }
+
+    private static void applyMapOps(JsonNode scenario, Set<Integer> keys, boolean[] saw99,
+                                    MapTraceOps ops, String kind) {
+        JsonNode nodes = traceOps(scenario);
+        if (nodes == null) {
+            return;
+        }
+        for (JsonNode op : nodes) {
+            if (op == null || !op.isObject()) {
+                throw new TraceAbort("malformed trace op");
+            }
+            switch (op.path("op").asText("")) {
+                case "put":
+                    ops.put(noteKey(op, keys, saw99), requireInt(op, "value"));
+                    break;
+                case "remove":
+                    ops.remove(noteKey(op, keys, saw99));
+                    break;
+                case "clear":
+                    ops.clear();
+                    break;
+                case "get":
+                    noteSeenKey(op, saw99);
+                    break;
+                default:
+                    throw new TraceAbort("unknown " + kind + " op: " + op.path("op").asText(""));
+            }
+        }
+    }
+
+    private static String renderObservations(String name, String collection, Map<String, String> observations)
+            throws IOException {
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("name", name);
+        root.put("collection", collection);
+        ObjectNode obs = MAPPER.createObjectNode();
+        for (Map.Entry<String, String> e : observations.entrySet()) {
+            obs.put(e.getKey(), e.getValue());
+        }
+        root.set("observations", obs);
+        String json = MAPPER.writeValueAsString(root);
+        return json.endsWith("\n") ? json : json + "\n";
+    }
+
+    /**
+     * Write {@code body} to a temp file in {@code out}'s directory, then rename it
+     * onto {@code out}. {@code ATOMIC_MOVE} is used when the filesystem allows it.
+     */
+    private static void atomicWrite(Path out, String body) throws IOException {
+        Path parent = out.toAbsolutePath().getParent();
+        if (parent == null) {
+            throw new IOException("output path has no parent: " + out);
+        }
+        Path tmp = Files.createTempFile(parent, ".mapdb-obs-", ".tmp");
+        try {
+            Files.writeString(tmp, body, StandardCharsets.UTF_8);
+            try {
+                Files.move(tmp, out, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException ex) {
+                Files.move(tmp, out, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
+    }
+
+    /** Trace-mode failure. Printed as one stderr line; the observation file is not created. */
+    private static final class TraceAbort extends RuntimeException {
+        TraceAbort(String msg) {
+            super(msg);
+        }
     }
 
     private int run(Path root) throws IOException {
