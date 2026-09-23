@@ -17,6 +17,7 @@ import org.mapdb.collections.impl.bounded.EvictionCause;
 import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
+import org.mapdb.collections.impl.list.primitive.IntInterval;
 import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.LongIntHashMap;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -85,11 +87,25 @@ public final class ValidationRunner {
     private boolean anyFail = false;
     private int scenariosRun = 0;
     private int skippedAssertions = 0;
+    /** Child process: apply ops, never re-spawn. */
+    private boolean panicChildMode = false;
+
+    /** Assertion line: {@code key: value}. The space after the colon is required. */
+    private static final Pattern PANIC_SENTINEL_LINE = Pattern.compile("^[A-Za-z0-9_+-]+: ");
 
     // Per-dir tallies for the summary table.
     private final Map<String, int[]> dirStats = new java.util.TreeMap<>(); // dir -> [pass, fail, skipUnsupported]
 
     public static void main(String[] args) throws IOException {
+        if (args.length == 1 && "--panic-judge-selftest".equals(args[0])) {
+            panicJudgeSelfTest();
+        }
+        if (args.length == 2 && "--panic-child".equals(args[0])) {
+            ValidationRunner runner = new ValidationRunner();
+            runner.panicChildMode = true;
+            int code = runner.run(Path.of(args[1]));
+            System.exit(code);
+        }
         if (hasTraceFlag(args)) {
             String[] parsed = parseTraceArgs(args);
             new ValidationRunner().runTrace(Path.of(parsed[0]), Path.of(parsed[1]));
@@ -147,6 +163,81 @@ public final class ValidationRunner {
     private static void usageTrace() {
         System.err.println("Usage: ValidationRunner --trace <file> --emit-observations <out.json>");
         System.exit(2);
+    }
+
+    /**
+     * A line is a sentinel when, after stripping a trailing CR, it starts with
+     * {@code === scenario:} or matches {@code ^[A-Za-z0-9_+-]+: }.
+     * PASS/FAIL/SKIP/ERROR/SUMMARY lines are not sentinels.
+     */
+    static boolean stdoutHasSentinel(String stdout) {
+        if (stdout == null || stdout.isEmpty()) {
+            return false;
+        }
+        int start = 0;
+        while (start <= stdout.length()) {
+            int nl = stdout.indexOf('\n', start);
+            String line = nl < 0 ? stdout.substring(start) : stdout.substring(start, nl);
+            if (line.endsWith("\r")) {
+                line = line.substring(0, line.length() - 1);
+            }
+            if (line.startsWith("=== scenario:")) {
+                return true;
+            }
+            if (!panicStatusLine(line) && PANIC_SENTINEL_LINE.matcher(line).lookingAt()) {
+                return true;
+            }
+            if (nl < 0) {
+                break;
+            }
+            start = nl + 1;
+        }
+        return false;
+    }
+
+    /**
+     * Status lines whose key is exactly PASS, FAIL, SKIP, ERROR, or SUMMARY.
+     * {@code FAIL-count: 1} is an assertion sentinel, not a status line.
+     */
+    private static boolean panicStatusLine(String line) {
+        for (String key : new String[] {"PASS", "FAIL", "SKIP", "ERROR", "SUMMARY"}) {
+            if (line.equals(key) || line.startsWith(key + " ") || line.startsWith(key + ":")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Pass iff the child died non-zero, was not timed out, and printed no sentinel. */
+    static boolean panicPassed(boolean timedOut, int exitCode, String stdout) {
+        return !timedOut && exitCode != 0 && !stdoutHasSentinel(stdout);
+    }
+
+    private static void panicJudgeSelfTest() {
+        boolean[] ok = new boolean[] {
+            !panicPassed(false, 0, ""),
+            !panicPassed(false, 0, "=== scenario: x ===\n"),
+            !panicPassed(false, 1, "size: 1\n"),
+            panicPassed(false, 1, ""),
+            panicPassed(false, 101, "boom\n"),
+            !panicPassed(true, 1, ""),
+            panicPassed(false, 1, "FAIL name expect_panic\n"),
+            !panicPassed(false, 1, "expect_panic: true\n"),
+            panicPassed(false, 1, "SUMMARY: 1\n"),
+            panicPassed(false, 1, "boom:detail\n"),
+            !panicPassed(false, 1, "FAIL-count: 1\n"),
+        };
+        boolean all = true;
+        for (int i = 0; i < ok.length; i++) {
+            if (!ok[i]) {
+                System.err.println("panic judge self-test failed: case " + (i + 1));
+                all = false;
+            }
+        }
+        if (!all) {
+            System.exit(1);
+        }
+        System.exit(0);
     }
 
     /**
@@ -489,6 +580,26 @@ public final class ValidationRunner {
         }
         String name = scenario.path("name").asText(file.getFileName().toString());
         String collection = scenario.path("collection").asText("");
+        if (!panicChildMode && assertionsContainExpectPanic(scenario)) {
+            JsonNode flag = scenario.get("assertions").get("expect_panic");
+            if (flag == null || !flag.isBoolean() || !flag.booleanValue()) {
+                System.out.println("=== scenario: " + name + " ===");
+                System.out.println("FAIL " + name + " expect_panic: value must be boolean true");
+                anyFail = true;
+                tally(dir, 1);
+                return;
+            }
+            if (panicCollectionKnown(collection)) {
+                runExpectPanicParent(dir, name, file, scenario);
+                return;
+            }
+        }
+        if (panicChildMode && "Interval<i32>".equals(collection)) {
+            // Outside the dispatch try/catch: a trap must leave this process.
+            runInterval(scenario);
+            System.out.println("=== scenario: " + name + " ===");
+            return;
+        }
         System.out.println("=== scenario: " + name + " ===");
         scenariosRun++;
 
@@ -623,6 +734,138 @@ public final class ValidationRunner {
         }
     }
 
+    /** Malformed interval op. Stdout already holds a scenario sentinel, so this is not a clean trap. */
+    private static final class IntervalAbort extends RuntimeException {
+        IntervalAbort(String msg) {
+            super(msg);
+        }
+    }
+
+    private static boolean assertionsContainExpectPanic(JsonNode scenario) {
+        JsonNode a = scenario.get("assertions");
+        return a != null && a.isObject() && a.has("expect_panic");
+    }
+
+    /** Kinds this runner dispatches, plus Interval. Anything else stays a skip. */
+    private static boolean panicCollectionKnown(String collection) {
+        switch (collection) {
+            case "HashMap<i32, i32>":
+            case "HashMap<i64, i32>":
+            case "ListMultimap<i64, i32>":
+            case "SetMultimap<i64, i32>":
+            case "ArrayList<i32>":
+            case "HashSet<i32>":
+            case "HashBag<i32>":
+            case "TreeSet<i32>":
+            case "TreeMap<i32, i32>":
+            case "HashMap<f32, i32>":
+            case "HashSet<f32>":
+            case "TreeSet<f32>":
+            case "ArrayList<f32>":
+            case "Range<i32>":
+            case "RangeSet<i32>":
+            case "RangeMap<i32, i32>":
+            case "BoundedLruMap<i32, i32>":
+            case "ImmutableSortedMap<i32, i32>":
+            case "ImmutableSortedSet<i32>":
+            case "HashPipeline":
+            case "Bloom":
+            case "HyperLogLog":
+            case "CountMin":
+            case "SpaceSaving":
+            case "FenwickTree":
+            case "RoaringU32":
+            case "Interval<i32>":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Parent side of {@code expect_panic}. Does not apply operations.
+     * A non-true value fails in-process. Otherwise a child must die with no sentinel.
+     */
+    private void runExpectPanicParent(String dir, String name, Path file, JsonNode scenario) {
+        JsonNode value = scenario.get("assertions").get("expect_panic");
+        scenariosRun++;
+        if (value == null || !value.isBoolean() || !value.booleanValue()) {
+            System.out.println("=== scenario: " + name + " ===");
+            System.out.println("FAIL " + name + " expect_panic: value must be boolean true");
+            anyFail = true;
+            tally(dir, 1);
+            return;
+        }
+        boolean timedOut = false;
+        int exitCode = 0;
+        String stdout = "";
+        Process child = null;
+        Thread reader = null;
+        StringBuilder captured = new StringBuilder();
+        try {
+            Path javaBin = Path.of(System.getProperty("java.home"), "bin", "java");
+            List<String> cmd = List.of(
+                    javaBin.toString(),
+                    "-cp",
+                    System.getProperty("java.class.path"),
+                    "org.mapdb.validation.ValidationRunner",
+                    "--panic-child",
+                    file.toAbsolutePath().toString());
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
+            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+            child = pb.start();
+            Process draining = child;
+            reader = new Thread(() -> {
+                try {
+                    captured.append(new String(draining.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+                } catch (IOException ignored) {
+                    // pipe closed
+                }
+            }, "panic-child-stdout");
+            // Drain while waiting: a full stdout pipe deadlocks waitFor.
+            reader.start();
+            if (!child.waitFor(10, TimeUnit.SECONDS)) {
+                timedOut = true;
+                child.destroyForcibly();
+                child.waitFor(5, TimeUnit.SECONDS);
+                reader.join(10_000);
+            } else {
+                exitCode = child.exitValue();
+                reader.join();
+            }
+            stdout = captured.toString();
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            if (child != null) {
+                child.destroyForcibly();
+            }
+            if (reader != null) {
+                try {
+                    reader.join(5000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            timedOut = false;
+            exitCode = 0;
+            stdout = "";
+        }
+        if (panicPassed(timedOut, exitCode, stdout)) {
+            System.out.println("=== scenario: " + name + " ===");
+            System.out.println("expect_panic: true");
+            System.out.println("PASS " + name);
+            tally(dir, 0);
+            return;
+        }
+        System.out.println("=== scenario: " + name + " ===");
+        System.out.println("FAIL " + name + " expect_panic: child did not trap cleanly");
+        anyFail = true;
+        tally(dir, 1);
+    }
+
     private void dispatch(String collection, JsonNode scenario, ScenarioResult r) {
         switch (collection) {
             case "HashMap<i32, i32>":
@@ -712,6 +955,51 @@ public final class ValidationRunner {
         }
     }
 
+    /**
+     * Apply {@code Interval<i32>} ops. Step 0 and min-step {@code toReversed} are not caught.
+     * A bad operand prints a scenario banner before aborting so empty stdout is not a pass.
+     */
+    private void runInterval(JsonNode scenario) {
+        IntInterval interval = null;
+        String name = scenario.path("name").asText("interval");
+        JsonNode ops = scenario.get("operations");
+        if (ops == null || !ops.isArray()) {
+            System.out.println("=== scenario: " + name + " ===");
+            throw new IntervalAbort("operations is not an array");
+        }
+        for (JsonNode op : ops) {
+            if (op == null || !op.isObject()) {
+                System.out.println("=== scenario: " + name + " ===");
+                throw new IntervalAbort("malformed interval op");
+            }
+            String kind = op.path("op").asText("");
+            if ("from_to_by".equals(kind)) {
+                int from = requireIntervalInt(name, op, "from");
+                int to = requireIntervalInt(name, op, "to");
+                int step = requireIntervalInt(name, op, "step");
+                interval = IntInterval.fromToBy(from, to, step);
+            } else if ("reversed".equals(kind)) {
+                if (interval == null) {
+                    System.out.println("=== scenario: " + name + " ===");
+                    throw new IntervalAbort("reversed with no interval");
+                }
+                interval = interval.toReversed();
+            } else {
+                System.out.println("=== scenario: " + name + " ===");
+                throw new IntervalAbort("unknown interval op: " + kind);
+            }
+        }
+    }
+
+    private static int requireIntervalInt(String name, JsonNode op, String field) {
+        JsonNode n = op.get(field);
+        if (n == null || n.isNull() || !n.isIntegralNumber() || !n.canConvertToInt()) {
+            System.out.println("=== scenario: " + name + " ===");
+            throw new IntervalAbort("interval operand is not an int32: " + field);
+        }
+        return n.intValue();
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     private static Iterable<Map.Entry<String, JsonNode>> assertions(JsonNode scenario) {
@@ -725,7 +1013,7 @@ public final class ValidationRunner {
     }
 
     private static boolean skipKey(String key) {
-        // comment is a doc string; expect_panic is RESERVED/unused -> treat as skip.
+        // comment is a doc string. expect_panic is the parent's trap check, not a child value line.
         return key.equals("comment") || key.equals("expect_panic");
     }
 
