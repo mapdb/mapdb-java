@@ -2317,16 +2317,20 @@ public final class ValidationRunner {
                     break;
                 case "sorted":
                 case "to_sorted_array": {
-                    // Sort a COPY via EC's float sort (Float::compare order).
-                    float[] arr = list.toArray();
-                    Float[] boxed = new Float[arr.length];
+                    // Production sort (IEEE 754 totalOrder, FloatTotalOrder.sort):
+                    // `sorted` = toSortedList() (a copy + sortThis()),
+                    // `to_sorted_array` = toSortedArray(). Neither mutates the list.
+                    float[] arr = "sorted".equals(key)
+                            ? list.toSortedList().toArray()
+                            : list.toSortedArray();
+                    StringBuilder sb = new StringBuilder("[");
                     for (int i = 0; i < arr.length; i++) {
-                        boxed[i] = arr[i];
+                        if (i > 0) {
+                            sb.append(',');
+                        }
+                        sb.append(FloatCodec.format(arr[i]));
                     }
-                    Arrays.sort(boxed, Float::compare);
-                    computed = "[" + Arrays.stream(boxed)
-                            .map(FloatCodec::format)
-                            .collect(Collectors.joining(",")) + "]";
+                    computed = sb.append(']').toString();
                     break;
                 }
                 default:
