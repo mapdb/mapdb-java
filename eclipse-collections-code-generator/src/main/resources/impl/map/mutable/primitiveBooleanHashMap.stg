@@ -1584,7 +1584,7 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
         public <type>[] toSortedArray()
         {
             <type>[] array = this.toArray();
-            Arrays.sort(array);
+            <(sortArray.(type))("array")>;
             return array;
         }
 

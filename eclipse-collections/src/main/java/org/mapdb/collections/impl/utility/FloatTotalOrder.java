@@ -88,6 +88,180 @@ public final class FloatTotalOrder
         return Long.compare(ai, bi);
     }
 
+    /**
+     * Sorts {@code a[fromIndex, toIndex)} ascending by IEEE 754 totalOrder.
+     *
+     * <p>{@link java.util.Arrays#sort(float[], int, int)} orders by
+     * {@link Float#compare}, which agrees with totalOrder everywhere except
+     * NaN: it moves every NaN, including negative ones, to the end and leaves
+     * their payloads unordered. This method runs that sort, then orders the
+     * trailing NaN block by totalOrder and moves the negative NaNs to the front.
+     * NaN bit patterns are preserved.
+     */
+    public static void sort(float[] a, int fromIndex, int toIndex)
+    {
+        java.util.Arrays.sort(a, fromIndex, toIndex);
+        int nanStart = toIndex;
+        while (nanStart > fromIndex && Float.isNaN(a[nanStart - 1]))
+        {
+            nanStart--;
+        }
+        int nanCount = toIndex - nanStart;
+        if (nanCount == 0)
+        {
+            return;
+        }
+        int[] keys = new int[nanCount];
+        for (int i = 0; i < nanCount; i++)
+        {
+            int bits = Float.floatToRawIntBits(a[nanStart + i]);
+            keys[i] = bits ^ ((bits >> 31) >>> 1);
+        }
+        java.util.Arrays.sort(keys);
+        int negativeCount = 0;
+        while (negativeCount < nanCount && keys[negativeCount] < 0)
+        {
+            negativeCount++;
+        }
+        System.arraycopy(a, fromIndex, a, fromIndex + negativeCount, nanStart - fromIndex);
+        for (int i = 0; i < negativeCount; i++)
+        {
+            int key = keys[i];
+            a[fromIndex + i] = Float.intBitsToFloat(key ^ ((key >> 31) >>> 1));
+        }
+        for (int i = negativeCount; i < nanCount; i++)
+        {
+            int key = keys[i];
+            a[nanStart + i] = Float.intBitsToFloat(key ^ ((key >> 31) >>> 1));
+        }
+    }
+
+    /**
+     * Sorts {@code a} ascending by IEEE 754 totalOrder.
+     */
+    public static void sort(float[] a)
+    {
+        FloatTotalOrder.sort(a, 0, a.length);
+    }
+
+    /**
+     * Sorts {@code a[fromIndex, toIndex)} ascending by IEEE 754 totalOrder.
+     * See {@link #sort(float[], int, int)}.
+     */
+    public static void sort(double[] a, int fromIndex, int toIndex)
+    {
+        java.util.Arrays.sort(a, fromIndex, toIndex);
+        int nanStart = toIndex;
+        while (nanStart > fromIndex && Double.isNaN(a[nanStart - 1]))
+        {
+            nanStart--;
+        }
+        int nanCount = toIndex - nanStart;
+        if (nanCount == 0)
+        {
+            return;
+        }
+        long[] keys = new long[nanCount];
+        for (int i = 0; i < nanCount; i++)
+        {
+            long bits = Double.doubleToRawLongBits(a[nanStart + i]);
+            keys[i] = bits ^ ((bits >> 63) >>> 1);
+        }
+        java.util.Arrays.sort(keys);
+        int negativeCount = 0;
+        while (negativeCount < nanCount && keys[negativeCount] < 0L)
+        {
+            negativeCount++;
+        }
+        System.arraycopy(a, fromIndex, a, fromIndex + negativeCount, nanStart - fromIndex);
+        for (int i = 0; i < negativeCount; i++)
+        {
+            long key = keys[i];
+            a[fromIndex + i] = Double.longBitsToDouble(key ^ ((key >> 63) >>> 1));
+        }
+        for (int i = negativeCount; i < nanCount; i++)
+        {
+            long key = keys[i];
+            a[nanStart + i] = Double.longBitsToDouble(key ^ ((key >> 63) >>> 1));
+        }
+    }
+
+    /**
+     * Sorts {@code a} ascending by IEEE 754 totalOrder.
+     */
+    public static void sort(double[] a)
+    {
+        FloatTotalOrder.sort(a, 0, a.length);
+    }
+
+    /**
+     * Binary search over {@code a[fromIndex, toIndex)}, which must be sorted by
+     * IEEE 754 totalOrder (see {@link #sort(float[], int, int)}). Same return
+     * contract as {@link java.util.Arrays#binarySearch(float[], int, int, float)};
+     * a match is a raw-bit match.
+     */
+    public static int binarySearch(float[] a, int fromIndex, int toIndex, float key)
+    {
+        int low = fromIndex;
+        int high = toIndex - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) >>> 1;
+            int cmp = FloatTotalOrder.totalCompare(a[mid], key);
+            if (cmp < 0)
+            {
+                low = mid + 1;
+            }
+            else if (cmp > 0)
+            {
+                high = mid - 1;
+            }
+            else
+            {
+                return mid;
+            }
+        }
+        return -(low + 1);
+    }
+
+    public static int binarySearch(float[] a, float key)
+    {
+        return FloatTotalOrder.binarySearch(a, 0, a.length, key);
+    }
+
+    /**
+     * Binary search over {@code a[fromIndex, toIndex)}, which must be sorted by
+     * IEEE 754 totalOrder. See {@link #binarySearch(float[], int, int, float)}.
+     */
+    public static int binarySearch(double[] a, int fromIndex, int toIndex, double key)
+    {
+        int low = fromIndex;
+        int high = toIndex - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) >>> 1;
+            int cmp = FloatTotalOrder.totalCompare(a[mid], key);
+            if (cmp < 0)
+            {
+                low = mid + 1;
+            }
+            else if (cmp > 0)
+            {
+                high = mid - 1;
+            }
+            else
+            {
+                return mid;
+            }
+        }
+        return -(low + 1);
+    }
+
+    public static int binarySearch(double[] a, double key)
+    {
+        return FloatTotalOrder.binarySearch(a, 0, a.length, key);
+    }
+
     private static int totalCompare(Float a, Float b)
     {
         return totalCompare(a.floatValue(), b.floatValue());

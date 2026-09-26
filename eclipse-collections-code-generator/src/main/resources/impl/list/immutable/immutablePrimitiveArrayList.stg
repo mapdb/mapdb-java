@@ -373,7 +373,7 @@ final class Immutable<name>ArrayList
     public <type>[] toSortedArray()
     {
         <type>[] array = this.toArray();
-        Arrays.sort(array);
+        <(sortArray.(type))("array")>;
         return array;
     }
 
@@ -407,7 +407,7 @@ final class Immutable<name>ArrayList
     @Override
     public int binarySearch(<type> value)
     {
-        return Arrays.binarySearch(this.items, value);
+        return <(binarySearchArray.(type))("this.items", "value")>;
     }
 
     @Override

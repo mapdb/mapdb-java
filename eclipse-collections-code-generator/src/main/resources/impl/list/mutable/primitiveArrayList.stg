@@ -998,7 +998,7 @@ public class <name>ArrayList extends Abstract<name>Iterable
     @Override
     public <name>ArrayList sortThis()
     {
-        Arrays.sort(this.items, 0, this.size);
+        <(sortArrayRange.(type))("this.items", "0", "this.size")>;
         return this;
     }
 
@@ -1018,7 +1018,7 @@ public class <name>ArrayList extends Abstract<name>Iterable
     @Override
     public int binarySearch(<type> value)
     {
-        return Arrays.binarySearch(this.items, 0, this.size, value);
+        return <(binarySearchArrayRange.(type))("this.items", "0", "this.size", "value")>;
     }
 
     @Override

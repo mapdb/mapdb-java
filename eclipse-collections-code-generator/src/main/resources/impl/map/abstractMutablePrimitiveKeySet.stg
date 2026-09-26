@@ -551,7 +551,7 @@ public abstract class AbstractMutable<name>KeySet implements Mutable<name>Set, E
     public <type>[] toSortedArray()
     {
         <type>[] array = this.toArray();
-        Arrays.sort(array);
+        <(sortArray.(type))("array")>;
         return array;
     }
 

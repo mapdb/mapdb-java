@@ -1273,7 +1273,7 @@ public class Object<name>HashMap\<K> implements MutableObject<name>Map\<K>, Exte
     public <type>[] toSortedArray()
     {
         <type>[] array = this.toArray();
-        Arrays.sort(array);
+        <(sortArray.(type))("array")>;
         return array;
     }
 

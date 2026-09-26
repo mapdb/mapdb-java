@@ -122,7 +122,7 @@ public double median()
 public <type>[] toSortedArray()
 {
     <type>[] array = this.toArray();
-    Arrays.sort(array);
+    <(sortArray.(type))("array")>;
     return array;
 }
 

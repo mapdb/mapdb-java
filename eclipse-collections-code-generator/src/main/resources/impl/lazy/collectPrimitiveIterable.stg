@@ -130,7 +130,7 @@ public class Collect<name>Iterable\<T>
     public <type>[] toSortedArray()
     {
         <type>[] array = this.toArray();
-        Arrays.sort(array);
+        <(sortArray.(type))("array")>;
         return array;
     }
 

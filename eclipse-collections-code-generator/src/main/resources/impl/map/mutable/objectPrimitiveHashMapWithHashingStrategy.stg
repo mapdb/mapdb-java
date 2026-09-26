@@ -1191,7 +1191,7 @@ public class Object<name>HashMapWithHashingStrategy\<K> implements MutableObject
     public <type>[] toSortedArray()
     {
         <type>[] array = this.toArray();
-        Arrays.sort(array);
+        <(sortArray.(type))("array")>;
         return array;
     }
 

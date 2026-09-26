@@ -62,11 +62,11 @@ operatorLessThan(left, right) ::= <<
 >>
 
 doubleLessThan(left, right) ::= <<
-    Double.compare(<left>, <right>) \< 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) \< 0
 >>
 
 floatLessThan(left, right) ::= <<
-    Float.compare(<left>, <right>) \< 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) \< 0
 >>
 
 greaterThanOrEquals ::= [
@@ -85,11 +85,11 @@ operatorGreaterThanOrEquals(left, right) ::= <<
 >>
 
 doubleGreaterThanOrEquals(left, right) ::= <<
-    Double.compare(<left>, <right>) >= 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) >= 0
 >>
 
 floatGreaterThanOrEquals(left, right) ::= <<
-    Float.compare(<left>, <right>) >= 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) >= 0
 >>
 
 lessThanOrEquals ::= [
@@ -108,9 +108,65 @@ operatorLessThanOrEquals(left, right) ::= <<
 >>
 
 doubleLessThanOrEquals(left, right) ::= <<
-    Double.compare(<left>, <right>) \<= 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) \<= 0
 >>
 
 floatLessThanOrEquals(left, right) ::= <<
-    Float.compare(<left>, <right>) \<= 0
+    org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>) \<= 0
+>>
+
+sortArray ::= [
+    "float": "totalOrderSortArray",
+    "double": "totalOrderSortArray",
+    default: "plainSortArray"
+]
+
+plainSortArray(array) ::= <<
+Arrays.sort(<array>)
+>>
+
+totalOrderSortArray(array) ::= <<
+org.mapdb.collections.impl.utility.FloatTotalOrder.sort(<array>)
+>>
+
+sortArrayRange ::= [
+    "float": "totalOrderSortArrayRange",
+    "double": "totalOrderSortArrayRange",
+    default: "plainSortArrayRange"
+]
+
+plainSortArrayRange(array, from, to) ::= <<
+Arrays.sort(<array>, <from>, <to>)
+>>
+
+totalOrderSortArrayRange(array, from, to) ::= <<
+org.mapdb.collections.impl.utility.FloatTotalOrder.sort(<array>, <from>, <to>)
+>>
+
+binarySearchArray ::= [
+    "float": "totalOrderBinarySearchArray",
+    "double": "totalOrderBinarySearchArray",
+    default: "plainBinarySearchArray"
+]
+
+plainBinarySearchArray(array, value) ::= <<
+Arrays.binarySearch(<array>, <value>)
+>>
+
+totalOrderBinarySearchArray(array, value) ::= <<
+org.mapdb.collections.impl.utility.FloatTotalOrder.binarySearch(<array>, <value>)
+>>
+
+binarySearchArrayRange ::= [
+    "float": "totalOrderBinarySearchArrayRange",
+    "double": "totalOrderBinarySearchArrayRange",
+    default: "plainBinarySearchArrayRange"
+]
+
+plainBinarySearchArrayRange(array, from, to, value) ::= <<
+Arrays.binarySearch(<array>, <from>, <to>, <value>)
+>>
+
+totalOrderBinarySearchArrayRange(array, from, to, value) ::= <<
+org.mapdb.collections.impl.utility.FloatTotalOrder.binarySearch(<array>, <from>, <to>, <value>)
 >>
