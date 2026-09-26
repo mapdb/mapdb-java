@@ -13,10 +13,12 @@ package org.mapdb.nativetests;
 import org.mapdb.collections.impl.list.mutable.primitive.DoubleArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
+import org.mapdb.collections.impl.utility.FloatTotalOrder;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Float/double min, max, sort and binarySearch follow IEEE 754 totalOrder
@@ -134,5 +136,27 @@ public class FloatListTotalOrderTest
                 bits(list.sortThis().toArray()));
         assertEquals(0, list.binarySearch(negNaN));
         assertEquals(3, list.binarySearch(posNaN));
+    }
+
+    @Test
+    public void binarySearchRejectsInvertedRange()
+    {
+        assertThrows(IllegalArgumentException.class,
+                () -> FloatTotalOrder.binarySearch(new float[0], 1, 0, 0.0f));
+        assertThrows(IllegalArgumentException.class,
+                () -> FloatTotalOrder.binarySearch(new double[0], 1, 0, 0.0));
+    }
+
+    @Test
+    public void binarySearchRejectsOutOfBoundsRange()
+    {
+        assertThrows(ArrayIndexOutOfBoundsException.class,
+                () -> FloatTotalOrder.binarySearch(new float[2], 0, 3, 0.0f));
+        assertThrows(ArrayIndexOutOfBoundsException.class,
+                () -> FloatTotalOrder.binarySearch(new float[2], -1, 1, 0.0f));
+        assertThrows(ArrayIndexOutOfBoundsException.class,
+                () -> FloatTotalOrder.binarySearch(new double[2], 0, 3, 0.0));
+        assertThrows(ArrayIndexOutOfBoundsException.class,
+                () -> FloatTotalOrder.binarySearch(new double[2], -1, 1, 0.0));
     }
 }

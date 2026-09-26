@@ -199,9 +199,14 @@ public final class FloatTotalOrder
      * IEEE 754 totalOrder (see {@link #sort(float[], int, int)}). Same return
      * contract as {@link java.util.Arrays#binarySearch(float[], int, int, float)};
      * a match is a raw-bit match.
+     *
+     * @throws IllegalArgumentException if {@code fromIndex > toIndex}
+     * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
+     *         {@code toIndex > a.length}
      */
     public static int binarySearch(float[] a, int fromIndex, int toIndex, float key)
     {
+        FloatTotalOrder.rangeCheck(a.length, fromIndex, toIndex);
         int low = fromIndex;
         int high = toIndex - 1;
         while (low <= high)
@@ -232,9 +237,14 @@ public final class FloatTotalOrder
     /**
      * Binary search over {@code a[fromIndex, toIndex)}, which must be sorted by
      * IEEE 754 totalOrder. See {@link #binarySearch(float[], int, int, float)}.
+     *
+     * @throws IllegalArgumentException if {@code fromIndex > toIndex}
+     * @throws ArrayIndexOutOfBoundsException if {@code fromIndex < 0} or
+     *         {@code toIndex > a.length}
      */
     public static int binarySearch(double[] a, int fromIndex, int toIndex, double key)
     {
+        FloatTotalOrder.rangeCheck(a.length, fromIndex, toIndex);
         int low = fromIndex;
         int high = toIndex - 1;
         while (low <= high)
@@ -260,6 +270,23 @@ public final class FloatTotalOrder
     public static int binarySearch(double[] a, double key)
     {
         return FloatTotalOrder.binarySearch(a, 0, a.length, key);
+    }
+
+    /** Same checks and exceptions as {@code java.util.Arrays.rangeCheck}. */
+    private static void rangeCheck(int arrayLength, int fromIndex, int toIndex)
+    {
+        if (fromIndex > toIndex)
+        {
+            throw new IllegalArgumentException("fromIndex(" + fromIndex + ") > toIndex(" + toIndex + ")");
+        }
+        if (fromIndex < 0)
+        {
+            throw new ArrayIndexOutOfBoundsException(fromIndex);
+        }
+        if (toIndex > arrayLength)
+        {
+            throw new ArrayIndexOutOfBoundsException(toIndex);
+        }
     }
 
     private static int totalCompare(Float a, Float b)
