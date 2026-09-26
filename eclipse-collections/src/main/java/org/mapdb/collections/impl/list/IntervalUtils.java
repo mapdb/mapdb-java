@@ -25,6 +25,11 @@ package org.mapdb.collections.impl.list;
  * boundary cases (e.g. {@code [126, 127]}) do not wrap. The one operation that
  * still overflows is negating {@code Integer.MIN_VALUE} in {@code toReversed},
  * which IntInterval guards explicitly.
+ *
+ * <p>{@link #lastElement} is the remainder form the spec's {@code Reversed()}
+ * uses to find the last element actually produced (the constructor's
+ * {@code to} may sit off the step grid); it does not go through
+ * {@code size()}, so no size cap can affect it.
  */
 public final class IntervalUtils
 {
@@ -73,6 +78,25 @@ public final class IntervalUtils
     {
         return IntervalUtils.isWithinBoundaries(value, from, to, step)
                 && (value - from) % step == 0L;
+    }
+
+    /**
+     * The last element actually produced by {@code [from, to] by step}: {@code to}
+     * pulled back onto the step grid anchored at {@code from}. Per
+     * spec/algorithms.md "Reversed() starts from the last element":
+     * {@code rem = distance % |step|}, then {@code to - rem} for a positive step
+     * and {@code to + rem} for a negative one. {@code rem <= distance}, so the
+     * result stays inside {@code [from, to]}. All parameters are already widened
+     * to {@code long}, so the distance and {@code -step} cannot overflow for
+     * byte/short/int operands. Callers must reject the minimum step first.
+     */
+    public static long lastElement(long from, long to, long step)
+    {
+        if (step > 0L)
+        {
+            return to - (to - from) % step;
+        }
+        return to + (from - to) % -step;
     }
 
     public static boolean isWithinBoundaries(long value, long from, long to, long step)

@@ -141,6 +141,26 @@ public final class LongIntervalUtils
                 && LongIntervalUtils.isOnGrid(value, from, step);
     }
 
+    /**
+     * The last element actually produced by {@code [from, to] by step}: {@code to}
+     * pulled back onto the step grid anchored at {@code from}. Per
+     * spec/algorithms.md "Reversed() starts from the last element":
+     * {@code rem = distance % |step|} in unsigned 64-bit arithmetic, then
+     * {@code to - rem} for a positive step and {@code to + rem} for a negative
+     * one. {@code rem <= distance}, so the two's-complement subtraction/addition
+     * lands inside {@code [from, to]}. Unlike {@code valueAtIndex(size() - 1)}
+     * this never goes through {@code size()}, so no size cap can affect it.
+     * Callers must reject {@code Long.MIN_VALUE} as a step first.
+     */
+    public static long lastElement(long from, long to, long step)
+    {
+        if (step > 0L)
+        {
+            return to - Long.remainderUnsigned(to - from, step);
+        }
+        return to + Long.remainderUnsigned(from - to, -step);
+    }
+
     public static boolean isWithinBoundaries(long value, long from, long to, long step)
     {
         return step > 0L && from <= value && value <= to

@@ -422,7 +422,15 @@ public final class ByteInterval
     }
 
     /**
-     * Returns a new ByteInterval with the from and to values reversed and the step value negated.
+     * Returns a new ByteInterval with the same elements in the opposite order: it
+     * starts from the last element this interval actually produces (the {@code to}
+     * bound pulled onto the step grid), ends at {@code from}, and has the step
+     * negated. {@code fromToBy(0, 10, 3)} is {@code 0, 3, 6, 9}, so its reverse is
+     * {@code 9, 6, 3, 0}, the same sequence {@link #asReversed()} yields. Per
+     * spec/algorithms.md "Reversed() starts from the last element, and panics at
+     * minimum step".
+     *
+     * @throws ArithmeticException if the step is {@link Byte#MIN_VALUE}
      */
     @Override
     public ByteInterval toReversed()
@@ -435,7 +443,10 @@ public final class ByteInterval
         {
             throw new ArithmeticException("Cannot reverse a ByteInterval with the minimum step value");
         }
-        return ByteInterval.fromToBy(this.to, this.from, (byte) -this.step);
+        // The last produced element, not `to`: `to` may sit off the step grid.
+        // Computed by remainder in long (never via size(), which is capped).
+        byte last = (byte) IntervalUtils.lastElement(this.from, this.to, this.step);
+        return ByteInterval.fromToBy(last, this.from, (byte) -this.step);
     }
 
     @Override

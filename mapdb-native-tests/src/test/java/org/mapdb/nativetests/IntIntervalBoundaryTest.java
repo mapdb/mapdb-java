@@ -261,4 +261,72 @@ public class IntIntervalBoundaryTest
         assertArrayEquals(new int[] {3, 4}, partial.get(1).toArray());
         assertArrayEquals(new int[] {5}, partial.get(2).toArray());
     }
+
+    @Test
+    public void reversedOffGridKeepsElements()
+    {
+        // spec/algorithms.md "Reversed() starts from the last element": the reverse
+        // begins at the last element actually produced, not at the constructor's
+        // `to`, which may sit off the step grid. The old {to, from, -step} form
+        // gave 10, 7, 4, 1 for the first case below.
+        assertReversed(new int[]{9, 6, 3, 0}, IntInterval.fromToBy(0, 10, 3));
+        assertReversed(new int[]{1, 4, 7, 10}, IntInterval.fromToBy(10, 0, -3));
+        // A step larger than the range yields only `from`; its reverse is `from`, not `to`.
+        assertReversed(new int[]{0}, IntInterval.fromToBy(0, 5, Integer.MAX_VALUE));
+        assertReversed(new int[]{8, 3, -2, -7}, IntInterval.fromToBy(-7, 9, 5));
+        // Max boundary: to = MAX_VALUE off the grid, the last element is found without wrapping.
+        assertReversed(
+                new int[]{Integer.MAX_VALUE - 1, Integer.MAX_VALUE - 4, Integer.MAX_VALUE - 7},
+                IntInterval.fromToBy((Integer.MAX_VALUE - 7), Integer.MAX_VALUE, 3));
+        // Min boundary descending: to = MIN_VALUE off the grid.
+        assertReversed(
+                new int[]{Integer.MIN_VALUE + 1, Integer.MIN_VALUE + 4, Integer.MIN_VALUE + 7},
+                IntInterval.fromToBy((Integer.MIN_VALUE + 7), Integer.MIN_VALUE, -3));
+        // Step MIN_VALUE + 1 negates without overflow; only MIN_VALUE itself throws
+        // (toReversedMinimumStepThrows).
+        assertReversed(
+                new int[]{Integer.MIN_VALUE + 1, 0},
+                IntInterval.fromToBy(0, (Integer.MIN_VALUE + 1), (Integer.MIN_VALUE + 1)));
+    }
+
+    /**
+     * {@code source.toReversed()} yields {@code expected}, agrees with the lazy
+     * {@code asReversed()} view, has the source's size and element set (contains
+     * agrees on every element and its neighbours), and reversed twice restores
+     * the source sequence.
+     */
+    private static void assertReversed(int[] expected, IntInterval source)
+    {
+        IntInterval reversed = source.toReversed();
+        assertArrayEquals(expected, reversed.toArray());
+        assertArrayEquals(expected, source.asReversed().toArray());
+        assertEquals(expected[0], reversed.getFirst());
+        assertEquals(expected[expected.length - 1], reversed.getLast());
+        assertEquals(source.size(), reversed.size());
+        for (int element : expected)
+        {
+            assertTrue(source.contains(element), "source missing " + element);
+            assertTrue(reversed.contains(element), "reversed missing " + element);
+            // Neighbours element-1 and element+1, skipping one that leaves the
+            // domain (the sum wraps; a plain `<=` loop bound would never end at MAX).
+            for (int offset = -1; offset <= 1; offset += 2)
+            {
+                int neighbour = (int) (element + offset);
+                if (offset < 0 ? neighbour > element : neighbour < element)
+                {
+                    continue;
+                }
+                assertEquals(
+                        source.contains(neighbour),
+                        reversed.contains(neighbour),
+                        "contains disagrees at " + neighbour);
+            }
+        }
+        // Reversed twice gives the source sequence (and compares equal: intervals
+        // compare by elements, so the normalised `to` is not observable).
+        IntInterval twice = reversed.toReversed();
+        assertArrayEquals(source.toArray(), twice.toArray());
+        assertEquals(source, twice);
+        assertEquals(source.hashCode(), twice.hashCode());
+    }
 }

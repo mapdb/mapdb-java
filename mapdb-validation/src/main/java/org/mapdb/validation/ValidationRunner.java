@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.mapdb.collections.api.iterator.IntIterator;
 import org.mapdb.collections.api.multimap.list.MutableListMultimap;
 import org.mapdb.collections.api.multimap.set.MutableSetMultimap;
 import org.mapdb.collections.api.tuple.Pair;
@@ -596,7 +597,8 @@ public final class ValidationRunner {
         }
         if (panicChildMode && "Interval<i32>".equals(collection)) {
             // Outside the dispatch try/catch: a trap must leave this process.
-            runInterval(scenario);
+            // No ScenarioResult: the child applies the ops and prints no assertions.
+            runInterval(scenario, null);
             System.out.println("=== scenario: " + name + " ===");
             return;
         }
@@ -946,6 +948,9 @@ public final class ValidationRunner {
             case "RoaringU32":
                 runRoaringU32(scenario, r);
                 break;
+            case "Interval<i32>":
+                runInterval(scenario, r);
+                break;
             default:
                 // Forward-compat: a collection kind this runner does not yet
                 // understand is SKIPPED (neither PASS nor FAIL), per the
@@ -958,44 +963,110 @@ public final class ValidationRunner {
     /**
      * Apply {@code Interval<i32>} ops. Step 0 and min-step {@code toReversed} are not caught.
      * A bad operand prints a scenario banner before aborting so empty stdout is not a pass.
+     *
+     * <p>{@code r == null} is the {@code --panic-child} path: the ops are applied and
+     * nothing else is printed (the caller prints the banner only if the process
+     * survives). With a {@link ScenarioResult} this is the normal value path: the
+     * banner is already out, so an abort skips it, and every assertion key is
+     * evaluated (in sorted key order) against the PRODUCTION {@link IntInterval}:
+     * {@code size}, {@code is_empty}, {@code first}, {@code last}, {@code to_array}
+     * (iteration order), {@code get_at_N}, {@code contains_N}; an unknown key is
+     * forward-compat-SKIPPED by {@link ScenarioResult#emit}.
      */
-    private void runInterval(JsonNode scenario) {
+    private void runInterval(JsonNode scenario, ScenarioResult r) {
         IntInterval interval = null;
         String name = scenario.path("name").asText("interval");
+        boolean banner = r == null;
         JsonNode ops = scenario.get("operations");
         if (ops == null || !ops.isArray()) {
-            System.out.println("=== scenario: " + name + " ===");
-            throw new IntervalAbort("operations is not an array");
+            throw intervalAbort(name, banner, "operations is not an array");
         }
         for (JsonNode op : ops) {
             if (op == null || !op.isObject()) {
-                System.out.println("=== scenario: " + name + " ===");
-                throw new IntervalAbort("malformed interval op");
+                throw intervalAbort(name, banner, "malformed interval op");
             }
             String kind = op.path("op").asText("");
             if ("from_to_by".equals(kind)) {
-                int from = requireIntervalInt(name, op, "from");
-                int to = requireIntervalInt(name, op, "to");
-                int step = requireIntervalInt(name, op, "step");
+                int from = requireIntervalInt(name, banner, op, "from");
+                int to = requireIntervalInt(name, banner, op, "to");
+                int step = requireIntervalInt(name, banner, op, "step");
                 interval = IntInterval.fromToBy(from, to, step);
             } else if ("reversed".equals(kind)) {
                 if (interval == null) {
-                    System.out.println("=== scenario: " + name + " ===");
-                    throw new IntervalAbort("reversed with no interval");
+                    throw intervalAbort(name, banner, "reversed with no interval");
                 }
                 interval = interval.toReversed();
             } else {
-                System.out.println("=== scenario: " + name + " ===");
-                throw new IntervalAbort("unknown interval op: " + kind);
+                throw intervalAbort(name, banner, "unknown interval op: " + kind);
             }
+        }
+        if (r == null) {
+            return;
+        }
+        if (interval == null) {
+            throw intervalAbort(name, false, "no from_to_by op");
+        }
+        List<Map.Entry<String, JsonNode>> sorted = new ArrayList<>();
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            if (!skipKey(e.getKey())) {
+                sorted.add(e);
+            }
+        }
+        sorted.sort(Map.Entry.comparingByKey());
+        for (Map.Entry<String, JsonNode> e : sorted) {
+            r.emit(e.getKey(), evalInterval(e.getKey(), interval), e.getValue(), FloatMode.NONE);
         }
     }
 
-    private static int requireIntervalInt(String name, JsonNode op, String field) {
+    /** Evaluate one {@code Interval<i32>} assertion; {@code null} = unknown key (forward-compat skip). */
+    private static String evalInterval(String key, IntInterval interval) {
+        switch (key) {
+            case "size":
+                return String.valueOf(interval.size());
+            case "is_empty":
+                return String.valueOf(interval.isEmpty());
+            case "first":
+                return String.valueOf(interval.getFirst());
+            case "last":
+                return String.valueOf(interval.getLast());
+            case "to_array": {
+                // Iteration order via the production iterator, not toArray()/sorting.
+                int[] out = new int[interval.size()];
+                int i = 0;
+                for (IntIterator it = interval.intIterator(); it.hasNext(); ) {
+                    out[i++] = it.next();
+                }
+                if (i != out.length) {
+                    throw new IllegalStateException("iterator yielded " + i + " of " + out.length);
+                }
+                return formatIntArray(out);
+            }
+            default:
+                break;
+        }
+        if (key.startsWith("get_at_")) {
+            int idx = Integer.parseInt(key.substring(7));
+            return idx >= 0 && idx < interval.size() ? String.valueOf(interval.get(idx)) : "null";
+        }
+        if (key.startsWith("contains_")) {
+            int v = Integer.parseInt(key.substring(9));
+            return String.valueOf(interval.contains(v));
+        }
+        return null;
+    }
+
+    /** Malformed interval scenario: print the banner first when none is out yet. */
+    private static IntervalAbort intervalAbort(String name, boolean banner, String msg) {
+        if (banner) {
+            System.out.println("=== scenario: " + name + " ===");
+        }
+        return new IntervalAbort(msg);
+    }
+
+    private static int requireIntervalInt(String name, boolean banner, JsonNode op, String field) {
         JsonNode n = op.get(field);
         if (n == null || n.isNull() || !n.isIntegralNumber() || !n.canConvertToInt()) {
-            System.out.println("=== scenario: " + name + " ===");
-            throw new IntervalAbort("interval operand is not an int32: " + field);
+            throw intervalAbort(name, banner, "interval operand is not an int32: " + field);
         }
         return n.intValue();
     }

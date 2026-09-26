@@ -195,4 +195,72 @@ public class ByteIntervalBoundaryTest
         assertEquals(1, chunks.size());
         assertArrayEquals(new byte[] {1, 2, 3}, chunks.getFirst().toArray());
     }
+
+    @Test
+    public void reversedOffGridKeepsElements()
+    {
+        // spec/algorithms.md "Reversed() starts from the last element": the reverse
+        // begins at the last element actually produced, not at the constructor's
+        // `to`, which may sit off the step grid. The old {to, from, -step} form
+        // gave 10, 7, 4, 1 for the first case below.
+        assertReversed(new byte[]{9, 6, 3, 0}, ByteInterval.fromToBy((byte) 0, (byte) 10, (byte) 3));
+        assertReversed(new byte[]{1, 4, 7, 10}, ByteInterval.fromToBy((byte) 10, (byte) 0, (byte) -3));
+        // A step larger than the range yields only `from`; its reverse is `from`, not `to`.
+        assertReversed(new byte[]{0}, ByteInterval.fromToBy((byte) 0, (byte) 5, Byte.MAX_VALUE));
+        assertReversed(new byte[]{8, 3, -2, -7}, ByteInterval.fromToBy((byte) -7, (byte) 9, (byte) 5));
+        // Max boundary: to = MAX_VALUE off the grid, the last element is found without wrapping.
+        assertReversed(
+                new byte[]{Byte.MAX_VALUE - 1, Byte.MAX_VALUE - 4, Byte.MAX_VALUE - 7},
+                ByteInterval.fromToBy((byte) (Byte.MAX_VALUE - 7), Byte.MAX_VALUE, (byte) 3));
+        // Min boundary descending: to = MIN_VALUE off the grid.
+        assertReversed(
+                new byte[]{Byte.MIN_VALUE + 1, Byte.MIN_VALUE + 4, Byte.MIN_VALUE + 7},
+                ByteInterval.fromToBy((byte) (Byte.MIN_VALUE + 7), Byte.MIN_VALUE, (byte) -3));
+        // Step MIN_VALUE + 1 negates without overflow; only MIN_VALUE itself throws
+        // (toReversedMinimumStepThrows).
+        assertReversed(
+                new byte[]{Byte.MIN_VALUE + 1, 0},
+                ByteInterval.fromToBy((byte) 0, (byte) (Byte.MIN_VALUE + 1), (byte) (Byte.MIN_VALUE + 1)));
+    }
+
+    /**
+     * {@code source.toReversed()} yields {@code expected}, agrees with the lazy
+     * {@code asReversed()} view, has the source's size and element set (contains
+     * agrees on every element and its neighbours), and reversed twice restores
+     * the source sequence.
+     */
+    private static void assertReversed(byte[] expected, ByteInterval source)
+    {
+        ByteInterval reversed = source.toReversed();
+        assertArrayEquals(expected, reversed.toArray());
+        assertArrayEquals(expected, source.asReversed().toArray());
+        assertEquals(expected[0], reversed.getFirst());
+        assertEquals(expected[expected.length - 1], reversed.getLast());
+        assertEquals(source.size(), reversed.size());
+        for (byte element : expected)
+        {
+            assertTrue(source.contains(element), "source missing " + element);
+            assertTrue(reversed.contains(element), "reversed missing " + element);
+            // Neighbours element-1 and element+1, skipping one that leaves the
+            // domain (the sum wraps; a plain `<=` loop bound would never end at MAX).
+            for (int offset = -1; offset <= 1; offset += 2)
+            {
+                byte neighbour = (byte) (element + offset);
+                if (offset < 0 ? neighbour > element : neighbour < element)
+                {
+                    continue;
+                }
+                assertEquals(
+                        source.contains(neighbour),
+                        reversed.contains(neighbour),
+                        "contains disagrees at " + neighbour);
+            }
+        }
+        // Reversed twice gives the source sequence (and compares equal: intervals
+        // compare by elements, so the normalised `to` is not observable).
+        ByteInterval twice = reversed.toReversed();
+        assertArrayEquals(source.toArray(), twice.toArray());
+        assertEquals(source, twice);
+        assertEquals(source.hashCode(), twice.hashCode());
+    }
 }

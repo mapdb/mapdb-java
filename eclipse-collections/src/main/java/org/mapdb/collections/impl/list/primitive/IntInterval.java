@@ -462,7 +462,15 @@ public final class IntInterval
     }
 
     /**
-     * Returns a new IntInterval with the from and to values reversed and the step value negated.
+     * Returns a new IntInterval with the same elements in the opposite order: it
+     * starts from the last element this interval actually produces (the {@code to}
+     * bound pulled onto the step grid), ends at {@code from}, and has the step
+     * negated. {@code fromToBy(0, 10, 3)} is {@code 0, 3, 6, 9}, so its reverse is
+     * {@code 9, 6, 3, 0}, the same sequence {@link #asReversed()} yields. Per
+     * spec/algorithms.md "Reversed() starts from the last element, and panics at
+     * minimum step".
+     *
+     * @throws ArithmeticException if the step is {@link Integer#MIN_VALUE}
      */
     @Override
     public IntInterval toReversed()
@@ -475,7 +483,10 @@ public final class IntInterval
         {
             throw new ArithmeticException("Cannot reverse an IntInterval with the minimum step value");
         }
-        return IntInterval.fromToBy(this.to, this.from, -this.step);
+        // The last produced element, not `to`: `to` may sit off the step grid.
+        // Computed by remainder in long (never via size(), which is capped).
+        int last = (int) IntervalUtils.lastElement(this.from, this.to, this.step);
+        return IntInterval.fromToBy(last, this.from, -this.step);
     }
 
     /**
