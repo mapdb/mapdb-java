@@ -1258,6 +1258,9 @@ public final class ValidationRunner {
 
     private void runIntIntMap(JsonNode scenario, ScenarioResult r) {
         IntIntHashMap map;
+        // Value returned by each production addToValue, in execution order
+        // (add_to_value_results). Never recomputed from the map.
+        IntArrayList addToValueResults = new IntArrayList();
         if ("bulkLoadExact".equals(scenario.path("construction").asText())) {
             IntArrayList keys = new IntArrayList();
             IntArrayList values = new IntArrayList();
@@ -1278,7 +1281,7 @@ public final class ValidationRunner {
                         map.removeKey(op.get("key").asInt());
                         break;
                     case "addToValue":
-                        map.addToValue(op.get("key").asInt(), op.get("delta").asInt());
+                        addToValueResults.add(map.addToValue(op.get("key").asInt(), op.get("delta").asInt()));
                         break;
                     case "clear":
                         map.clear();
@@ -1293,12 +1296,18 @@ public final class ValidationRunner {
             if (skipKey(key)) {
                 continue;
             }
-            r.emit(key, evalIntIntMap(key, map), e.getValue(), FloatMode.NONE);
+            r.emit(key, evalIntIntMap(key, map, addToValueResults), e.getValue(), FloatMode.NONE);
         }
     }
 
     private String evalIntIntMap(String key, IntIntHashMap map) {
+        return evalIntIntMap(key, map, null);
+    }
+
+    private String evalIntIntMap(String key, IntIntHashMap map, IntArrayList addToValueResults) {
         switch (key) {
+            case "add_to_value_results":
+                return addToValueResults == null ? null : formatIntArray(addToValueResults.toArray());
             case "size":
                 return String.valueOf(map.size());
             case "is_empty":
