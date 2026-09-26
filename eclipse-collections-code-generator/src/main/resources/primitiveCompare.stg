@@ -5,8 +5,8 @@ compare ::= [
     "char": "narrowCompare",
     "int": "wideCompare",
     "long": "wideCompare",
-    "float": "wrapperCompare",
-    "double": "wrapperCompare",
+    "float": "totalOrderCompare",
+    "double": "totalOrderCompare",
     default: "no matching Compare"
 ]
 
@@ -24,4 +24,8 @@ wideCompare(left, right, wrapperName) ::= <<
 
 wrapperCompare(left, right, wrapperName) ::= <<
 <wrapperName>.compare(<left>, <right>)
+>>
+
+totalOrderCompare(left, right, wrapperName) ::= <<
+org.mapdb.collections.impl.utility.FloatTotalOrder.totalCompare(<left>, <right>)
 >>

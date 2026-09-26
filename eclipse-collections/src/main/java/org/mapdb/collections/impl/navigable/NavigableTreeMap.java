@@ -155,10 +155,15 @@ public final class NavigableTreeMap<K extends Comparable<? super K>, V>
         return new NavigableTreeMap<>(navOut, ecOut);
     }
 
-    /** The backing EC sorted map (kept in sync with the navigation view). */
+    /**
+     * A read-only view of the backing EC sorted map (kept in sync with the
+     * navigation view). It is unmodifiable: every mutation must go through this
+     * wrapper so both stores stay in sync; mutating the view throws
+     * {@link UnsupportedOperationException}.
+     */
     public MutableSortedMap<K, V> ecMap()
     {
-        return this.ecMap;
+        return this.ecMap.asUnmodifiable();
     }
 
     // ---- mutation (kept in sync across both stores) -----------------------

@@ -118,10 +118,15 @@ public final class NavigableTreeSet<T extends Comparable<? super T>>
         return new NavigableTreeSet<>(navOut, ecOut);
     }
 
-    /** The backing EC sorted set (kept in sync with the navigation view). */
+    /**
+     * A read-only view of the backing EC sorted set (kept in sync with the
+     * navigation view). It is unmodifiable: every mutation must go through this
+     * wrapper so both stores stay in sync; mutating the view throws
+     * {@link UnsupportedOperationException}.
+     */
     public MutableSortedSet<T> ecSet()
     {
-        return this.ecSet;
+        return this.ecSet.asUnmodifiable();
     }
 
     // ---- mutation (kept in sync across both stores) -----------------------

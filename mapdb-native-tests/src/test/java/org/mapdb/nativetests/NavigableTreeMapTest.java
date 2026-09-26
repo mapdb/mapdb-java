@@ -19,6 +19,7 @@ import org.mapdb.collections.impl.utility.FloatTotalOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -302,5 +303,22 @@ public class NavigableTreeMapTest
         assertEquals(1, m.rank(nanLow));
         assertEquals(2, m.rank(nanHigh));
         assertEquals(3, m.ecMap().size());
+    }
+
+    @Test
+    public void ecMapViewIsReadOnlySoStoresCannotDesync()
+    {
+        NavigableTreeMap<Integer, String> m = NavigableTreeMap.newMap();
+        m.put(1, "a");
+        m.put(2, "b");
+        assertThrows(UnsupportedOperationException.class, () -> m.ecMap().put(3, "c"));
+        assertThrows(UnsupportedOperationException.class, () -> m.ecMap().remove(1));
+        assertThrows(UnsupportedOperationException.class, () -> m.ecMap().clear());
+        assertEquals(2, m.size());
+        assertEquals(2, m.ecMap().size());
+        // The view is live: wrapper mutations remain visible through it.
+        m.put(3, "c");
+        assertEquals("c", m.ecMap().get(3));
+        assertEquals(m.size(), m.ecMap().size());
     }
 }

@@ -17,6 +17,7 @@ import org.mapdb.collections.impl.utility.FloatTotalOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -248,5 +249,21 @@ public class NavigableTreeSetTest
         // and the EC backing store agrees, payloads intact
         assertEquals(3, s.ecSet().size());
         assertEquals(ordered, s.ecSet().toList());
+    }
+
+    @Test
+    public void ecSetViewIsReadOnlySoStoresCannotDesync()
+    {
+        NavigableTreeSet<Integer> s = NavigableTreeSet.newSet();
+        s.add(1);
+        s.add(2);
+        assertThrows(UnsupportedOperationException.class, () -> s.ecSet().add(3));
+        assertThrows(UnsupportedOperationException.class, () -> s.ecSet().remove(1));
+        assertThrows(UnsupportedOperationException.class, () -> s.ecSet().clear());
+        assertEquals(2, s.size());
+        assertEquals(2, s.ecSet().size());
+        s.add(3);
+        assertTrue(s.ecSet().contains(3));
+        assertEquals(s.size(), s.ecSet().size());
     }
 }
