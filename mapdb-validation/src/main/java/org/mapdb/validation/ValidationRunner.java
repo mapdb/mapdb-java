@@ -1045,14 +1045,38 @@ public final class ValidationRunner {
                 break;
         }
         if (key.startsWith("get_at_")) {
-            int idx = Integer.parseInt(key.substring(7));
-            return idx >= 0 && idx < interval.size() ? String.valueOf(interval.get(idx)) : "null";
+            Integer idx = parseIntervalIndex(key.substring(7));
+            return idx != null && idx < interval.size() ? String.valueOf(interval.get(idx)) : "null";
         }
         if (key.startsWith("contains_")) {
             int v = Integer.parseInt(key.substring(9));
             return String.valueOf(interval.contains(v));
         }
         return null;
+    }
+
+    /**
+     * Parses the {@code N} of a {@code get_at_N} key: a non-empty run of ASCII
+     * digits of any magnitude. A value that does not fit the {@code int} index
+     * type is past the end of every interval and yields {@code null}, so the
+     * runner reports {@code null} like the other ports; anything else is
+     * malformed and throws.
+     */
+    private static Integer parseIntervalIndex(String digits) {
+        if (digits.isEmpty()) {
+            throw new NumberFormatException("empty get_at_ index");
+        }
+        for (int i = 0; i < digits.length(); i++) {
+            char c = digits.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new NumberFormatException("get_at_ index is not decimal digits: " + digits);
+            }
+        }
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException overflow) {
+            return null;
+        }
     }
 
     /** Malformed interval scenario: print the banner first when none is out yet. */
