@@ -902,7 +902,7 @@ public final class ByteInterval
         @Override
         public boolean hasNext()
         {
-            if (ByteInterval.this.from <= ByteInterval.this.to)
+            if (ByteInterval.this.step > 0)
             {
                 return this.current <= ByteInterval.this.to;
             }

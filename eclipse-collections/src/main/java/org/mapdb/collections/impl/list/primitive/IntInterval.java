@@ -941,7 +941,7 @@ public final class IntInterval
         @Override
         public boolean hasNext()
         {
-            if (IntInterval.this.from <= IntInterval.this.to)
+            if (IntInterval.this.step > 0)
             {
                 return this.current <= IntInterval.this.to;
             }

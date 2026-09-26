@@ -902,7 +902,7 @@ public final class ShortInterval
         @Override
         public boolean hasNext()
         {
-            if (ShortInterval.this.from <= ShortInterval.this.to)
+            if (ShortInterval.this.step > 0)
             {
                 return this.current <= ShortInterval.this.to;
             }

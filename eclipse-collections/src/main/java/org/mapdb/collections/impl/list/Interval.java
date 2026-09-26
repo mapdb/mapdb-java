@@ -819,7 +819,7 @@ public final class Interval
         @Override
         public boolean hasNext()
         {
-            if (Interval.this.from <= Interval.this.to)
+            if (Interval.this.step > 0)
             {
                 return this.current <= (long) Interval.this.to;
             }
