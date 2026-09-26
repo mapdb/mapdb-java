@@ -209,24 +209,72 @@ public final class ValidationRunner {
         return false;
     }
 
-    /** Pass iff the child died non-zero, was not timed out, and printed no sentinel. */
-    static boolean panicPassed(boolean timedOut, int exitCode, String stdout) {
-        return !timedOut && exitCode != 0 && !stdoutHasSentinel(stdout);
+    /**
+     * The line the {@code --panic-child} prints on stdout immediately before it calls the
+     * production operation for op {@code i} of {@code n} (1-based). It starts with '[' so it can
+     * never be an assertion sentinel.
+     */
+    static String reachMarkerLine(int i, int n) {
+        return "[panic-child] reached op " + i + "/" + n;
+    }
+
+    /**
+     * Did the child print the marker for the LAST operation, i.e. get as far as calling the
+     * product for it? A runner crash before that point leaves no such line (astra25/25 F4: any
+     * non-zero exit used to count as the trap). A scenario with no operations has nothing to
+     * reach and cannot pass.
+     */
+    static boolean stdoutHasReachMarker(String stdout, int ops) {
+        if (ops < 1) {
+            return false;
+        }
+        String want = reachMarkerLine(ops, ops);
+        for (String line : stdout.split("\n", -1)) {
+            if (line.endsWith("\r")) {
+                line = line.substring(0, line.length() - 1);
+            }
+            if (line.equals(want)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Pass iff the child died non-zero, was not timed out, printed no sentinel, and reached the
+     * product call of the last op ({@code ops} is the scenario's operation count, so the trap has
+     * to be raised by that op).
+     */
+    static boolean panicPassed(boolean timedOut, int exitCode, String stdout, int ops) {
+        return !timedOut && exitCode != 0 && !stdoutHasSentinel(stdout)
+                && stdoutHasReachMarker(stdout, ops);
     }
 
     private static void panicJudgeSelfTest() {
+        // m1: reach marker of a one-op scenario; m2: last-op marker of a two-op scenario.
+        // Cases 1-11 are the original sentinel/exit rules with the marker present; 12-17 pin
+        // the reach rule (astra25/25 F4).
+        String m1 = reachMarkerLine(1, 1) + "\n";
+        String m2 = reachMarkerLine(2, 2) + "\n";
+        String m1of2 = reachMarkerLine(1, 2) + "\n";
         boolean[] ok = new boolean[] {
-            !panicPassed(false, 0, ""),
-            !panicPassed(false, 0, "=== scenario: x ===\n"),
-            !panicPassed(false, 1, "size: 1\n"),
-            panicPassed(false, 1, ""),
-            panicPassed(false, 101, "boom\n"),
-            !panicPassed(true, 1, ""),
-            panicPassed(false, 1, "FAIL name expect_panic\n"),
-            !panicPassed(false, 1, "expect_panic: true\n"),
-            panicPassed(false, 1, "SUMMARY: 1\n"),
-            panicPassed(false, 1, "boom:detail\n"),
-            !panicPassed(false, 1, "FAIL-count: 1\n"),
+            !panicPassed(false, 0, m1, 1),
+            !panicPassed(false, 0, m1 + "=== scenario: x ===\n", 1),
+            !panicPassed(false, 1, m1 + "size: 1\n", 1),
+            panicPassed(false, 1, m1, 1),
+            panicPassed(false, 101, m1 + "boom\n", 1),
+            !panicPassed(true, 1, m1, 1),
+            panicPassed(false, 1, m1 + "FAIL name expect_panic\n", 1),
+            !panicPassed(false, 1, m1 + "expect_panic: true\n", 1),
+            panicPassed(false, 1, m1 + "SUMMARY: 1\n", 1),
+            panicPassed(false, 1, m1 + "boom:detail\n", 1),
+            !panicPassed(false, 1, m1 + "FAIL-count: 1\n", 1),
+            !panicPassed(false, 1, "", 1), // crash before the product: no marker
+            !panicPassed(false, 1, "boom\n", 1), // ditto, with noise
+            !panicPassed(false, 1, m1of2, 2), // trapped on op 1 of 2
+            panicPassed(false, 1, m1of2 + m2, 2), // reached op 2 of 2
+            !panicPassed(false, 1, m1, 0), // no ops: nothing to reach
+            !panicPassed(false, 1, "[panic-child] reached op 1/1 \n", 1), // exact match only
         };
         boolean all = true;
         for (int i = 0; i < ok.length; i++) {
@@ -855,7 +903,9 @@ public final class ValidationRunner {
             exitCode = 0;
             stdout = "";
         }
-        if (panicPassed(timedOut, exitCode, stdout)) {
+        JsonNode opsNode = scenario.get("operations");
+        int ops = opsNode != null && opsNode.isArray() ? opsNode.size() : 0;
+        if (panicPassed(timedOut, exitCode, stdout, ops)) {
             System.out.println("=== scenario: " + name + " ===");
             System.out.println("expect_panic: true");
             System.out.println("PASS " + name);
@@ -981,7 +1031,13 @@ public final class ValidationRunner {
         if (ops == null || !ops.isArray()) {
             throw intervalAbort(name, banner, "operations is not an array");
         }
+        // Panic child only (r == null): the reach marker for op i of n goes out, flushed,
+        // immediately before each production call, so the parent can tell a trap raised by
+        // the product from a runner crash on the way there.
+        int n = ops.size();
+        int i = 0;
         for (JsonNode op : ops) {
+            i++;
             if (op == null || !op.isObject()) {
                 throw intervalAbort(name, banner, "malformed interval op");
             }
@@ -990,10 +1046,18 @@ public final class ValidationRunner {
                 int from = requireIntervalInt(name, banner, op, "from");
                 int to = requireIntervalInt(name, banner, op, "to");
                 int step = requireIntervalInt(name, banner, op, "step");
+                if (banner) {
+                    System.out.println(reachMarkerLine(i, n));
+                    System.out.flush();
+                }
                 interval = IntInterval.fromToBy(from, to, step);
             } else if ("reversed".equals(kind)) {
                 if (interval == null) {
                     throw intervalAbort(name, banner, "reversed with no interval");
+                }
+                if (banner) {
+                    System.out.println(reachMarkerLine(i, n));
+                    System.out.flush();
                 }
                 interval = interval.toReversed();
             } else {
@@ -2037,6 +2101,11 @@ public final class ValidationRunner {
                             .collect(Collectors.joining(",")) + "]";
                     break;
                 }
+                case "sorted_values":
+                    // The values are i32 (README: HashMap<*> sorted_values is the value
+                    // multiset ascending), rendered like the i32 map's.
+                    computed = formatIntArray(sortedAsc(map.values().toArray()));
+                    break;
                 default:
                     if (key.startsWith("get_")) {
                         float k = FloatCodec.parseLabel(key.substring(4));
@@ -2048,7 +2117,10 @@ public final class ValidationRunner {
                         computed = null;
                     }
             }
-            r.emit(key, computed, e.getValue(), FloatMode.F32_KEYED);
+            // sorted_values is the i32 value multiset, so its expected side is rendered in
+            // i32 mode, not as quoted float labels.
+            r.emit(key, computed, e.getValue(),
+                    "sorted_values".equals(key) ? FloatMode.NONE : FloatMode.F32_KEYED);
         }
     }
 
