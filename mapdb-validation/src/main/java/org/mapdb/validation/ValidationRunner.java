@@ -19,11 +19,13 @@ import org.mapdb.collections.impl.bag.mutable.primitive.IntHashBag;
 import org.mapdb.collections.impl.list.mutable.primitive.FloatArrayList;
 import org.mapdb.collections.impl.list.mutable.primitive.IntArrayList;
 import org.mapdb.collections.impl.list.primitive.IntInterval;
+import org.mapdb.collections.impl.map.mutable.UnifiedMap;
 import org.mapdb.collections.impl.map.mutable.primitive.FloatIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.mapdb.collections.impl.map.mutable.primitive.LongIntHashMap;
 import org.mapdb.collections.impl.multimap.list.FastListMultimap;
 import org.mapdb.collections.impl.multimap.set.UnifiedSetMultimap;
+import org.mapdb.collections.impl.set.mutable.UnifiedSet;
 import org.mapdb.collections.impl.set.mutable.primitive.FloatHashSet;
 import org.mapdb.collections.impl.set.mutable.primitive.IntHashSet;
 import org.mapdb.collections.impl.navigable.NavigableTreeMap;
@@ -77,6 +79,16 @@ public final class ValidationRunner {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String UNKNOWN = "UNKNOWN_ASSERTION";
+
+    /**
+     * Runner profiles (closed vocabulary, runners.json {@code "profiles"}). The
+     * optional scenario field {@code profile} selects which implementation tier
+     * of the kind is driven; absent means {@code primitive}. The runner echoes
+     * the resolved name as one {@code profile: <name>} line per scenario and
+     * never falls back from an unknown or unsupported profile.
+     */
+    private static final String PROFILE_PRIMITIVE = "primitive";
+    private static final String PROFILE_OBJECT = "object";
 
     /** f32 rendering mode for an assertion value, mirroring the Rust runner. */
     private enum FloatMode {
@@ -647,17 +659,30 @@ public final class ValidationRunner {
         }
         String name = scenario.path("name").asText(file.getFileName().toString());
         String collection = scenario.path("collection").asText("");
+        JsonNode profileNode = scenario.get("profile");
+        String profile = profileNode == null
+                ? PROFILE_PRIMITIVE
+                : (profileNode.isTextual() ? profileNode.asText() : profileNode.toString());
+        if (!PROFILE_PRIMITIVE.equals(profile) && !PROFILE_OBJECT.equals(profile)) {
+            // Unknown profile (or a non-string value): FAIL, never fall back.
+            System.out.println("=== scenario: " + name + " ===");
+            System.out.println("FAIL profile: unknown '" + profile + "'");
+            scenariosRun++;
+            anyFail = true;
+            tally(dir, 1);
+            return;
+        }
         if (!panicChildMode && assertionsContainExpectPanic(scenario)) {
             JsonNode flag = scenario.get("assertions").get("expect_panic");
             if (flag == null || !flag.isBoolean() || !flag.booleanValue()) {
-                System.out.println("=== scenario: " + name + " ===");
+                printScenarioHeader(name, profile);
                 System.out.println("FAIL " + name + " expect_panic: value must be boolean true");
                 anyFail = true;
                 tally(dir, 1);
                 return;
             }
             if (panicCollectionKnown(collection)) {
-                runExpectPanicParent(dir, name, file, scenario);
+                runExpectPanicParent(dir, name, profile, file, scenario);
                 return;
             }
         }
@@ -668,12 +693,12 @@ public final class ValidationRunner {
             System.out.println("=== scenario: " + name + " ===");
             return;
         }
-        System.out.println("=== scenario: " + name + " ===");
+        printScenarioHeader(name, profile);
         scenariosRun++;
 
         ScenarioResult result = new ScenarioResult(name);
         try {
-            dispatch(collection, scenario, result);
+            dispatch(collection, profile, scenario, result);
         } catch (ScenarioSkipException e) {
             // Malformed/forward-compat scenario -> SKIP (neither PASS nor FAIL).
             System.out.println("SKIP " + name + " : " + e.getMessage());
@@ -707,6 +732,19 @@ public final class ValidationRunner {
         } else {
             System.out.println("PASS " + name);
             tally(dir, 0);
+        }
+    }
+
+    /**
+     * Scenario banner plus the {@code profile: <name>} echo (B3 runner
+     * profiles), printed before any assertion line. The panic child omits the
+     * echo: its stdout is judged by the parent, where any {@code key: } line is
+     * a sentinel, and the parent prints the echo for that scenario.
+     */
+    private void printScenarioHeader(String name, String profile) {
+        System.out.println("=== scenario: " + name + " ===");
+        if (!panicChildMode) {
+            System.out.println("profile: " + profile);
         }
     }
 
@@ -854,11 +892,11 @@ public final class ValidationRunner {
      * Parent side of {@code expect_panic}. Does not apply operations.
      * A non-true value fails in-process. Otherwise a child must die with no sentinel.
      */
-    private void runExpectPanicParent(String dir, String name, Path file, JsonNode scenario) {
+    private void runExpectPanicParent(String dir, String name, String profile, Path file, JsonNode scenario) {
         JsonNode value = scenario.get("assertions").get("expect_panic");
         scenariosRun++;
         if (value == null || !value.isBoolean() || !value.booleanValue()) {
-            System.out.println("=== scenario: " + name + " ===");
+            printScenarioHeader(name, profile);
             System.out.println("FAIL " + name + " expect_panic: value must be boolean true");
             anyFail = true;
             tally(dir, 1);
@@ -924,19 +962,37 @@ public final class ValidationRunner {
         JsonNode opsNode = scenario.get("operations");
         int ops = opsNode != null && opsNode.isArray() ? opsNode.size() : 0;
         if (panicPassed(timedOut, exitCode, stdout, ops)) {
-            System.out.println("=== scenario: " + name + " ===");
+            printScenarioHeader(name, profile);
             System.out.println("expect_panic: true");
             System.out.println("PASS " + name);
             tally(dir, 0);
             return;
         }
-        System.out.println("=== scenario: " + name + " ===");
+        printScenarioHeader(name, profile);
         System.out.println("FAIL " + name + " expect_panic: child did not trap cleanly");
         anyFail = true;
         tally(dir, 1);
     }
 
-    private void dispatch(String collection, JsonNode scenario, ScenarioResult r) {
+    private void dispatch(String collection, String profile, JsonNode scenario, ScenarioResult r) {
+        if (PROFILE_OBJECT.equals(profile)) {
+            // Boxed object tier. Only the f32 kinds have an object cell; any
+            // other kind under "object" is an error, never a primitive fallback.
+            switch (collection) {
+                case "HashMap<f32, i32>":
+                    runF32MapObject(scenario, r);
+                    break;
+                case "HashSet<f32>":
+                    runF32SetObject(scenario, r);
+                    break;
+                case "TreeSet<f32>":
+                    runF32TreeSetObject(scenario, r);
+                    break;
+                default:
+                    throw new IllegalArgumentException("profile '" + profile + "' has no dispatch for " + collection);
+            }
+            return;
+        }
         switch (collection) {
             case "HashMap<i32, i32>":
                 runIntIntMap(scenario, r);
@@ -2229,6 +2285,180 @@ public final class ValidationRunner {
         // store, so every assertion value below comes from the production
         // sorted set's own methods.
         NavigableTreeSet<Float> set = NavigableTreeSet.newSet(FloatTotalOrder.FLOAT_COMPARATOR);
+        for (JsonNode op : scenario.path("operations")) {
+            switch (op.path("op").asText()) {
+                case "add":
+                    set.add(FloatCodec.parseOperand(op.get("value")));
+                    break;
+                case "remove":
+                    set.remove(FloatCodec.parseOperand(op.get("value")));
+                    break;
+                case "clear":
+                    set.clear();
+                    break;
+                default:
+                    throw new IllegalArgumentException("unknown f32-treeset op: " + op.path("op").asText());
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            String computed;
+            switch (key) {
+                case "size":
+                    computed = String.valueOf(set.size());
+                    break;
+                case "is_empty":
+                    computed = String.valueOf(set.isEmpty());
+                    break;
+                case "min":
+                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.first());
+                    break;
+                case "max":
+                    computed = set.isEmpty() ? "null" : FloatCodec.format(set.last());
+                    break;
+                case "sorted":
+                case "sorted_values":
+                case "to_sorted_array": {
+                    // In-order traversal straight from the tree (NOT runner-sorted).
+                    List<String> parts = new ArrayList<>();
+                    for (Float f : set.rangeElements(Range.all())) {
+                        parts.add("\"" + FloatCodec.format(f) + "\"");
+                    }
+                    computed = "[" + String.join(",", parts) + "]";
+                    break;
+                }
+                default:
+                    computed = key.startsWith("contains_")
+                            ? String.valueOf(set.contains(FloatCodec.parseLabel(key.substring(9))))
+                            : null;
+            }
+            r.emit(key, computed, e.getValue(), FloatMode.F32_KEYED);
+        }
+    }
+
+    // ---- HashMap<f32, i32> @ profile object (UnifiedMap<Float, Integer>) ---
+
+    private void runF32MapObject(JsonNode scenario, ScenarioResult r) {
+        // Boxed object tier: keys are Float boxed from the same decoded f32 as
+        // the primitive path, so identity is Float.equals/hashCode
+        // (floatToIntBits: NaN canonicalised, +0.0 and -0.0 distinct).
+        UnifiedMap<Float, Integer> map = UnifiedMap.<Float, Integer>newMap();
+        for (JsonNode op : scenario.path("operations")) {
+            switch (op.path("op").asText()) {
+                case "put":
+                    map.put(FloatCodec.parseOperand(op.get("key")), op.get("value").asInt());
+                    break;
+                case "remove":
+                    map.removeKey(FloatCodec.parseOperand(op.get("key")));
+                    break;
+                case "clear":
+                    map.clear();
+                    break;
+                default:
+                    throw new IllegalArgumentException("unknown f32-hashmap op: " + op.path("op").asText());
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            String computed;
+            switch (key) {
+                case "size":
+                    computed = String.valueOf(map.size());
+                    break;
+                case "is_empty":
+                    computed = String.valueOf(map.isEmpty());
+                    break;
+                case "sorted_keys": {
+                    // Production key set; sorted here for display only.
+                    Float[] boxed = map.keySet().toArray(new Float[0]);
+                    Arrays.sort(boxed, Float::compare);
+                    computed = "[" + Arrays.stream(boxed)
+                            .map(f -> "\"" + FloatCodec.format(f) + "\"")
+                            .collect(Collectors.joining(",")) + "]";
+                    break;
+                }
+                case "sorted_values":
+                    // Production values view, unboxed and sorted for display (i32 multiset).
+                    computed = formatIntArray(sortedAsc(map.values().stream().mapToInt(Integer::intValue).toArray()));
+                    break;
+                default:
+                    if (key.startsWith("get_")) {
+                        Integer v = map.get(FloatCodec.parseLabel(key.substring(4)));
+                        computed = v == null ? "null" : String.valueOf(v);
+                    } else if (key.startsWith("contains_")) {
+                        computed = String.valueOf(map.containsKey(FloatCodec.parseLabel(key.substring(9))));
+                    } else {
+                        computed = null;
+                    }
+            }
+            r.emit(key, computed, e.getValue(),
+                    "sorted_values".equals(key) ? FloatMode.NONE : FloatMode.F32_KEYED);
+        }
+    }
+
+    // ---- HashSet<f32> @ profile object (UnifiedSet<Float>) -----------------
+
+    private void runF32SetObject(JsonNode scenario, ScenarioResult r) {
+        UnifiedSet<Float> set = UnifiedSet.<Float>newSet();
+        for (JsonNode op : scenario.path("operations")) {
+            switch (op.path("op").asText()) {
+                case "add":
+                    set.add(FloatCodec.parseOperand(op.get("value")));
+                    break;
+                case "remove":
+                    set.remove(FloatCodec.parseOperand(op.get("value")));
+                    break;
+                case "clear":
+                    set.clear();
+                    break;
+                default:
+                    throw new IllegalArgumentException("unknown f32-hashset op: " + op.path("op").asText());
+            }
+        }
+        for (Map.Entry<String, JsonNode> e : assertions(scenario)) {
+            String key = e.getKey();
+            if (skipKey(key)) {
+                continue;
+            }
+            String computed;
+            switch (key) {
+                case "size":
+                    computed = String.valueOf(set.size());
+                    break;
+                case "is_empty":
+                    computed = String.valueOf(set.isEmpty());
+                    break;
+                case "sorted_values":
+                case "to_sorted_array": {
+                    // Production toArray; sorted here for display only.
+                    Float[] boxed = set.toArray(new Float[0]);
+                    Arrays.sort(boxed, Float::compare);
+                    computed = "[" + Arrays.stream(boxed)
+                            .map(f -> "\"" + FloatCodec.format(f) + "\"")
+                            .collect(Collectors.joining(",")) + "]";
+                    break;
+                }
+                default:
+                    computed = key.startsWith("contains_")
+                            ? String.valueOf(set.contains(FloatCodec.parseLabel(key.substring(9))))
+                            : null;
+            }
+            r.emit(key, computed, e.getValue(), FloatMode.F32_KEYED);
+        }
+    }
+
+    // ---- TreeSet<f32> @ profile object (NavigableTreeSet<Float>, natural) --
+
+    private void runF32TreeSetObject(JsonNode scenario, ScenarioResult r) {
+        // Natural element order (Float.compareTo), no comparator argument: the
+        // object profile tests the default a user gets from newSet().
+        NavigableTreeSet<Float> set = NavigableTreeSet.<Float>newSet();
         for (JsonNode op : scenario.path("operations")) {
             switch (op.path("op").asText()) {
                 case "add":

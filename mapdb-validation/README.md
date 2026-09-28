@@ -67,6 +67,21 @@ unsupported by stock EC).
 
 A single scenario can also be run by passing its file path.
 
+## Profiles
+
+The optional scenario field `profile` selects the implementation tier (absent
+means `primitive`). Every scenario prints exactly one `profile: <name>` line
+after its `=== scenario:` banner, before any assertion line. An unknown value
+prints `FAIL profile: unknown '<value>'` and fails the run; there is no
+fallback. `profile: object` is dispatched for the f32 kinds only, to the boxed
+object tier (any other kind under `object` is a runner error):
+
+| Scenario type       | `object` profile dispatch / construction                  |
+|---------------------|-----------------------------------------------------------|
+| `HashMap<f32, i32>` | `runF32MapObject`: `UnifiedMap.<Float, Integer>newMap()`  |
+| `HashSet<f32>`      | `runF32SetObject`: `UnifiedSet.<Float>newSet()`           |
+| `TreeSet<f32>`      | `runF32TreeSetObject`: `NavigableTreeSet.<Float>newSet()` (natural order, no comparator) |
+
 ## Type mapping (stock EC ⇒ scenario type)
 
 Scenarios name conceptual primitive collections. Where stock EC ships a
