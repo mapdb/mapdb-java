@@ -219,16 +219,14 @@ public final class ValidationRunner {
     }
 
     /**
-     * Did the child print the marker for the LAST operation, i.e. get as far as calling the
-     * product for it? A runner crash before that point leaves no such line (astra25/25 F4: any
-     * non-zero exit used to count as the trap). A scenario with no operations has nothing to
-     * reach and cannot pass.
+     * Printed immediately after that production call returns normally. Its presence for the
+     * last op means the product did NOT trap there, whatever killed the process afterwards.
      */
-    static boolean stdoutHasReachMarker(String stdout, int ops) {
-        if (ops < 1) {
-            return false;
-        }
-        String want = reachMarkerLine(ops, ops);
+    static String returnMarkerLine(int i, int n) {
+        return "[panic-child] returned op " + i + "/" + n;
+    }
+
+    static boolean stdoutHasLine(String stdout, String want) {
         for (String line : stdout.split("\n", -1)) {
             if (line.endsWith("\r")) {
                 line = line.substring(0, line.length() - 1);
@@ -241,13 +239,29 @@ public final class ValidationRunner {
     }
 
     /**
+     * Did the child print the marker for the LAST operation, i.e. get as far as calling the
+     * product for it? A runner crash before that point leaves no such line (astra25/25 F4: any
+     * non-zero exit used to count as the trap). A scenario with no operations has nothing to
+     * reach and cannot pass.
+     */
+    static boolean stdoutHasReachMarker(String stdout, int ops) {
+        if (ops < 1) {
+            return false;
+        }
+        return stdoutHasLine(stdout, reachMarkerLine(ops, ops));
+    }
+
+    /**
      * Pass iff the child died non-zero, was not timed out, printed no sentinel, and reached the
      * product call of the last op ({@code ops} is the scenario's operation count, so the trap has
      * to be raised by that op).
      */
     static boolean panicPassed(boolean timedOut, int exitCode, String stdout, int ops) {
+        // The last call returned normally: whatever killed the child afterwards (a crash on
+        // the way to the banner), it was not the product's trap.
         return !timedOut && exitCode != 0 && !stdoutHasSentinel(stdout)
-                && stdoutHasReachMarker(stdout, ops);
+                && stdoutHasReachMarker(stdout, ops)
+                && !stdoutHasLine(stdout, returnMarkerLine(ops, ops));
     }
 
     private static void panicJudgeSelfTest() {
@@ -257,6 +271,8 @@ public final class ValidationRunner {
         String m1 = reachMarkerLine(1, 1) + "\n";
         String m2 = reachMarkerLine(2, 2) + "\n";
         String m1of2 = reachMarkerLine(1, 2) + "\n";
+        String r1 = returnMarkerLine(1, 1) + "\n";
+        String r1of2 = returnMarkerLine(1, 2) + "\n";
         boolean[] ok = new boolean[] {
             !panicPassed(false, 0, m1, 1),
             !panicPassed(false, 0, m1 + "=== scenario: x ===\n", 1),
@@ -275,6 +291,8 @@ public final class ValidationRunner {
             panicPassed(false, 1, m1of2 + m2, 2), // reached op 2 of 2
             !panicPassed(false, 1, m1, 0), // no ops: nothing to reach
             !panicPassed(false, 1, "[panic-child] reached op 1/1 \n", 1), // exact match only
+            !panicPassed(false, 1, m1 + r1, 1), // the last call returned: not the product's trap
+            panicPassed(false, 1, m1of2 + r1of2 + m2, 2), // op 1 returned, op 2 trapped
         };
         boolean all = true;
         for (int i = 0; i < ok.length; i++) {
@@ -1051,6 +1069,10 @@ public final class ValidationRunner {
                     System.out.flush();
                 }
                 interval = IntInterval.fromToBy(from, to, step);
+                if (banner) {
+                    System.out.println(returnMarkerLine(i, n));
+                    System.out.flush();
+                }
             } else if ("reversed".equals(kind)) {
                 if (interval == null) {
                     throw intervalAbort(name, banner, "reversed with no interval");
@@ -1060,6 +1082,10 @@ public final class ValidationRunner {
                     System.out.flush();
                 }
                 interval = interval.toReversed();
+                if (banner) {
+                    System.out.println(returnMarkerLine(i, n));
+                    System.out.flush();
+                }
             } else {
                 throw intervalAbort(name, banner, "unknown interval op: " + kind);
             }
