@@ -663,10 +663,31 @@ public final class ValidationRunner {
         String profile = profileNode == null
                 ? PROFILE_PRIMITIVE
                 : (profileNode.isTextual() ? profileNode.asText() : profileNode.toString());
+        // Profile applicability is settled here, before the expect_panic parent
+        // and the panic child's Interval special case: a rejected (kind,
+        // profile) pair must never run a primitive path or pass as a trap. The
+        // panic child exits 1 without output (a key: value line in its stdout
+        // would be read by the panic judge as an assertion line).
         if (!PROFILE_PRIMITIVE.equals(profile) && !PROFILE_OBJECT.equals(profile)) {
             // Unknown profile (or a non-string value): FAIL, never fall back.
+            if (panicChildMode) {
+                System.exit(1);
+            }
             System.out.println("=== scenario: " + name + " ===");
             System.out.println("FAIL profile: unknown '" + profile + "'");
+            scenariosRun++;
+            anyFail = true;
+            tally(dir, 1);
+            return;
+        }
+        if (PROFILE_OBJECT.equals(profile) && !objectProfileKind(collection)) {
+            // A valid profile on a kind (known or unknown) without an object
+            // dispatch: banner, echo, FAIL, never a fallback.
+            if (panicChildMode) {
+                System.exit(1);
+            }
+            printScenarioHeader(name, profile);
+            System.out.println("FAIL profile: object not supported for '" + collection + "'");
             scenariosRun++;
             anyFail = true;
             tally(dir, 1);
@@ -974,6 +995,18 @@ public final class ValidationRunner {
         tally(dir, 1);
     }
 
+    /** The collection kinds with an object-profile dispatch in {@link #dispatch}. */
+    private static boolean objectProfileKind(String collection) {
+        switch (collection) {
+            case "HashMap<f32, i32>":
+            case "HashSet<f32>":
+            case "TreeSet<f32>":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private void dispatch(String collection, String profile, JsonNode scenario, ScenarioResult r) {
         if (PROFILE_OBJECT.equals(profile)) {
             // Boxed object tier. Only the f32 kinds have an object cell; any
@@ -989,6 +1022,7 @@ public final class ValidationRunner {
                     runF32TreeSetObject(scenario, r);
                     break;
                 default:
+                    // runScenario already rejected this kind; never fall back.
                     throw new IllegalArgumentException("profile '" + profile + "' has no dispatch for " + collection);
             }
             return;
