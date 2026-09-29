@@ -4037,7 +4037,7 @@ public final class ValidationRunner {
     private void runCountMin(JsonNode scenario, ScenarioResult r)
     {
         JsonNode ops = scenario.path("operations");
-        // Exactly one with_params op builds the sketch (zero or multiple -> SKIP).
+        // Exactly one leading with_params op builds the sketch; malformed lists SKIP.
         JsonNode params = null;
         int paramCount = 0;
         if (ops.isArray())
@@ -4051,10 +4051,10 @@ public final class ValidationRunner {
                 }
             }
         }
-        if (paramCount != 1)
+        if (paramCount != 1 || !"with_params".equals(ops.get(0).path("op").asText()))
         {
             throw new ScenarioSkipException(
-                    "CountMin scenario must have exactly one with_params op (found " + paramCount + ")");
+                    "CountMin scenario must have exactly one leading with_params op (found " + paramCount + ")");
         }
         CountMin cms = CountMin.withParams(params.get("d").asInt(), params.get("w").asInt());
         for (JsonNode op : ops)
@@ -4153,10 +4153,10 @@ public final class ValidationRunner {
                 }
             }
         }
-        if (capCount != 1)
+        if (capCount != 1 || !"with_capacity".equals(ops.get(0).path("op").asText()))
         {
             throw new ScenarioSkipException(
-                    "SpaceSaving scenario must have exactly one with_capacity op (found " + capCount + ")");
+                    "SpaceSaving scenario must have exactly one leading with_capacity op (found " + capCount + ")");
         }
         SpaceSaving ss = SpaceSaving.withCapacity(cap.get("m").asInt());
         for (JsonNode op : ops)
