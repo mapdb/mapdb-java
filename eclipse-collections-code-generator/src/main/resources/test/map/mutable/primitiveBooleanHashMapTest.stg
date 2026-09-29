@@ -80,6 +80,64 @@ public class <name>BooleanHashMapTest extends AbstractMutable<name>BooleanMapTes
     }
 
     @Test
+    public void iteratorOwnedSelectiveRemovalVisitsEveryKey()
+    {
+        <name>BooleanHashMap map = new <name>BooleanHashMap();
+        java.util.Set\<<wrapperName> > expected = new java.util.HashSet\<>();
+        for (int k = 0; k \< 18; k++)
+        {
+            <type> key = (<type>) k;
+            map.put(key, (k & 1) == 0);
+            expected.add(key);
+        }
+        java.util.Set\<<wrapperName> > seen = new java.util.HashSet\<>();
+        org.mapdb.collections.api.iterator.Mutable<name>Iterator iterator = map.keySet().<type>Iterator();
+        assertThrows(IllegalStateException.class, iterator::remove);
+        int position = 0;
+        int removed = 0;
+        while (iterator.hasNext())
+        {
+            <type> key = iterator.next();
+            assertTrue(seen.add(key), "iterator repeated a key");
+            if (position++ % 3 != 0)
+            {
+                iterator.remove();
+                removed++;
+                assertFalse(map.containsKey(key));
+                assertThrows(IllegalStateException.class, iterator::remove);
+            }
+        }
+        assertEquals(expected, seen);
+        assertEquals(18 - removed, map.size());
+    }
+
+    @Test
+    public void valuesIteratorDrainAndFollowingInsertionsPreserveProbeTermination()
+    {
+        <name>BooleanHashMap map = new <name>BooleanHashMap();
+        for (int k = 0; k \< 66; k++) map.put((<type>) k, true);
+        org.mapdb.collections.api.iterator.MutableBooleanIterator iterator = map.booleanIterator();
+        int visited = 0;
+        while (iterator.hasNext())
+        {
+            assertTrue(iterator.next());
+            iterator.remove();
+            visited++;
+        }
+        assertEquals(66, visited);
+        assertTrue(map.isEmpty());
+        assertFalse(map.containsKey((<type>) 127));
+        for (int k = 70; k \< 101; k++) map.put((<type>) k, false);
+        assertEquals(31, map.size());
+        for (int k = 70; k \< 101; k++)
+        {
+            assertTrue(map.containsKey((<type>) k));
+            assertFalse(map.get((<type>) k));
+        }
+        assertFalse(map.containsKey((<type>) 127));
+    }
+
+    @Test
     public void defaultInitialCapacity() throws Exception
     {
         Field keys = <name>BooleanHashMap.class.getDeclaredField("keys");

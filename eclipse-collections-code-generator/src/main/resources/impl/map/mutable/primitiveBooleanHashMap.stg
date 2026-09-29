@@ -866,10 +866,21 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
         {
             this.rehashAndGrow();
         }
+        else if (this.occupiedWithSentinels > this.maxOccupiedWithSentinels())
+        {
+            // Iterator removal leaves probe positions stable. Reclaim its
+            // tombstones before later insertions can exhaust empty slots.
+            this.rehash();
+        }
     }
 
     @Override
     public void removeKey(<type> key)
+    {
+        this.removeKey(key, true);
+    }
+
+    private void removeKey(<type> key, boolean compact)
     {
         if (isEmptyKey(key))
         {
@@ -896,7 +907,7 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
             this.values.set(index, this.getEmptyValue());
             this.occupiedWithData--;
             this.occupiedWithSentinels++;
-            if (this.occupiedWithSentinels > this.maxOccupiedWithSentinels())
+            if (compact && this.occupiedWithSentinels > this.maxOccupiedWithSentinels())
             {
                 this.rehash();
             }
@@ -1306,7 +1317,7 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
             {
                 throw new IllegalStateException();
             }
-            <name>BooleanHashMap.this.removeKey(this.lastKey);
+            <name>BooleanHashMap.this.removeKey(this.lastKey, false);
             this.count--;
             this.canRemove = false;
         }
@@ -1895,7 +1906,7 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
             {
                 throw new IllegalStateException();
             }
-            <name>BooleanHashMap.this.removeKey(this.lastKey);
+            <name>BooleanHashMap.this.removeKey(this.lastKey, false);
             this.count--;
             this.removed = true;
         }
