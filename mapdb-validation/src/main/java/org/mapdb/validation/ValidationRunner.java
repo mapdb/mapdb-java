@@ -3404,7 +3404,12 @@ public final class ValidationRunner {
             switch (firstOp)
             {
                 case "with_precision":
-                    hll = HyperLogLog.withPrecision(first.path("p").asInt());
+                    JsonNode precision = first.path("p");
+                    if (precision.isIntegralNumber() && !precision.canConvertToInt())
+                    {
+                        throw new ScenarioSkipException("HyperLogLog precision outside int range (forward-compat)");
+                    }
+                    hll = HyperLogLog.withPrecision(precision.asInt());
                     break;
                 case "from_bytes":
                     // from_bytes is the SOLE op when present (full state replacement).
