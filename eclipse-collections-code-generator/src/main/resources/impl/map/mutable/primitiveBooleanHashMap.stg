@@ -1805,23 +1805,29 @@ public class <name>BooleanHashMap extends AbstractMutableBooleanValuesMap implem
         {
             int oldSize = <name>BooleanHashMap.this.size();
 
-            if (<name>BooleanHashMap.this.sentinelValues != null)
+            SentinelValues sentinelValues = <name>BooleanHashMap.this.getSentinelValues();
+            if (sentinelValues != null)
             {
-                if (<name>BooleanHashMap.this.getSentinelValues().containsZeroKey && item == <name>BooleanHashMap.this.getSentinelValues().zeroValue)
+                if (sentinelValues.containsZeroKey && item == sentinelValues.zeroValue)
                 {
                     <name>BooleanHashMap.this.removeKey(EMPTY_KEY);
                 }
-                if (<name>BooleanHashMap.this.getSentinelValues().containsOneKey && item == <name>BooleanHashMap.this.getSentinelValues().oneValue)
+                if (sentinelValues.containsOneKey && item == sentinelValues.oneValue)
                 {
                     <name>BooleanHashMap.this.removeKey(REMOVED_KEY);
                 }
             }
+            // Keep physical positions stable until every matching entry is removed.
             for (int i = 0; i \< <name>BooleanHashMap.this.keys.length; i++)
             {
                 if (isNonSentinel(<name>BooleanHashMap.this.keys[i]) && item == <name>BooleanHashMap.this.getValueAtIndex(i))
                 {
-                    <name>BooleanHashMap.this.removeKey(<name>BooleanHashMap.this.keys[i]);
+                    <name>BooleanHashMap.this.removeKey(<name>BooleanHashMap.this.keys[i], false);
                 }
+            }
+            if (<name>BooleanHashMap.this.occupiedWithSentinels > <name>BooleanHashMap.this.maxOccupiedWithSentinels())
+            {
+                <name>BooleanHashMap.this.rehash();
             }
             return oldSize != <name>BooleanHashMap.this.size();
         }
