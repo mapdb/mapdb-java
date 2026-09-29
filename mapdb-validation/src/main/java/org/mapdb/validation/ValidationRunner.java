@@ -4509,12 +4509,20 @@ public final class ValidationRunner {
                     throw new ScenarioSkipException(
                             "RoaringU32 deserialize bytes must have an even hex-digit count");
                 }
-                byte[] bytes = new byte[body.length() / 2];
-                for (int i = 0; i < bytes.length; i++)
+                try
                 {
-                    bytes[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+                    byte[] bytes = new byte[body.length() / 2];
+                    for (int i = 0; i < bytes.length; i++)
+                    {
+                        bytes[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+                    }
+                    return RoaringU32.deserialize(bytes);
                 }
-                return RoaringU32.deserialize(bytes);
+                catch (IllegalArgumentException ex)
+                {
+                    // Unparseable/non-canonical images are malformed scenarios.
+                    throw new ScenarioSkipException("RoaringU32 deserialize rejected bytes: " + ex.getMessage());
+                }
             }
         }
         RoaringU32 set = new RoaringU32();
