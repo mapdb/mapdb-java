@@ -85,15 +85,27 @@ public class PrimitiveBooleanIteratorRemovalTest
         for (int key = 2; key < 18; key++) map.put(key, true);
         MutableIntIterator it = map.keySet().intIterator();
         while (it.hasNext()) { it.next(); it.remove(); }
-        // These first-probe positions fill the slots outside the old keys.
-        for (int key = 18; key < 34; key++) map.put(key, false);
         java.lang.reflect.Field keys = IntBooleanHashMap.class.getDeclaredField("keys");
         keys.setAccessible(true);
+        java.lang.reflect.Method spread = IntBooleanHashMap.class.getDeclaredMethod("spreadAndMask", int.class);
+        spread.setAccessible(true);
+        int[] drainedSlots = (int[]) keys.get(map);
+        java.util.List<Integer> newKeys = new java.util.ArrayList<>();
+        // Select fresh keys using the actual production spread: numeric-key
+        // guesses do not target distinct first-probe slots in this family.
+        for (int slot = 0; slot < drainedSlots.length; slot++)
+        {
+            if (drainedSlots[slot] != 0) continue;
+            int candidate = 1000;
+            while ((int) spread.invoke(map, candidate) != slot) candidate++;
+            newKeys.add(candidate);
+        }
+        for (int key : newKeys) map.put(key, false);
         int[] slots = (int[]) keys.get(map);
         assertTrue(java.util.Arrays.stream(slots).anyMatch(key -> key == 0),
                 "an absent probe needs an empty slot after deferred compaction");
         assertFalse(map.containsKey(100));
-        for (int key = 18; key < 34; key++) assertTrue(map.containsKey(key));
+        for (int key : newKeys) assertTrue(map.containsKey(key));
     }
 
     @Test public void floatKeyRemovalPreservesRawIdentity()
