@@ -32,7 +32,9 @@ public class GroupByUniqueKeyProcedure<T, K> implements Procedure<T>
     public void value(T object)
     {
         K key = this.keyFunction.valueOf(object);
-        if (this.map.put(key, object) != null)
+        boolean duplicate = this.map.containsKey(key);
+        this.map.put(key, object);
+        if (duplicate)
         {
             throw new IllegalStateException("Key " + key + " already exists in map!");
         }
