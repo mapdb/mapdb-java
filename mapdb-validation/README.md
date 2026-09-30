@@ -67,6 +67,19 @@ unsupported by stock EC).
 
 A single scenario can also be run by passing its file path.
 
+After building the jar, exercise byte-operand grammar through the real CLI:
+
+```sh
+python3 mapdb-validation/test_hex_operands.py \
+  mapdb-validation/target/mapdb-validation.jar \
+  ../mapdb-collection-spec/cross-language-validation/scenarios
+```
+
+Malformed byte pairs are skipped before observations; signed pairs and Unicode
+numerals are rejected, while ASCII hexadecimal digits and either prefix case
+remain supported.
+
+
 ## Profiles
 
 The optional scenario field `profile` selects the implementation tier (absent

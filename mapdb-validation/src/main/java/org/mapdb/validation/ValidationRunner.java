@@ -3571,6 +3571,29 @@ public final class ValidationRunner {
         throw new ScenarioSkipException("hash-pipeline seed must be a decimal string or integer");
     }
 
+    private static int parseHexNibble(char digit)
+    {
+        if (digit >= '0' && digit <= '9')
+        {
+            return digit - '0';
+        }
+        if (digit >= 'a' && digit <= 'f')
+        {
+            return digit - 'a' + 10;
+        }
+        if (digit >= 'A' && digit <= 'F')
+        {
+            return digit - 'A' + 10;
+        }
+        throw new NumberFormatException("bytes must contain ASCII hexadecimal digits");
+    }
+
+    private static byte parseHexByte(String body, int offset)
+    {
+        return (byte) ((parseHexNibble(body.charAt(offset)) << 4)
+                | parseHexNibble(body.charAt(offset + 1)));
+    }
+
     /** Parse a 0x-prefixed hex `bytes` operand to a byte[]. */
     private static byte[] parseHexBytes(JsonNode op)
     {
@@ -3585,9 +3608,16 @@ public final class ValidationRunner {
             throw new ScenarioSkipException("hash-pipeline bytes must have an even hex-digit count: " + s);
         }
         byte[] out = new byte[body.length() / 2];
-        for (int i = 0; i < out.length; i++)
+        try
         {
-            out[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+            for (int i = 0; i < out.length; i++)
+            {
+                out[i] = parseHexByte(body, 2 * i);
+            }
+        }
+        catch (NumberFormatException ex)
+        {
+            throw new ScenarioSkipException("hash-pipeline bytes rejected: " + ex.getMessage());
         }
         return out;
     }
@@ -4514,7 +4544,7 @@ public final class ValidationRunner {
                     byte[] bytes = new byte[body.length() / 2];
                     for (int i = 0; i < bytes.length; i++)
                     {
-                        bytes[i] = (byte) Integer.parseInt(body.substring(2 * i, 2 * i + 2), 16);
+                        bytes[i] = parseHexByte(body, 2 * i);
                     }
                     return RoaringU32.deserialize(bytes);
                 }
