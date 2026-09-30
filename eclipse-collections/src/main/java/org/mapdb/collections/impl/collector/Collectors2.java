@@ -1073,7 +1073,9 @@ public final class Collectors2
                 (map, each) ->
                 {
                     K key = groupBy.valueOf(each);
-                    if (map.put(key, each) != null)
+                    boolean duplicate = map.containsKey(key);
+                    map.put(key, each);
+                    if (duplicate)
                     {
                         throw new IllegalStateException("Key " + key + " already exists in map!");
                     }
@@ -1082,7 +1084,9 @@ public final class Collectors2
                 {
                     r2.forEachKeyValue((key, value) ->
                     {
-                        if (r1.put(key, value) != null)
+                        boolean duplicate = r1.containsKey(key);
+                        r1.put(key, value);
+                        if (duplicate)
                         {
                             throw new IllegalStateException("Key " + key + " already exists in map!");
                         }
