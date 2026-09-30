@@ -846,7 +846,10 @@ final class Immutable<name>ObjectSingletonMap\<V> extends AbstractImmutable<name
     @Override
     public \<VV, R extends MutableMapIterable\<VV, V>\> R groupByUniqueKey(Function\<? super V, ? extends VV> function, R target)
     {
-        if (target.put(function.valueOf(this.value1), this.value1) != null)
+        VV key = function.valueOf(this.value1);
+        boolean duplicate = target.containsKey(key);
+        target.put(key, this.value1);
+        if (duplicate)
         {
             throw new IllegalStateException("Key " + function.valueOf(this.value1) + " already exists in map!");
         }
