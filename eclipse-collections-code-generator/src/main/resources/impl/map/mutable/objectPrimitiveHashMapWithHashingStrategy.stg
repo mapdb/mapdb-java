@@ -1249,11 +1249,12 @@ public class Object<name>HashMapWithHashingStrategy\<K> implements MutableObject
         Mutable<name>ObjectMap\<K> result = <name>ObjectMaps.mutable.empty();
         this.forEachKeyValue((key, value) ->
         {
-            K oldKey = result.put(value, key);
-            if (oldKey != null)
+            if (result.containsKey(value))
             {
+                K oldKey = result.get(value);
                 throw new IllegalStateException("Duplicate value: " + value + " found at key: " + oldKey + " and key: " + key);
             }
+            result.put(value, key);
         });
         return result;
     }
