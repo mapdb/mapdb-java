@@ -2497,6 +2497,8 @@ public final class ConcurrentHashMap<K, V>
         AtomicReferenceArray currentArray = this.table;
         V newValue = null;
         boolean createdValue = false;
+        //noinspection LabeledStatement
+        outer:
         while (true)
         {
             int length = currentArray.length();
@@ -2514,7 +2516,28 @@ public final class ConcurrentHashMap<K, V>
                     K candidate = e.getKey();
                     if (candidate.equals(key))
                     {
-                        return e.getValue();
+                        V oldValue = e.getValue();
+                        if (oldValue != null)
+                        {
+                            return oldValue;
+                        }
+                        if (!createdValue)
+                        {
+                            createdValue = true;
+                            newValue = mappingFunction.apply(key);
+                        }
+                        if (newValue == null)
+                        {
+                            return null;
+                        }
+                        Entry<K, V> replacement = this.createReplacementChainForRemoval((Entry<K, V>) o, e);
+                        Entry<K, V> newEntry = new Entry<>(e.getKey(), newValue, replacement);
+                        if (currentArray.compareAndSet(index, o, newEntry))
+                        {
+                            return newValue;
+                        }
+                        //noinspection ContinueStatementWithLabel
+                        continue outer;
                     }
                     e = e.getNext();
                 }
