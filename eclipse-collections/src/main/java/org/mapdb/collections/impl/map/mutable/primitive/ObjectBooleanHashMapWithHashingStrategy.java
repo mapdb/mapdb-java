@@ -1136,10 +1136,14 @@ public class ObjectBooleanHashMapWithHashingStrategy<K> implements MutableObject
 
     private void rehashAndGrow()
     {
-        // Tombstones require a fresh probe table, not more capacity. Grow
-        // only when the live entries themselves exceed the load threshold.
+        // Dense tables need a growth margin so steady churn does not
+        // rebuild on every insertion. Sparse tombstone churn only compacts.
         int capacity = this.keys.length;
-        this.rehash(this.occupiedWithData > this.maxOccupiedWithData() ? capacity << 1 : capacity);
+        int max = this.maxOccupiedWithData();
+        boolean needsGrowth = this.occupiedWithData > max
+                || max > 1 && this.occupiedWithSentinels > 0
+                && this.occupiedWithData > (max >> 1) + (max >> 2);
+        this.rehash(needsGrowth ? capacity << 1 : capacity);
     }
 
     private void rehash(int newCapacity)

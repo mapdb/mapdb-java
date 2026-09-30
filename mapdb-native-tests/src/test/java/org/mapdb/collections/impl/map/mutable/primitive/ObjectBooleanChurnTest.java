@@ -1,6 +1,8 @@
 package org.mapdb.collections.impl.map.mutable.primitive;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mapdb.collections.api.map.primitive.MutableObjectBooleanMap;
 import org.mapdb.collections.api.block.HashingStrategy;
 
@@ -17,22 +19,88 @@ public class ObjectBooleanChurnTest
     private static class MeasuredMap extends ObjectBooleanHashMap<Integer>
     {
         int capacity;
+        int allocations;
         MeasuredMap() { super(1); }
         @Override protected void allocateTable(int size)
         {
             super.allocateTable(size);
             this.capacity = size;
+            this.allocations++;
         }
     }
 
     private static class MeasuredStrategyMap extends ObjectBooleanHashMapWithHashingStrategy<Integer>
     {
         int capacity;
+        int allocations;
         MeasuredStrategyMap(HashingStrategy<Integer> strategy) { super(strategy, 1); }
         @Override protected void allocateTable(int size)
         {
             super.allocateTable(size);
             this.capacity = size;
+            this.allocations++;
+        }
+    }
+
+    private static void exerciseDenseChurn(MutableObjectBooleanMap<Integer> map, int live)
+    {
+        map.put(null, false);
+        for (int i = 0; i < live; i++) map.put(i, (i & 1) == 0);
+        for (int i = 0; i < live * 8; i++)
+        {
+            map.removeKey(i);
+            int inserted = i + live;
+            map.put(inserted, (inserted & 1) == 0);
+            assertFalse(map.containsKey(i));
+            assertTrue(map.containsKey(inserted));
+            assertEquals((inserted & 1) == 0, map.get(inserted));
+            assertEquals(live + 1, map.size());
+            assertTrue(map.containsKey(null));
+            assertFalse(map.get(null));
+        }
+        for (int i = live * 8; i < live * 9; i++)
+        {
+            assertTrue(map.containsKey(i));
+            assertEquals((i & 1) == 0, map.get(i));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {47, 48, 63, 64, 65, 100})
+    public void denseNormalChurnHasARebuildMargin(int live)
+    {
+        MeasuredMap map = new MeasuredMap();
+        // Populate before measuring so ordinary initial growth is excluded.
+        map.put(null, false);
+        for (int i = 0; i < live; i++) map.put(i, (i & 1) == 0);
+        int initialCapacity = map.capacity;
+        int initialAllocations = map.allocations;
+        exerciseDenseChurn(map, live);
+        assertTrue(map.capacity <= initialCapacity * 2, "stable live size must have bounded capacity");
+        assertTrue(map.allocations - initialAllocations <= 24,
+                "dense churn must not rebuild per insertion: " + (map.allocations - initialAllocations));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {47, 48, 63, 64, 65, 100})
+    public void denseStrategyChurnHasARebuildMargin(int live)
+    {
+        HashingStrategy<Integer> collisions = new HashingStrategy<>()
+        {
+            @Override public int computeHashCode(Integer key) { return 0; }
+            @Override public boolean equals(Integer a, Integer b) { return java.util.Objects.equals(a, b); }
+        };
+        for (HashingStrategy<Integer> strategy : java.util.List.of(HASHING, collisions))
+        {
+            MeasuredStrategyMap map = new MeasuredStrategyMap(strategy);
+            map.put(null, false);
+            for (int i = 0; i < live; i++) map.put(i, (i & 1) == 0);
+            int initialCapacity = map.capacity;
+            int initialAllocations = map.allocations;
+            exerciseDenseChurn(map, live);
+            assertTrue(map.capacity <= initialCapacity * 2);
+            assertTrue(map.allocations - initialAllocations <= 24,
+                    "dense churn must not rebuild per insertion: " + (map.allocations - initialAllocations));
         }
     }
 
