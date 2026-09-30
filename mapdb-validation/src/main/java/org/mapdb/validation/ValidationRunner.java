@@ -3699,8 +3699,8 @@ public final class ValidationRunner {
             case "positions":
             {
                 int value = op.path("value").asInt();
-                int m = op.path("m").asInt();
-                int k = op.path("k").asInt();
+                int m = positionsU32Param(op, "m");
+                int k = positionsU32Param(op, "k");
                 // The i32 element drives positions via its little-endian 4-byte
                 // form (the byte path the sketches use); no op-level seed (the
                 // scheme fixes the internal seeds 0 and SALT2).
@@ -3757,6 +3757,28 @@ public final class ValidationRunner {
             }
             r.emit(key, computed, e.getValue(), FloatMode.NONE);
         }
+    }
+
+    /**
+     * Read a hash-pipeline {@code positions} {@code m}/{@code k} operand. They are
+     * {@code u32}, carried by production {@link Hash#positions} as {@code int} bit
+     * patterns read unsigned, so an integral JSON value outside
+     * {@code 0 ..= 2^32-1} SKIPs before narrowing instead of wrapping; in-domain
+     * values keep their exact u32 bits. Missing/non-integral handling is unchanged.
+     */
+    private static int positionsU32Param(JsonNode op, String field)
+    {
+        JsonNode n = op.path(field);
+        if (n.isIntegralNumber())
+        {
+            if (!n.canConvertToLong() || n.asLong() < 0 || n.asLong() > 0xFFFFFFFFL)
+            {
+                throw new ScenarioSkipException(
+                        "positions " + field + " outside u32 range (forward-compat skip)");
+            }
+            return (int) n.asLong();
+        }
+        return n.asInt();
     }
 
     // ---- Bloom (spec/features/bloom.md) -----------------------------------
@@ -4086,7 +4108,7 @@ public final class ValidationRunner {
             throw new ScenarioSkipException(
                     "CountMin scenario must have exactly one leading with_params op (found " + paramCount + ")");
         }
-        CountMin cms = CountMin.withParams(params.get("d").asInt(), params.get("w").asInt());
+        CountMin cms = CountMin.withParams(sketchIntParam(params, "d", "CountMin"), sketchIntParam(params, "w", "CountMin"));
         for (JsonNode op : ops)
         {
             String opName = op.path("op").asText();
@@ -4111,6 +4133,25 @@ public final class ValidationRunner {
             }
             r.emit(key, evalCountMin(key, cms), e.getValue(), FloatMode.NONE);
         }
+    }
+
+    /**
+     * Read a CountMin/SpaceSaving constructor parameter ({@code d}/{@code w}/{@code m})
+     * for the production {@code int} parameter. An integral JSON value that does
+     * not fit {@code int} SKIPs BEFORE narrowing ({@code asInt()} would wrap
+     * {@code 4294967312} to {@code 16}); every {@code int}-domain value, negatives
+     * included, reaches the production constructor unchanged so its own checks
+     * decide. Missing/non-integral handling is unchanged.
+     */
+    private static int sketchIntParam(JsonNode op, String field, String kind)
+    {
+        JsonNode n = op.get(field);
+        if (n != null && n.isIntegralNumber() && !n.canConvertToInt())
+        {
+            throw new ScenarioSkipException(
+                    kind + " " + field + " outside the production int parameter range (forward-compat skip)");
+        }
+        return n.asInt();
     }
 
     private String evalCountMin(String key, CountMin cms)
@@ -4188,7 +4229,7 @@ public final class ValidationRunner {
             throw new ScenarioSkipException(
                     "SpaceSaving scenario must have exactly one leading with_capacity op (found " + capCount + ")");
         }
-        SpaceSaving ss = SpaceSaving.withCapacity(cap.get("m").asInt());
+        SpaceSaving ss = SpaceSaving.withCapacity(sketchIntParam(cap, "m", "SpaceSaving"));
         for (JsonNode op : ops)
         {
             String opName = op.path("op").asText();
