@@ -654,8 +654,9 @@ public final class MapIterate
                 map,
                 (key, value) -> {
                     K2 newKey = function.value(key, value);
-                    V previousValue = target.put(newKey, value);
-                    if (previousValue != null)
+                    boolean duplicate = target.containsKey(newKey);
+                    target.put(newKey, value);
+                    if (duplicate)
                     {
                         throw new IllegalStateException("Key " + newKey + " already exists in map!");
                     }
