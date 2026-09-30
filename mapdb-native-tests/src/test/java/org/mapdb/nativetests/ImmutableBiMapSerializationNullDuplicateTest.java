@@ -70,6 +70,39 @@ public class ImmutableBiMapSerializationNullDuplicateTest {
         assertThrows(IllegalArgumentException.class, () -> decode(bytes));
         assertEquals(2, source.size()); assertEquals(2, source.inverse().size());
     }
+    static Stream<Arguments> simultaneousCollisions() {
+        return Stream.<String>of(null, "same").flatMap(key ->
+                Stream.of(Arguments.of(key, null, "collision"),
+                        Arguments.of(key, "old", "collision"),
+                        Arguments.of(key, "old", null)));
+    }
+    @ParameterizedTest @MethodSource("simultaneousCollisions")
+    void retainsValueCollisionPrecedenceForSimultaneousResolvedKeyCollision(
+            String key, String prior, String collision) throws Exception {
+        var first = new ResolvingKey(key, 0);
+        var second = new ResolvingKey("other-key", 1);
+        var third = new ResolvingKey(key, 2);
+        var resolvedValue = new ResolvingKey(collision, 42);
+        var source = BiMaps.immutable.<Object, Object>with(
+                first, prior, second, collision, third, resolvedValue);
+        assertIterableEquals(java.util.List.of(first, second, third), source.keysView(),
+                "the encoded third entry must collide with both earlier decoded entries");
+        assertNotEquals(prior, collision);
+        assertNotEquals(collision, resolvedValue);
+        assertNotEquals(prior, resolvedValue);
+        try {
+            byte[] bytes = encode(source);
+            var error = assertThrows(IllegalArgumentException.class, () -> decode(bytes));
+            assertEquals("Value " + collision + " already exists in map!", error.getMessage());
+        } finally {
+            assertEquals(3, source.size()); assertEquals(3, source.inverse().size());
+            assertEquals(prior, source.get(first)); assertEquals(collision, source.get(second));
+            assertSame(resolvedValue, source.get(third));
+            assertSame(first, source.inverse().get(prior));
+            assertSame(second, source.inverse().get(collision));
+            assertSame(third, source.inverse().get(resolvedValue));
+        }
+    }
     private static byte[] encode(Object source) throws Exception {
         var bytes = new ByteArrayOutputStream();
         try (var output = new ObjectOutputStream(bytes)) { output.writeObject(source); }
