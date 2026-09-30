@@ -138,7 +138,9 @@ public interface MutableOrderedMap<K, V> extends OrderedMap<K, V>, MutableMapIte
         this.forEachKeyValue((key, value) ->
         {
             R newKey = function.value(key, value);
-            if (result.put(newKey, value) != null)
+            boolean duplicate = result.containsKey(newKey);
+            result.put(newKey, value);
+            if (duplicate)
             {
                 throw new IllegalStateException("Key " + newKey + " already exists in map!");
             }
