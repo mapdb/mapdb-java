@@ -1691,14 +1691,20 @@ public class <name>ObjectHashMap\<V> implements Mutable<name>ObjectMap\<V>, Exte
         {
             if (this.sentinelValues.containsZeroKey)
             {
-                if (target.put(function.valueOf(this.sentinelValues.zeroValue), this.sentinelValues.zeroValue) != null)
+                VV key = function.valueOf(this.sentinelValues.zeroValue);
+                boolean duplicate = target.containsKey(key);
+                target.put(key, this.sentinelValues.zeroValue);
+                if (duplicate)
                 {
                     throw new IllegalStateException("Key " + function.valueOf(this.sentinelValues.zeroValue) + " already exists in map!");
                 }
             }
             if (this.sentinelValues.containsOneKey)
             {
-                if (target.put(function.valueOf(this.sentinelValues.oneValue), this.sentinelValues.oneValue) != null)
+                VV key = function.valueOf(this.sentinelValues.oneValue);
+                boolean duplicate = target.containsKey(key);
+                target.put(key, this.sentinelValues.oneValue);
+                if (duplicate)
                 {
                     throw new IllegalStateException("Key " + function.valueOf(this.sentinelValues.oneValue) + " already exists in map!");
                 }
@@ -1708,7 +1714,10 @@ public class <name>ObjectHashMap\<V> implements Mutable<name>ObjectMap\<V>, Exte
         {
             if (isNonSentinel(this.keys[i]))
             {
-                if (target.put(function.valueOf(this.values[i]), this.values[i]) != null)
+                VV key = function.valueOf(this.values[i]);
+                boolean duplicate = target.containsKey(key);
+                target.put(key, this.values[i]);
+                if (duplicate)
                 {
                     throw new IllegalStateException("Key " + function.valueOf(this.values[i]) + " already exists in map!");
                 }
