@@ -1633,7 +1633,7 @@ public class Object<name>HashMapWithHashingStrategy\<K> implements MutableObject
                 Object key = Object<name>HashMapWithHashingStrategy.this.keys[i];
                 if (Object<name>HashMapWithHashingStrategy.isNonSentinel(key))
                 {
-                    result[count++] = Object<name>HashMapWithHashingStrategy.this.keys[i];
+                    result[count++] = Object<name>HashMapWithHashingStrategy.this.toNonSentinel(Object<name>HashMapWithHashingStrategy.this.keys[i]);
                 }
             }
         }

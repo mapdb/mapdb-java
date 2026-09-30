@@ -1709,7 +1709,7 @@ public class Object<name>HashMap\<K> implements MutableObject<name>Map\<K>, Exte
                 Object key = Object<name>HashMap.this.keys[i];
                 if (Object<name>HashMap.isNonSentinel(key))
                 {
-                    result[count++] = Object<name>HashMap.this.keys[i];
+                    result[count++] = Object<name>HashMap.this.toNonSentinel(Object<name>HashMap.this.keys[i]);
                 }
             }
         }
