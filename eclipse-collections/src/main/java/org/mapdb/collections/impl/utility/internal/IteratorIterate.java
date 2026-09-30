@@ -1093,7 +1093,9 @@ public final class IteratorIterate
         {
             T value = iterator.next();
             K key = function.valueOf(value);
-            if (target.put(key, value) != null)
+            boolean duplicate = target.containsKey(key);
+            target.put(key, value);
+            if (duplicate)
             {
                 throw new IllegalStateException("Key " + key + " already exists in map!");
             }
