@@ -3565,7 +3565,7 @@ public class UnifiedMapWithHashingStrategy<K, V> extends AbstractMutableMap<K, V
                 for (Iterator<V> it = this.iterator(); it.hasNext(); )
                 {
                     V o2 = it.next();
-                    if (o == o2 || o2.equals(o))
+                    if (o == o2 || o2 != null && o2.equals(o))
                     {
                         it.remove();
                         return true;
