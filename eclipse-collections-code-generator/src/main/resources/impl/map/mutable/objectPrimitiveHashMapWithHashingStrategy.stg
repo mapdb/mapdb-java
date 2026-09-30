@@ -1803,7 +1803,7 @@ public class Object<name>HashMapWithHashingStrategy\<K> implements MutableObject
             {
                 if (isNonSentinel(Object<name>HashMapWithHashingStrategy.this.keys[i]) && <(equals.(type))({item}, {Object<name>HashMapWithHashingStrategy.this.values[i]})>)
                 {
-                    Object<name>HashMapWithHashingStrategy.this.removeKey((K) Object<name>HashMapWithHashingStrategy.this.keys[i]);
+                    Object<name>HashMapWithHashingStrategy.this.removeKey(Object<name>HashMapWithHashingStrategy.this.toNonSentinel(Object<name>HashMapWithHashingStrategy.this.keys[i]));
                 }
             }
             return oldSize != Object<name>HashMapWithHashingStrategy.this.size();
