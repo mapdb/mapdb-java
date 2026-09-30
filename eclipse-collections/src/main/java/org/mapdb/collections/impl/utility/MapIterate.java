@@ -810,8 +810,9 @@ public final class MapIterate
         MutableMap<V, K> result = Maps.mutable.empty();
 
         mapIterable.forEachKeyValue((key, value) -> {
+            boolean duplicate = result.containsKey(value);
             K oldKey = result.put(value, key);
-            if (oldKey != null)
+            if (duplicate)
             {
                 throw new IllegalStateException("Duplicate value: " + value + " found at key: " + oldKey + " and key: " + key);
             }
