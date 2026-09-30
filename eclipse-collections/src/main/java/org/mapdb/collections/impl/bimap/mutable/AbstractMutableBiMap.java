@@ -1175,7 +1175,7 @@ abstract class AbstractMutableBiMap<K, V> extends AbstractBiMap<K, V> implements
         private class InternalEntrySetIterator implements Iterator<Entry<K, V>>
         {
             private final Iterator<Entry<K, V>> iterator = AbstractMutableBiMap.this.delegate.entrySet().iterator();
-            private V currentValue;
+            private Entry<K, V> currentEntry;
 
             @Override
             public boolean hasNext()
@@ -1188,7 +1188,7 @@ abstract class AbstractMutableBiMap<K, V> extends AbstractBiMap<K, V> implements
             {
                 Entry<K, V> next = this.iterator.next();
                 Entry<K, V> result = new InternalEntry(next.getKey(), next.getValue());
-                this.currentValue = result.getValue();
+                this.currentEntry = result;
                 return result;
             }
 
@@ -1196,7 +1196,7 @@ abstract class AbstractMutableBiMap<K, V> extends AbstractBiMap<K, V> implements
             public void remove()
             {
                 this.iterator.remove();
-                AbstractMutableBiMap.this.inverse.delegate.removeKey(this.currentValue);
+                AbstractMutableBiMap.this.inverse.delegate.removeKey(this.currentEntry.getValue());
             }
         }
 
