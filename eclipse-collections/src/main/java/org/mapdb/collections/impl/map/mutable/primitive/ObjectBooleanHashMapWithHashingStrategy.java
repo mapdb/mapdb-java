@@ -1863,7 +1863,7 @@ public class ObjectBooleanHashMapWithHashingStrategy<K> implements MutableObject
                 {
                     this.position++;
                 }
-                K result = (K) ObjectBooleanHashMapWithHashingStrategy.this.keys[this.position];
+                K result = ObjectBooleanHashMapWithHashingStrategy.this.toNonSentinel(ObjectBooleanHashMapWithHashingStrategy.this.keys[this.position]);
                 this.count++;
                 this.position++;
                 return result;
