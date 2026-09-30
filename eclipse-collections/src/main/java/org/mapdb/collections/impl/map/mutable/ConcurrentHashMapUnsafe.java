@@ -1226,6 +1226,12 @@ public class ConcurrentHashMapUnsafe<K, V>
     @Override
     public V remove(Object key)
     {
+        Entry<K, V> removed = this.removeEntry(key);
+        return removed == null ? null : removed.getValue();
+    }
+
+    private Entry<K, V> removeEntry(Object key)
+    {
         int hash = this.hash(key);
         Object[] currentArray = this.table;
         int length = currentArray.length;
@@ -1233,7 +1239,7 @@ public class ConcurrentHashMapUnsafe<K, V>
         Object o = ConcurrentHashMapUnsafe.arrayAt(currentArray, index);
         if (o == RESIZED || o == RESIZING)
         {
-            return this.slowRemove(key, hash, currentArray);
+            return this.slowRemoveEntry(key, hash, currentArray);
         }
         Entry<K, V> e = (Entry<K, V>) o;
         while (e != null)
@@ -1245,16 +1251,16 @@ public class ConcurrentHashMapUnsafe<K, V>
                 if (ConcurrentHashMapUnsafe.casArrayAt(currentArray, index, o, replacement))
                 {
                     this.addToSize(-1);
-                    return e.getValue();
+                    return e;
                 }
-                return this.slowRemove(key, hash, currentArray);
+                return this.slowRemoveEntry(key, hash, currentArray);
             }
             e = e.getNext();
         }
         return null;
     }
 
-    private V slowRemove(Object key, int hash, Object[] currentArray)
+    private Entry<K, V> slowRemoveEntry(Object key, int hash, Object[] currentArray)
     {
         //noinspection LabeledStatement
         outer:
@@ -1279,7 +1285,7 @@ public class ConcurrentHashMapUnsafe<K, V>
                         if (ConcurrentHashMapUnsafe.casArrayAt(currentArray, index, o, replacement))
                         {
                             this.addToSize(-1);
-                            return e.getValue();
+                            return e;
                         }
                         //noinspection ContinueStatementWithLabel
                         continue outer;
@@ -1823,7 +1829,7 @@ public class ConcurrentHashMapUnsafe<K, V>
         @Override
         public boolean remove(Object o)
         {
-            return ConcurrentHashMapUnsafe.this.remove(o) != null;
+            return ConcurrentHashMapUnsafe.this.removeEntry(o) != null;
         }
 
         @Override

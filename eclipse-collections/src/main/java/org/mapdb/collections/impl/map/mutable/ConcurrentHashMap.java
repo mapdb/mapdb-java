@@ -1113,6 +1113,12 @@ public final class ConcurrentHashMap<K, V>
     @Override
     public V remove(Object key)
     {
+        Entry<K, V> removed = this.removeEntry(key);
+        return removed == null ? null : removed.getValue();
+    }
+
+    private Entry<K, V> removeEntry(Object key)
+    {
         int hash = this.hash(key);
         AtomicReferenceArray currentArray = this.table;
         int length = currentArray.length();
@@ -1120,7 +1126,7 @@ public final class ConcurrentHashMap<K, V>
         Object o = currentArray.get(index);
         if (o == RESIZED || o == RESIZING)
         {
-            return this.slowRemove(key, hash, currentArray);
+            return this.slowRemoveEntry(key, hash, currentArray);
         }
         Entry<K, V> e = (Entry<K, V>) o;
         while (e != null)
@@ -1132,16 +1138,16 @@ public final class ConcurrentHashMap<K, V>
                 if (currentArray.compareAndSet(index, o, replacement))
                 {
                     this.addToSize(-1);
-                    return e.getValue();
+                    return e;
                 }
-                return this.slowRemove(key, hash, currentArray);
+                return this.slowRemoveEntry(key, hash, currentArray);
             }
             e = e.getNext();
         }
         return null;
     }
 
-    private V slowRemove(Object key, int hash, AtomicReferenceArray currentArray)
+    private Entry<K, V> slowRemoveEntry(Object key, int hash, AtomicReferenceArray currentArray)
     {
         //noinspection LabeledStatement
         outer:
@@ -1166,7 +1172,7 @@ public final class ConcurrentHashMap<K, V>
                         if (currentArray.compareAndSet(index, o, replacement))
                         {
                             this.addToSize(-1);
-                            return e.getValue();
+                            return e;
                         }
                         //noinspection ContinueStatementWithLabel
                         continue outer;
@@ -1720,7 +1726,7 @@ public final class ConcurrentHashMap<K, V>
         @Override
         public boolean remove(Object o)
         {
-            return ConcurrentHashMap.this.remove(o) != null;
+            return ConcurrentHashMap.this.removeEntry(o) != null;
         }
 
         @Override
