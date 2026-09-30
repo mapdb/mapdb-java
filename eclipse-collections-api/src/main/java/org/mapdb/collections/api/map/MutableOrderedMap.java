@@ -67,8 +67,9 @@ public interface MutableOrderedMap<K, V> extends OrderedMap<K, V>, MutableMapIte
         MutableOrderedMap<V, K> result = OrderedMaps.mutable.empty();
         this.forEachKeyValue((key, value) ->
         {
+            boolean duplicate = result.containsKey(value);
             K oldKey = result.put(value, key);
-            if (oldKey != null)
+            if (duplicate)
             {
                 throw new IllegalStateException(String.format(
                         "Duplicate value: %s found at key: %s and key: %s",
