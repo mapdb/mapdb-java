@@ -1697,14 +1697,9 @@ public final class ValidationRunner {
         }
         if (key.startsWith("detect_gt_")) {
             int t = Integer.parseInt(key.substring(10));
-            // detectIfNone returns a sentinel; use anySatisfy + manual scan for null.
-            for (int i = 0; i < list.size(); i++) {
-                int v = list.get(i);
-                if (v > t) {
-                    return String.valueOf(v);
-                }
-            }
-            return "null";
+            // The threshold cannot satisfy this strict predicate, so it is a safe sentinel.
+            int detected = list.detectIfNone(v -> v > t, t);
+            return detected == t ? "null" : String.valueOf(detected);
         }
         if (key.startsWith("count_gt_")) {
             int t = Integer.parseInt(key.substring(9));
