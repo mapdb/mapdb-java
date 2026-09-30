@@ -757,11 +757,21 @@ public abstract class AbstractParallelIterable<T, B extends Batch<T>> implements
     public <V> MapIterable<V, T> groupByUniqueKey(Function<? super T, ? extends V> function)
     {
         MutableMap<V, T> result = ConcurrentHashMap.newMap(this.getBatchSize());
+        // Keep duplicate detection atomic even when a source value is null.
+        @SuppressWarnings("unchecked")
+        T nullValue = (T) new Object();
         this.forEach(value -> {
             V key = function.valueOf(value);
-            if (result.put(key, value) != null)
+            if (result.put(key, value == null ? nullValue : value) != null)
             {
                 throw new IllegalStateException("Key " + key + " already exists in map!");
+            }
+        });
+        // Workers have completed successfully; the private marker must not escape.
+        result.forEachKeyValue((key, value) -> {
+            if (value == nullValue)
+            {
+                result.put(key, null);
             }
         });
         return result;
