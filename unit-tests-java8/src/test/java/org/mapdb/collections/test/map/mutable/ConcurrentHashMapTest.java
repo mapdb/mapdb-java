@@ -26,8 +26,6 @@ import static org.mapdb.collections.test.IterableTestCase.assertIterablesEqual;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -69,8 +67,7 @@ public class ConcurrentHashMapTest implements MutableMapTestCase
         return false;
     }
 
-    // TODO: Fix bug in ConcurrentHashMap.putIfAbsent: null values should be treated as absent.
-    // When fixed, delete this override to inherit the correct assertion from MapTestCase.
+    // ConcurrentMap redefines putIfAbsent using key presence, including null mappings.
     @Override
     @Test
     public void Map_putIfAbsent()
@@ -87,111 +84,11 @@ public class ConcurrentHashMapTest implements MutableMapTestCase
         assertNull(map2.putIfAbsent(5, null));
         assertTrue(map2.containsKey(5));
 
-        // TODO: Fix bug in ConcurrentHashMap.putIfAbsent: null values should be treated as absent.
-        // When fixed, change assertNull(map3.get(1)) to assertEquals("One", map3.get(1))
+        // ConcurrentMap.putIfAbsent uses key presence; a present null
+        // mapping is retained, unlike Map.computeIfAbsent.
         Map<Integer, String> map3 = this.newWithKeysValues(1, null, 2, "2");
         assertNull(map3.putIfAbsent(1, "One"));
         assertNull(map3.get(1));
-    }
-
-    // TODO: Fix bug in ConcurrentHashMap.computeIfAbsent: null values should be treated as absent.
-    // When fixed, delete this override to inherit the correct assertion from MapTestCase.
-    @Override
-    @Test
-    public void Map_computeIfAbsent()
-    {
-        Map<Integer, String> map = this.newWithKeysValues(1, "1", 2, "2", 3, "3");
-
-        assertThrows(NullPointerException.class, () -> map.computeIfAbsent(1, null));
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3"), map);
-
-        String value1 = map.computeIfAbsent(2, k -> {
-            fail("Expected mapping function not to be called for existing key");
-            return "Should not be returned";
-        });
-        assertEquals("2", value1);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3"), map);
-
-        String value2 = map.computeIfAbsent(4, k -> {
-            assertEquals(Integer.valueOf(4), k);
-            return "4";
-        });
-        assertEquals("4", value2);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3", 4, "4"), map);
-
-        String value3 = map.computeIfAbsent(5, k -> null);
-        assertNull(value3);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3", 4, "4"), map);
-
-        RuntimeException exception = new RuntimeException("Test exception");
-        RuntimeException actualException = assertThrows(RuntimeException.class, () -> map.computeIfAbsent(6, k -> {
-            throw exception;
-        }));
-        assertSame(exception, actualException);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3", 4, "4"), map);
-
-        // TODO: Fix bug in ConcurrentHashMap.computeIfAbsent: null values should be treated as absent.
-        // When fixed, change both assertNull calls to assertEquals("One", ...)
-        Map<Integer, String> map2 = this.newWithKeysValues(1, null, 2, "2");
-        String value4 = map2.computeIfAbsent(1, k -> "One");
-        assertNull(value4);
-        assertNull(map2.get(1));
-    }
-
-    // TODO: Fix bug in ConcurrentHashMap.computeIfPresent: null values should be treated as absent.
-    // When fixed, delete this override to inherit the correct assertion from MapTestCase.
-    @Override
-    @Test
-    public void Map_computeIfPresent()
-    {
-        Map<Integer, String> map = this.newWithKeysValues(1, "1", 2, "2", 3, "3");
-
-        assertThrows(NullPointerException.class, () -> map.computeIfPresent(1, null));
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3"), map);
-
-        String value1 = map.computeIfPresent(4, (k, v) -> {
-            fail("Expected remapping function not to be called for non-existing key");
-            return "Should not be returned";
-        });
-        assertNull(value1);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2", 3, "3"), map);
-
-        String value2 = map.computeIfPresent(2, (k, v) -> {
-            assertEquals(Integer.valueOf(2), k);
-            assertEquals("2", v);
-            return v + "Modified";
-        });
-        assertEquals("2Modified", value2);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2Modified", 3, "3"), map);
-
-        String value3 = map.computeIfPresent(3, (k, v) -> null);
-        assertNull(value3);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2Modified"), map);
-
-        map.put(3, "3");
-        RuntimeException exception = new RuntimeException("Test exception");
-        RuntimeException actualException = assertThrows(RuntimeException.class, () -> map.computeIfPresent(3, (k, v) -> {
-            assertEquals(Integer.valueOf(3), k);
-            assertEquals("3", v);
-            throw exception;
-        }));
-        assertSame(exception, actualException);
-        assertIterablesEqual(this.newWithKeysValues(1, "1", 2, "2Modified", 3, "3"), map);
-
-        // TODO: Fix bug in ConcurrentHashMap.computeIfPresent: null values should be treated as absent.
-        // When fixed, the remapping function should not be called.
-        // Replace the following with:
-        //   Map<Integer, String> map2 = this.newWithKeysValues(1, null, 2, "2");
-        //   assertNull(map2.computeIfPresent(1, (k, v) -> { fail(); return "x"; }));
-        //   assertTrue(map2.containsKey(1));
-        Map<Integer, String> map2 = this.newWithKeysValues(1, null, 2, "2");
-        String value4 = map2.computeIfPresent(1, (k, v) -> {
-            assertEquals(Integer.valueOf(1), k);
-            assertNull(v);
-            return "One";
-        });
-        assertEquals("One", value4);
-        assertEquals("One", map2.get(1));
     }
 
     @Nested
