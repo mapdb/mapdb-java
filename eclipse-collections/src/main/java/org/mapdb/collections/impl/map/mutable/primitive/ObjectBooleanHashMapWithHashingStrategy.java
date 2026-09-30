@@ -1794,7 +1794,7 @@ public class ObjectBooleanHashMapWithHashingStrategy<K> implements MutableObject
             {
                 throw new IllegalStateException();
             }
-            ObjectBooleanHashMapWithHashingStrategy.this.remove(ObjectBooleanHashMapWithHashingStrategy.this.keys[this.position - 1]);
+            ObjectBooleanHashMapWithHashingStrategy.this.remove(ObjectBooleanHashMapWithHashingStrategy.this.toNonSentinel(ObjectBooleanHashMapWithHashingStrategy.this.keys[this.position - 1]));
             this.count--;
         }
     }

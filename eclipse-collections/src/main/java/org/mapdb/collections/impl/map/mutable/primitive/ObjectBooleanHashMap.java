@@ -1772,7 +1772,7 @@ public class ObjectBooleanHashMap<K> implements MutableObjectBooleanMap<K>, Exte
             {
                 throw new IllegalStateException();
             }
-            ObjectBooleanHashMap.this.remove(ObjectBooleanHashMap.this.keys[this.position - 1]);
+            ObjectBooleanHashMap.this.remove(ObjectBooleanHashMap.this.toNonSentinel(ObjectBooleanHashMap.this.keys[this.position - 1]));
             this.count--;
         }
     }
