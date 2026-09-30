@@ -1852,7 +1852,9 @@ public final class ArrayListIterate
             for (int i = 0; i < size; i++)
             {
                 V key = function.valueOf(elements[i]);
-                if (target.put(key, elements[i]) != null)
+                boolean duplicate = target.containsKey(key);
+                target.put(key, elements[i]);
+                if (duplicate)
                 {
                     throw new IllegalStateException("Key " + key + " already exists in map!");
                 }
