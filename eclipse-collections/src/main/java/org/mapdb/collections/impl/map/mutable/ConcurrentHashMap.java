@@ -2563,6 +2563,10 @@ public final class ConcurrentHashMap<K, V>
                     if (candidate.equals(key))
                     {
                         V oldValue = e.getValue();
+                        if (oldValue == null)
+                        {
+                            return null;
+                        }
                         V newValue = remappingFunction.apply(key, oldValue);
                         Entry<K, V> replacement = this.createReplacementChainForRemoval((Entry<K, V>) o, e);
                         if (newValue == null)
