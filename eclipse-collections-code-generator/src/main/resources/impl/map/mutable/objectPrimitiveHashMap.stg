@@ -1536,7 +1536,7 @@ public class Object<name>HashMap\<K> implements MutableObject<name>Map\<K>, Exte
             {
                 throw new IllegalStateException();
             }
-            Object<name>HashMap.this.remove(Object<name>HashMap.this.keys[this.position - 1]);
+            Object<name>HashMap.this.remove(Object<name>HashMap.this.toNonSentinel(Object<name>HashMap.this.keys[this.position - 1]));
             this.count--;
         }
     }

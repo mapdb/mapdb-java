@@ -1460,7 +1460,7 @@ public class Object<name>HashMapWithHashingStrategy\<K> implements MutableObject
             {
                 throw new IllegalStateException();
             }
-            Object<name>HashMapWithHashingStrategy.this.remove(Object<name>HashMapWithHashingStrategy.this.keys[this.position - 1]);
+            Object<name>HashMapWithHashingStrategy.this.remove(Object<name>HashMapWithHashingStrategy.this.toNonSentinel(Object<name>HashMapWithHashingStrategy.this.keys[this.position - 1]));
             this.count--;
         }
     }
