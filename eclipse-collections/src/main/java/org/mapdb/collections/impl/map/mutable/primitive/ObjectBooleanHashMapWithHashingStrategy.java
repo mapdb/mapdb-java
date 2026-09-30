@@ -1437,7 +1437,7 @@ public class ObjectBooleanHashMapWithHashingStrategy<K> implements MutableObject
         @Override
         public boolean remove(boolean element)
         {
-            for (int i = 0; i < ObjectBooleanHashMapWithHashingStrategy.this.values.size(); i++)
+            for (int i = 0; i < ObjectBooleanHashMapWithHashingStrategy.this.keys.length; i++)
             {
                 if (ObjectBooleanHashMapWithHashingStrategy.this.values.get(i) == element && ObjectBooleanHashMapWithHashingStrategy.isNonSentinel(ObjectBooleanHashMapWithHashingStrategy.this.keys[i]))
                 {

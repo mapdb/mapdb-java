@@ -1415,7 +1415,7 @@ public class ObjectBooleanHashMap<K> implements MutableObjectBooleanMap<K>, Exte
         @Override
         public boolean remove(boolean element)
         {
-            for (int i = 0; i < ObjectBooleanHashMap.this.values.size(); i++)
+            for (int i = 0; i < ObjectBooleanHashMap.this.keys.length; i++)
             {
                 if (ObjectBooleanHashMap.this.values.get(i) == element && ObjectBooleanHashMap.isNonSentinel(ObjectBooleanHashMap.this.keys[i]))
                 {
