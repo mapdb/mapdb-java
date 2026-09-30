@@ -174,6 +174,30 @@ final class ImmutableQuadrupletonMap<K, V>
     @Override
     public ImmutableMap<V, K> flipUniqueValues()
     {
+        if (Objects.equals(this.value1, this.value2))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value1 + " found at key: " + this.key1 + " and key: " + this.key2);
+        }
+        if (Objects.equals(this.value1, this.value3))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value1 + " found at key: " + this.key1 + " and key: " + this.key3);
+        }
+        if (Objects.equals(this.value1, this.value4))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value1 + " found at key: " + this.key1 + " and key: " + this.key4);
+        }
+        if (Objects.equals(this.value2, this.value3))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value2 + " found at key: " + this.key2 + " and key: " + this.key3);
+        }
+        if (Objects.equals(this.value2, this.value4))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value2 + " found at key: " + this.key2 + " and key: " + this.key4);
+        }
+        if (Objects.equals(this.value3, this.value4))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value3 + " found at key: " + this.key3 + " and key: " + this.key4);
+        }
         return Maps.immutable.with(this.value1, this.key1, this.value2, this.key2, this.value3, this.key3, this.value4, this.key4);
     }
 

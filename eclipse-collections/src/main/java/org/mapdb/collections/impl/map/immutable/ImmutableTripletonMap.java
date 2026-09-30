@@ -160,6 +160,18 @@ final class ImmutableTripletonMap<K, V>
     @Override
     public ImmutableMap<V, K> flipUniqueValues()
     {
+        if (Objects.equals(this.value1, this.value2))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value1 + " found at key: " + this.key1 + " and key: " + this.key2);
+        }
+        if (Objects.equals(this.value1, this.value3))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value1 + " found at key: " + this.key1 + " and key: " + this.key3);
+        }
+        if (Objects.equals(this.value2, this.value3))
+        {
+            throw new IllegalStateException("Duplicate value: " + this.value2 + " found at key: " + this.key2 + " and key: " + this.key3);
+        }
         return Maps.immutable.with(this.value1, this.key1, this.value2, this.key2, this.value3, this.key3);
     }
 
