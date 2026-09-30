@@ -71,7 +71,11 @@ class ImmutableBiMapSerializationProxy<K, V> implements Externalizable
 
         for (int i = 0; i < size; i++)
         {
-            if (deserializedBiMap.put((K) in.readObject(), (V) in.readObject()) != null)
+            K key = (K) in.readObject();
+            V value = (V) in.readObject();
+            boolean duplicate = deserializedBiMap.containsKey(key);
+            deserializedBiMap.put(key, value);
+            if (duplicate)
             {
                 throw new IllegalStateException();
             }
