@@ -182,9 +182,17 @@ public final class IntInterval
 
     /**
      * Returns an IntInterval representing the even values from the value from to the value to.
+     *
+     * @throws IllegalArgumentException if from == to and that value is not even
      */
     public static IntInterval evensFromTo(int from, int to)
     {
+        if (from == to && from % 2 != 0)
+        {
+            // A one-value range of the other parity holds no even value; stepping
+            // past it would return an out-of-range value or wrap at the type bound.
+            throw new IllegalArgumentException("No even value in [" + from + ", " + to + "]");
+        }
         if (from % 2 != 0)
         {
             if (from < to)
@@ -212,9 +220,17 @@ public final class IntInterval
 
     /**
      * Returns an IntInterval representing the odd values from the value from to the value to.
+     *
+     * @throws IllegalArgumentException if from == to and that value is not odd
      */
     public static IntInterval oddsFromTo(int from, int to)
     {
+        if (from == to && from % 2 == 0)
+        {
+            // A one-value range of the other parity holds no odd value; stepping
+            // past it would return an out-of-range value or wrap at the type bound.
+            throw new IllegalArgumentException("No odd value in [" + from + ", " + to + "]");
+        }
         if (from % 2 == 0)
         {
             if (from < to)
