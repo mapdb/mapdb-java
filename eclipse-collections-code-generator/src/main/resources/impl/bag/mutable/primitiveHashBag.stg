@@ -410,12 +410,15 @@ public class <name>HashBag
         {
             return false;
         }
-        if (source instanceof Lazy<name>Iterable)
+        // A lazy source is not pre-sized (size() would evaluate the pipeline an
+        // extra time), and a reported size of exactly Integer.MAX_VALUE may be
+        // a cap, so the real count is unknown. A bag's own size is exact.
+        int sourceSize = source instanceof Lazy<name>Iterable ? -1 : source.size();
+        if (sourceSize == -1 || (sourceSize == Integer.MAX_VALUE && !(source instanceof <name>Bag)))
         {
-            // Not pre-sized (size() would evaluate the pipeline an extra time):
-            // stage in one pass (memory grows with the distinct values),
-            // refusing once the staged total exceeds the headroom, and only
-            // then apply, so a refused batch adds nothing.
+            // Unknown count: stage in one pass (memory grows with the distinct
+            // values), refusing once the staged total exceeds the headroom, and
+            // only then apply, so a refused batch adds nothing.
             int size = this.size;
             <name>HashBag staged = new <name>HashBag();
             <name>Iterator iterator = source.<type>Iterator();
@@ -428,7 +431,7 @@ public class <name>HashBag
             staged.forEachWithOccurrences(this::addOccurrences);
             return true;
         }
-        BagCardinality.checkAdd(this.size, source.size());
+        BagCardinality.checkAdd(this.size, sourceSize);
         if (source instanceof <name>Bag)
         {
             <name>Bag otherBag = (<name>Bag) source;

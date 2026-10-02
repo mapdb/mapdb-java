@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Proxy;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.mapdb.collections.api.BooleanIterable;
 import org.mapdb.collections.api.bag.Bag;
 import org.mapdb.collections.api.bag.ImmutableBag;
 import org.mapdb.collections.api.bag.MutableBag;
@@ -220,6 +222,40 @@ public class BagCardinalityOverflowTest
         treeBag.removeOccurrences("a", 1);
         assertRefused(treeBag, state(treeBag), () -> treeBag.with("x", "y", "z"));
         assertEquals(MAX, treeBag.with("x", "y").size());
+    }
+
+    /** A non-lazy BooleanIterable over the elements whose size() reports Integer.MAX_VALUE. */
+    private static BooleanIterable cappedSize(boolean... elements)
+    {
+        BooleanArrayList list = BooleanArrayList.newListWith(elements);
+        return (BooleanIterable) Proxy.newProxyInstance(
+                BooleanIterable.class.getClassLoader(),
+                new Class<?>[]{BooleanIterable.class},
+                (proxy, method, args) -> "size".equals(method.getName()) && method.getParameterCount() == 0
+                        ? MAX
+                        : method.invoke(list, args));
+    }
+
+    @Test
+    public void booleanHashBagCappedSizeSourceIsCounted()
+    {
+        BooleanHashBag bag = new BooleanHashBag();
+        bag.addOccurrences(true, 10);
+        // the sized precheck would refuse 10 + MAX; the source really holds 3
+        assertTrue(bag.addAll(cappedSize(false, true, false)));
+        assertEquals(13, bag.size());
+        assertEquals(2, bag.occurrencesOf(false));
+        assertEquals(14, bag.withAll(cappedSize(true)).size());
+
+        BooleanHashBag near = new BooleanHashBag();
+        near.addOccurrences(true, MAX - 1);
+        assertThrows(ArithmeticException.class, () -> near.addAll(cappedSize(false, false)));
+        assertThrows(ArithmeticException.class, () -> near.withAll(cappedSize(true, false)));
+        assertEquals(MAX - 1, near.size());
+        assertEquals(0, near.occurrencesOf(false));
+        assertTrue(near.addAll(cappedSize(false)));
+        assertEquals(MAX, near.size());
+        assertEquals(1, near.occurrencesOf(false));
     }
 
     @Test

@@ -18,6 +18,9 @@ body(type, name, wrapperName) ::= <<
 
 package org.mapdb.collections.impl.bag.mutable.primitive;
 
+import java.lang.reflect.Proxy;
+
+import org.mapdb.collections.api.<name>Iterable;
 import org.mapdb.collections.impl.list.mutable.primitive.<name>ArrayList;
 import org.mapdb.collections.impl.test.Verify;
 
@@ -197,6 +200,52 @@ public class <name>HashBagTest extends AbstractMutable<name>BagTestCase
         assertEquals(0, bag.occurrencesOf(<(literal.(type))("1")>));
         bag.addOccurrences(<(literal.(type))("1")>, Integer.MAX_VALUE - 1);
         assertEquals(Integer.MAX_VALUE, bag.size());
+    }
+
+    /**
+     * A non-lazy source whose size() reports exactly Integer.MAX_VALUE (a
+     * capped size) is treated as of unknown length and staged: the sized
+     * precheck would refuse a fitting batch on a non-empty bag, or let an
+     * oversized one partly in on an empty bag.
+     */
+    @Test
+    public void cappedSizeSourceIsStaged()
+    {
+        <type> a = <(literal.(type))("1")>;
+        <type> b = <(literal.(type))("2")>;
+        <type> c = <(literal.(type))("3")>;
+        <type> d = <(literal.(type))("4")>;
+        <name>HashBag bag = new <name>HashBag();
+        bag.addOccurrences(a, 10);
+        assertTrue(bag.addAll(cappedSize(b, c, b)));
+        assertEquals(13, bag.size());
+        assertEquals(2, bag.occurrencesOf(b));
+        assertEquals(1, bag.occurrencesOf(c));
+        assertEquals(14, bag.withAll(cappedSize(d)).size());
+
+        <name>HashBag near = new <name>HashBag();
+        near.addOccurrences(a, Integer.MAX_VALUE - 1);
+        String before = cardinalityState(near);
+        assertThrows(ArithmeticException.class, () -> near.addAll(cappedSize(b, c)));
+        assertEquals(before, cardinalityState(near));
+        assertThrows(ArithmeticException.class, () -> near.withAll(cappedSize(a, a)));
+        assertEquals(before, cardinalityState(near));
+        assertFalse(near.contains(b));
+        assertTrue(near.addAll(cappedSize(b)));
+        assertEquals(Integer.MAX_VALUE, near.size());
+        assertEquals(1, near.occurrencesOf(b));
+    }
+
+    /** A non-lazy <name>Iterable over the elements whose size() reports Integer.MAX_VALUE. */
+    private static <name>Iterable cappedSize(<type>... elements)
+    {
+        <name>ArrayList list = <name>ArrayList.newListWith(elements);
+        return (<name>Iterable) Proxy.newProxyInstance(
+                <name>Iterable.class.getClassLoader(),
+                new Class\<?>[]{<name>Iterable.class},
+                (proxy, method, args) -> "size".equals(method.getName()) && method.getParameterCount() == 0
+                        ? Integer.MAX_VALUE
+                        : method.invoke(list, args));
     }
 
     private static String cardinalityState(<name>HashBag bag)

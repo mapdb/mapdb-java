@@ -305,11 +305,14 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
         {
             return false;
         }
-        if (source instanceof LazyBooleanIterable)
+        // A lazy source is not pre-sized (size() would evaluate the pipeline an
+        // extra time), and a reported size of exactly Integer.MAX_VALUE may be
+        // a cap, so the real count is unknown. A bag's own size is exact.
+        int sourceSize = source instanceof LazyBooleanIterable ? -1 : source.size();
+        if (sourceSize == -1 || (sourceSize == Integer.MAX_VALUE && !(source instanceof BooleanBag)))
         {
-            // Not pre-sized (size() would evaluate the pipeline an extra time):
-            // count in one pass, refusing once the count exceeds the headroom,
-            // and only then apply, so a refused batch adds nothing.
+            // Unknown count: count in one pass, refusing once the count exceeds
+            // the headroom, and only then apply, so a refused batch adds nothing.
             int size = this.size();
             int trues = 0;
             int falses = 0;
@@ -331,7 +334,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
             this.falseCount += falses;
             return true;
         }
-        BagCardinality.checkAdd(this.size(), source.size());
+        BagCardinality.checkAdd(this.size(), sourceSize);
         if (source instanceof BooleanBag otherBag)
         {
             otherBag.forEachWithOccurrences(this::addOccurrences);
