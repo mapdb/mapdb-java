@@ -145,12 +145,38 @@ public class <name>HashBagTest extends AbstractMutable<name>BagTestCase
         bag.addOccurrences(a, 0);
         assertEquals(atMax, cardinalityState(bag));
 
-        // an unsized (lazy) source is checked per element: earlier elements land
-        <name>HashBag lazyTarget = new <name>HashBag();
-        lazyTarget.addOccurrences(a, Integer.MAX_VALUE - 1);
-        assertThrows(ArithmeticException.class, () -> lazyTarget.addAll(<name>ArrayList.newListWith(b, c).asLazy()));
-        assertEquals(Integer.MAX_VALUE, lazyTarget.size());
-        assertFalse(lazyTarget.contains(c));
+        // an unsized (lazy) source is staged first: a refused batch adds nothing
+        <name>HashBag unsized = new <name>HashBag();
+        unsized.addOccurrences(a, Integer.MAX_VALUE - 2);
+        unsized.addOccurrences(b, 1);
+        String unsizedBefore = cardinalityState(unsized);
+        assertThrows(ArithmeticException.class, () -> unsized.addAll(<name>ArrayList.newListWith(c, d).asLazy()));
+        assertEquals(unsizedBefore, cardinalityState(unsized));
+        assertThrows(ArithmeticException.class, () -> unsized.addAll(<name>ArrayList.newListWith(a, b).asLazy()));
+        assertEquals(unsizedBefore, cardinalityState(unsized));
+        assertThrows(ArithmeticException.class, () -> unsized.withAll(<name>ArrayList.newListWith(c, c, c).asLazy()));
+        assertEquals(unsizedBefore, cardinalityState(unsized));
+        assertFalse(unsized.contains(c));
+        // a lazy batch that fits is applied
+        assertTrue(unsized.addAll(<name>ArrayList.newListWith(c).asLazy()));
+        assertEquals(Integer.MAX_VALUE, unsized.size());
+        assertEquals(1, unsized.occurrencesOf(c));
+
+        // with(x, y) and with(x, y, z) check the whole argument count first
+        <name>HashBag withTarget = new <name>HashBag();
+        withTarget.addOccurrences(a, Integer.MAX_VALUE - 1);
+        String withBefore = cardinalityState(withTarget);
+        assertThrows(ArithmeticException.class, () -> withTarget.with(b, c));
+        assertEquals(withBefore, cardinalityState(withTarget));
+        assertThrows(ArithmeticException.class, () -> withTarget.with(a, a));
+        assertEquals(withBefore, cardinalityState(withTarget));
+        assertThrows(ArithmeticException.class, () -> withTarget.with(b, c, d));
+        assertEquals(withBefore, cardinalityState(withTarget));
+        withTarget.removeOccurrences(a, 1);
+        String withBefore2 = cardinalityState(withTarget);
+        assertThrows(ArithmeticException.class, () -> withTarget.with(b, c, d));
+        assertEquals(withBefore2, cardinalityState(withTarget));
+        assertEquals(Integer.MAX_VALUE, withTarget.with(b, c).size());
     }
 
     /**

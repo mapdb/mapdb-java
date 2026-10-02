@@ -147,6 +147,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
 
     public BooleanHashBag with(boolean element1, boolean element2)
     {
+        BagCardinality.checkAdd(this.size(), 2);
         this.add(element1);
         this.add(element2);
         return this;
@@ -154,6 +155,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
 
     public BooleanHashBag with(boolean element1, boolean element2, boolean element3)
     {
+        BagCardinality.checkAdd(this.size(), 3);
         this.add(element1);
         this.add(element2);
         this.add(element3);
@@ -303,12 +305,33 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
         {
             return false;
         }
-        // Lazy sources are not pre-sized: size() would evaluate the pipeline an
-        // extra time. They are checked per element by add().
-        if (!(source instanceof LazyBooleanIterable))
+        if (source instanceof LazyBooleanIterable)
         {
-            BagCardinality.checkAdd(this.size(), source.size());
+            // Not pre-sized (size() would evaluate the pipeline an extra time):
+            // count in one pass, refusing once the count exceeds the headroom,
+            // and only then apply, so a refused batch adds nothing.
+            int size = this.size();
+            int trues = 0;
+            int falses = 0;
+            BooleanIterator iterator = source.booleanIterator();
+            while (iterator.hasNext())
+            {
+                // size + trues + falses never exceeds Integer.MAX_VALUE
+                BagCardinality.checkAdd(size + trues + falses, 1);
+                if (iterator.next())
+                {
+                    trues++;
+                }
+                else
+                {
+                    falses++;
+                }
+            }
+            this.trueCount += trues;
+            this.falseCount += falses;
+            return true;
         }
+        BagCardinality.checkAdd(this.size(), source.size());
         if (source instanceof BooleanBag otherBag)
         {
             otherBag.forEachWithOccurrences(this::addOccurrences);
@@ -902,8 +925,15 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
     @Override
     public void readExternal(ObjectInput in) throws IOException
     {
-        this.falseCount = in.readInt();
-        this.trueCount = in.readInt();
+        // Validate before publishing: negative counts or a total past
+        // Integer.MAX_VALUE in a corrupt stream must not yield a wrapped size.
+        int falseCount = in.readInt();
+        int trueCount = in.readInt();
+        BagCardinality.checkDeserializedCount(falseCount);
+        BagCardinality.checkDeserializedCount(trueCount);
+        BagCardinality.checkAdd(falseCount, trueCount);
+        this.falseCount = falseCount;
+        this.trueCount = trueCount;
     }
 
     private final class InternalIterator implements MutableBooleanIterator

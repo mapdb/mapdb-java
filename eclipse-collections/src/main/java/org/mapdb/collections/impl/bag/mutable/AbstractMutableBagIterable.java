@@ -62,13 +62,17 @@ public abstract class AbstractMutableBagIterable<T>
     }
 
     /**
-     * Cardinality overflow: when the number of added occurrences is known up
-     * front (a {@link Bag} or a {@link Collection} source) the whole batch is
-     * checked before any element is added, so a refused batch adds nothing.
-     * For any other {@link Iterable} the length is unknown and the source may
-     * be single-pass, so each element is checked as it is added and the
-     * {@link ArithmeticException} is thrown at the first element that would
-     * overflow, after the earlier elements were added.
+     * Cardinality overflow: a refused batch adds nothing. When the number of
+     * added occurrences is known up front (a {@link Bag}, or a
+     * {@link Collection} whose {@code size()} is below
+     * {@link Integer#MAX_VALUE}) the whole batch is checked before any element
+     * is added. Any other {@link Iterable} (unknown length, possibly
+     * single-pass), and a {@link Collection} whose {@code size()} is capped at
+     * {@link Integer#MAX_VALUE}, is first staged in one pass into an empty bag
+     * of the same kind ({@link #newEmpty()}; memory grows with the distinct
+     * values). Staging throws {@link ArithmeticException} as soon as the staged
+     * total exceeds this bag's headroom, before this bag is touched; otherwise
+     * the staged bag is applied through the checked bag path.
      */
     @Override
     public boolean addAllIterable(Iterable<? extends T> iterable)
@@ -77,13 +81,27 @@ public abstract class AbstractMutableBagIterable<T>
         {
             return this.addAllBag((Bag<T>) iterable);
         }
-        if (iterable instanceof Collection)
+        if (iterable instanceof Collection && ((Collection<?>) iterable).size() < Integer.MAX_VALUE)
         {
             BagCardinality.checkAdd(this.size(), ((Collection<?>) iterable).size());
+            int oldSize = this.size();
+            Iterate.forEachWith(iterable, Procedures2.addToCollection(), this);
+            return oldSize != this.size();
         }
-        int oldSize = this.size();
-        Iterate.forEachWith(iterable, Procedures2.addToCollection(), this);
-        return oldSize != this.size();
+        return this.addAllBag(this.stageWithinHeadroom(iterable));
+    }
+
+    private MutableBagIterable<T> stageWithinHeadroom(Iterable<? extends T> iterable)
+    {
+        int size = this.size();
+        MutableBagIterable<T> staged = (MutableBagIterable<T>) this.newEmpty();
+        for (T each : iterable)
+        {
+            // size + staged.size() never exceeds Integer.MAX_VALUE, so the sum cannot wrap
+            BagCardinality.checkAdd(size + staged.size(), 1);
+            staged.add(each);
+        }
+        return staged;
     }
 
     protected boolean addAllBag(Bag<? extends T> source)

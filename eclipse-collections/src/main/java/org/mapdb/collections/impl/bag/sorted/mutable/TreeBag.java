@@ -754,6 +754,7 @@ public class TreeBag<T>
 
     public TreeBag<T> with(T element1, T element2)
     {
+        BagCardinality.checkAdd(this.size, 2);
         this.add(element1);
         this.add(element2);
         return this;
@@ -771,6 +772,7 @@ public class TreeBag<T>
 
     public TreeBag<T> with(T element1, T element2, T element3)
     {
+        BagCardinality.checkAdd(this.size, 3);
         this.add(element1);
         this.add(element2);
         this.add(element3);

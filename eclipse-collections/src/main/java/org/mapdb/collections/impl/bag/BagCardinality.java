@@ -42,4 +42,31 @@ public final class BagCardinality
                     "Bag size would exceed Integer.MAX_VALUE: size " + size + " + " + occurrences + " occurrences");
         }
     }
+
+    /**
+     * Validates one occurrence count read from a serialized stream, the same
+     * way {@code addOccurrences} validates its argument: a negative count
+     * throws {@link IllegalArgumentException}.
+     */
+    public static void checkDeserializedCount(int count)
+    {
+        if (count < 0)
+        {
+            throw new IllegalArgumentException("Cannot add a negative number of occurrences: " + count);
+        }
+    }
+
+    /**
+     * Narrows a total summed in a {@code long} (for example over counts read
+     * from a serialized stream) to the bag's {@code int} size, throwing
+     * {@link ArithmeticException} if it exceeds {@link Integer#MAX_VALUE}.
+     */
+    public static int checkTotal(long total)
+    {
+        if (total > Integer.MAX_VALUE)
+        {
+            throw new ArithmeticException("Bag size would exceed Integer.MAX_VALUE: total " + total);
+        }
+        return (int) total;
+    }
 }

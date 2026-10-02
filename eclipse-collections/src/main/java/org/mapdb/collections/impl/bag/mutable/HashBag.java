@@ -20,6 +20,7 @@ import org.mapdb.collections.api.bag.Bag;
 import org.mapdb.collections.api.bag.MutableBag;
 import org.mapdb.collections.api.block.predicate.primitive.IntPredicate;
 import org.mapdb.collections.api.map.primitive.MutableObjectIntMap;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.map.mutable.primitive.ObjectIntHashMap;
 import org.mapdb.collections.impl.utility.ArrayIterate;
 import org.mapdb.collections.impl.utility.Iterate;
@@ -118,9 +119,35 @@ public class HashBag<T>
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
-        this.items = new ObjectIntHashMap<>();
-        ((Externalizable) this.items).readExternal(in);
-        this.size = (int) this.items.sum();
+        // Validate into temporary state, then publish: a corrupt stream
+        // (negative count, or counts summing past Integer.MAX_VALUE) must not
+        // produce a bag with a wrapped size. Zero counts are dropped, as
+        // addOccurrences(item, 0) would.
+        ObjectIntHashMap<T> read = new ObjectIntHashMap<>();
+        ((Externalizable) read).readExternal(in);
+        long[] total = new long[1];
+        boolean[] hasZero = new boolean[1];
+        read.forEachKeyValue((each, count) ->
+        {
+            BagCardinality.checkDeserializedCount(count);
+            hasZero[0] |= count == 0;
+            total[0] += count;
+        });
+        int size = BagCardinality.checkTotal(total[0]);
+        if (hasZero[0])
+        {
+            ObjectIntHashMap<T> nonZero = new ObjectIntHashMap<>(read.size());
+            read.forEachKeyValue((each, count) ->
+            {
+                if (count > 0)
+                {
+                    nonZero.put(each, count);
+                }
+            });
+            read = nonZero;
+        }
+        this.items = read;
+        this.size = size;
     }
 
     @Override
@@ -165,6 +192,7 @@ public class HashBag<T>
 
     public HashBag<T> with(T element1, T element2)
     {
+        BagCardinality.checkAdd(this.size, 2);
         this.add(element1);
         this.add(element2);
         return this;
@@ -172,6 +200,7 @@ public class HashBag<T>
 
     public HashBag<T> with(T element1, T element2, T element3)
     {
+        BagCardinality.checkAdd(this.size, 3);
         this.add(element1);
         this.add(element2);
         this.add(element3);

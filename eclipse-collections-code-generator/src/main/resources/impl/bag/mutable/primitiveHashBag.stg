@@ -219,6 +219,7 @@ public class <name>HashBag
 
     public <name>HashBag with(<type> element1, <type> element2)
     {
+        BagCardinality.checkAdd(this.size, 2);
         this.add(element1);
         this.add(element2);
         return this;
@@ -226,6 +227,7 @@ public class <name>HashBag
 
     public <name>HashBag with(<type> element1, <type> element2, <type> element3)
     {
+        BagCardinality.checkAdd(this.size, 3);
         this.add(element1);
         this.add(element2);
         this.add(element3);
@@ -408,12 +410,25 @@ public class <name>HashBag
         {
             return false;
         }
-        // Lazy sources are not pre-sized: size() would evaluate the pipeline an
-        // extra time. They are checked per element by add().
-        if (!(source instanceof Lazy<name>Iterable))
+        if (source instanceof Lazy<name>Iterable)
         {
-            BagCardinality.checkAdd(this.size, source.size());
+            // Not pre-sized (size() would evaluate the pipeline an extra time):
+            // stage in one pass (memory grows with the distinct values),
+            // refusing once the staged total exceeds the headroom, and only
+            // then apply, so a refused batch adds nothing.
+            int size = this.size;
+            <name>HashBag staged = new <name>HashBag();
+            <name>Iterator iterator = source.<type>Iterator();
+            while (iterator.hasNext())
+            {
+                // size + staged.size never exceeds Integer.MAX_VALUE
+                BagCardinality.checkAdd(size + staged.size, 1);
+                staged.add(iterator.next());
+            }
+            staged.forEachWithOccurrences(this::addOccurrences);
+            return true;
         }
+        BagCardinality.checkAdd(this.size, source.size());
         if (source instanceof <name>Bag)
         {
             <name>Bag otherBag = (<name>Bag) source;

@@ -10,7 +10,15 @@
 
 package org.mapdb.collections.impl.bag;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.AbstractCollection;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -30,6 +38,7 @@ import org.mapdb.collections.impl.bag.sorted.mutable.TreeBag;
 import org.mapdb.collections.impl.bag.strategy.mutable.HashBagWithHashingStrategy;
 import org.mapdb.collections.impl.block.factory.HashingStrategies;
 import org.mapdb.collections.impl.list.mutable.primitive.BooleanArrayList;
+import org.mapdb.collections.impl.map.mutable.primitive.ObjectIntHashMap;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -127,15 +136,166 @@ public class BagCardinalityOverflowTest
         assertEquals(MAX, bag.size());
         assertEquals(1, bag.occurrencesOf("z"));
 
-        // an Iterable of unknown length is checked per element: the elements
-        // before the overflowing one are added, then the add throws
-        MutableBagIterable<String> lazyTarget = factory.get();
-        lazyTarget.addOccurrences("a", MAX - 2);
-        assertThrows(
-                ArithmeticException.class,
-                () -> lazyTarget.addAllIterable(Lists.mutable.with("x", "y", "z").asLazy()));
-        assertEquals(MAX, lazyTarget.size());
-        assertFalse(lazyTarget.contains("z"));
+        // sources of unknown length are staged first: a refused batch adds nothing
+        MutableBagIterable<String> unsized = factory.get();
+        unsized.addOccurrences("a", MAX - 2);
+        unsized.addOccurrences("b", 1);
+        List<String> unsizedBefore = state(unsized);
+        assertRefused(unsized, unsizedBefore, () -> unsized.addAllIterable(Lists.mutable.with("x", "y").asLazy()));
+        assertRefused(unsized, unsizedBefore, () -> unsized.addAllIterable(Lists.mutable.with("a", "b").asLazy()));
+        assertRefused(unsized, unsizedBefore, () -> unsized.addAllIterable(singlePass("x", "y", "z")));
+        assertRefused(unsized, unsizedBefore, () -> unsized.addAll(cappedCollection("x", "y")));
+        assertRefused(unsized, unsizedBefore, () -> unsized.withAll(cappedCollection("x", "y")));
+        assertFalse(unsized.contains("x"));
+        // the staged batch is applied when it fits
+        assertTrue(unsized.addAllIterable(singlePass("x")));
+        assertEquals(MAX, unsized.size());
+        assertEquals(1, unsized.occurrencesOf("x"));
+
+        // a Collection reporting size() == MAX_VALUE is not trusted as a count
+        MutableBagIterable<String> capped = factory.get();
+        capped.addOccurrences("a", 10);
+        assertTrue(capped.addAll(cappedCollection("x", "y", "x")));
+        assertEquals(13, capped.size());
+        assertEquals(2, capped.occurrencesOf("x"));
+    }
+
+    /** An Iterable that can be iterated once. */
+    private static Iterable<String> singlePass(String... elements)
+    {
+        Iterator<String> iterator = Arrays.asList(elements).iterator();
+        boolean[] used = new boolean[1];
+        return () ->
+        {
+            assertFalse(used[0], "single-pass source iterated twice");
+            used[0] = true;
+            return iterator;
+        };
+    }
+
+    /** A Collection whose size() is capped at Integer.MAX_VALUE, as for a collection larger than int. */
+    private static Collection<String> cappedCollection(String... elements)
+    {
+        List<String> list = Arrays.asList(elements);
+        return new AbstractCollection<String>()
+        {
+            @Override
+            public Iterator<String> iterator()
+            {
+                return list.iterator();
+            }
+
+            @Override
+            public int size()
+            {
+                return MAX;
+            }
+        };
+    }
+
+    @Test
+    public void hashBagWithOverloadsPrecheckWholeArgumentCount()
+    {
+        HashBag<String> hashBag = HashBag.newBag();
+        hashBag.addOccurrences("a", MAX - 1);
+        List<String> hashBefore = state(hashBag);
+        assertRefused(hashBag, hashBefore, () -> hashBag.with("x", "y"));
+        assertRefused(hashBag, hashBefore, () -> hashBag.with("a", "a"));
+        assertRefused(hashBag, hashBefore, () -> hashBag.with("x", "y", "z"));
+        assertRefused(hashBag, hashBefore, () -> hashBag.with("x", "y", "z", "w"));
+        hashBag.removeOccurrences("a", 1);
+        assertRefused(hashBag, state(hashBag), () -> hashBag.with("x", "y", "z"));
+        assertEquals(MAX, hashBag.with("x", "y").size());
+    }
+
+    @Test
+    public void treeBagWithOverloadsPrecheckWholeArgumentCount()
+    {
+        TreeBag<String> treeBag = TreeBag.newBag();
+        treeBag.addOccurrences("a", MAX - 1);
+        List<String> treeBefore = state(treeBag);
+        assertRefused(treeBag, treeBefore, () -> treeBag.with("x", "y"));
+        assertRefused(treeBag, treeBefore, () -> treeBag.with("x", "y", "z"));
+        assertRefused(treeBag, treeBefore, () -> treeBag.with("x", "y", "z", "w"));
+        treeBag.removeOccurrences("a", 1);
+        assertRefused(treeBag, state(treeBag), () -> treeBag.with("x", "y", "z"));
+        assertEquals(MAX, treeBag.with("x", "y").size());
+    }
+
+    @Test
+    public void booleanHashBagWithOverloadsPrecheckWholeArgumentCount()
+    {
+        BooleanHashBag booleanBag = new BooleanHashBag();
+        booleanBag.addOccurrences(true, MAX - 1);
+        assertThrows(ArithmeticException.class, () -> booleanBag.with(false, false));
+        assertThrows(ArithmeticException.class, () -> booleanBag.with(true, false, true));
+        assertEquals(MAX - 1, booleanBag.size());
+        assertEquals(0, booleanBag.occurrencesOf(false));
+        booleanBag.removeOccurrences(true, 1);
+        assertThrows(ArithmeticException.class, () -> booleanBag.with(true, false, true));
+        assertEquals(MAX - 2, booleanBag.size());
+        assertEquals(MAX, booleanBag.with(false, true).size());
+    }
+
+    private static <T> HashBag<T> readHashBag(ObjectIntHashMap<T> counts) throws Exception
+    {
+        // HashBag's external form is its ObjectIntHashMap's external form
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            counts.writeExternal(out);
+        }
+        HashBag<T> bag = new HashBag<>();
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            bag.readExternal(in);
+        }
+        return bag;
+    }
+
+    private static BooleanHashBag readBooleanHashBag(int falseCount, int trueCount) throws Exception
+    {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeInt(falseCount);
+            out.writeInt(trueCount);
+        }
+        BooleanHashBag bag = new BooleanHashBag();
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            bag.readExternal(in);
+        }
+        return bag;
+    }
+
+    @Test
+    public void hashBagDeserializationValidatesCounts() throws Exception
+    {
+        ObjectIntHashMap<String> atMax = ObjectIntHashMap.newWithKeysValues("a", MAX - 1, "b", 1);
+        HashBag<String> read = readHashBag(atMax);
+        assertEquals(MAX, read.size());
+        assertEquals(2, read.sizeDistinct());
+
+        assertThrows(ArithmeticException.class, () -> readHashBag(ObjectIntHashMap.newWithKeysValues("a", MAX, "b", 1)));
+        assertThrows(ArithmeticException.class, () -> readHashBag(ObjectIntHashMap.newWithKeysValues("a", MAX, "b", MAX)));
+        assertThrows(IllegalArgumentException.class, () -> readHashBag(ObjectIntHashMap.newWithKeysValues("a", 5, "b", -1)));
+
+        HashBag<String> withZero = readHashBag(ObjectIntHashMap.newWithKeysValues("a", 0, "b", 2));
+        assertEquals(2, withZero.size());
+        assertEquals(1, withZero.sizeDistinct());
+        assertFalse(withZero.contains("a"));
+    }
+
+    @Test
+    public void booleanHashBagDeserializationValidatesCounts() throws Exception
+    {
+        BooleanHashBag booleanAtMax = readBooleanHashBag(MAX - 1, 1);
+        assertEquals(MAX, booleanAtMax.size());
+        assertThrows(ArithmeticException.class, () -> readBooleanHashBag(MAX, 1));
+        assertThrows(ArithmeticException.class, () -> readBooleanHashBag(MAX, MAX));
+        assertThrows(IllegalArgumentException.class, () -> readBooleanHashBag(-1, 3));
+        assertThrows(IllegalArgumentException.class, () -> readBooleanHashBag(3, -1));
     }
 
     @Test
@@ -226,6 +386,8 @@ public class BagCardinalityOverflowTest
         assertThrows(ArithmeticException.class, () -> bag.addAll(true, true, true, false, false, false));
         assertThrows(ArithmeticException.class, () -> bag.addAll(BooleanArrayList.newListWith(true, true, true, false, false, false)));
         assertThrows(ArithmeticException.class, () -> bag.addAll(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addAll(BooleanArrayList.newListWith(true, true, true, false, false, false).asLazy()));
+        assertThrows(ArithmeticException.class, () -> bag.addAll(BooleanArrayList.newListWith(false, false, false, false, false, false).asLazy()));
         assertEquals(MAX - 5, bag.size());
         assertEquals(MAX - 10, bag.occurrencesOf(true));
         assertEquals(5, bag.occurrencesOf(false));
@@ -242,5 +404,12 @@ public class BagCardinalityOverflowTest
         bag.addOccurrences(true, 0);
         assertSame(bag, bag.withAll(new BooleanHashBag()));
         assertEquals(MAX, bag.size());
+
+        // a lazy batch that fits is applied
+        bag.removeOccurrences(false, 3);
+        assertTrue(bag.addAll(BooleanArrayList.newListWith(false, true, false).asLazy()));
+        assertEquals(MAX, bag.size());
+        assertEquals(9, bag.occurrencesOf(false));
+        assertEquals(MAX - 9, bag.occurrencesOf(true));
     }
 }
