@@ -23,6 +23,7 @@ import java.io.ObjectOutput;
 import java.util.NoSuchElementException;
 
 import org.mapdb.collections.api.<name>Iterable;
+import org.mapdb.collections.api.Lazy<name>Iterable;
 import org.mapdb.collections.api.RichIterable;
 import org.mapdb.collections.api.bag.MutableBag;
 import org.mapdb.collections.api.bag.primitive.<name>Bag;
@@ -43,6 +44,7 @@ import org.mapdb.collections.api.tuple.primitive.<name>IntPair;
 import org.mapdb.collections.api.list.MutableList;
 import org.mapdb.collections.impl.Counter;
 import org.mapdb.collections.impl.Pump;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.bag.mutable.HashBag;
 import org.mapdb.collections.impl.block.factory.primitive.IntToIntFunctions;
 import org.mapdb.collections.impl.factory.primitive.<name>Bags;
@@ -343,6 +345,7 @@ public class <name>HashBag
     @Override
     public boolean add(<type> item)
     {
+        BagCardinality.checkAdd(this.size, 1);
         this.items.updateValue(item, 0, IntToIntFunctions.increment());
         this.size++;
         return true;
@@ -390,6 +393,7 @@ public class <name>HashBag
             return false;
         }
 
+        BagCardinality.checkAdd(this.size, source.length);
         for (<type> each : source)
         {
             this.add(each);
@@ -403,6 +407,12 @@ public class <name>HashBag
         if (source.isEmpty())
         {
             return false;
+        }
+        // Lazy sources are not pre-sized: size() would evaluate the pipeline an
+        // extra time. They are checked per element by add().
+        if (!(source instanceof Lazy<name>Iterable))
+        {
+            BagCardinality.checkAdd(this.size, source.size());
         }
         if (source instanceof <name>Bag)
         {
@@ -497,6 +507,7 @@ public class <name>HashBag
         }
         if (occurrences > 0)
         {
+            BagCardinality.checkAdd(this.size, occurrences);
             this.items.updateValue(item, 0, (int intParameter) -> intParameter + occurrences);
             this.size += occurrences;
         }
@@ -519,7 +530,8 @@ public class <name>HashBag
 
         if (newValue \<= 0)
         {
-            this.size -= occurrences - newValue;
+            // newValue + occurrences is the count before removal (0 when absent)
+            this.size -= occurrences + newValue;
             this.items.removeKey(item);
             return newValue + occurrences != 0;
         }

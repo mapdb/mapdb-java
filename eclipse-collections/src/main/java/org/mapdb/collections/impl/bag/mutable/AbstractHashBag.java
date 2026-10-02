@@ -25,6 +25,7 @@ import org.mapdb.collections.api.map.MutableMap;
 import org.mapdb.collections.api.map.primitive.MutableObjectIntMap;
 import org.mapdb.collections.api.tuple.primitive.ObjectIntPair;
 import org.mapdb.collections.impl.Counter;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.block.factory.primitive.IntToIntFunctions;
 import org.mapdb.collections.impl.map.mutable.UnifiedMap;
 import org.mapdb.collections.impl.multimap.bag.HashBagMultimap;
@@ -44,6 +45,7 @@ public abstract class AbstractHashBag<T> extends AbstractMutableBag<T>
         }
         if (occurrences > 0)
         {
+            BagCardinality.checkAdd(this.size, occurrences);
             int updatedOccurrences = this.items.updateValue(item, 0, IntToIntFunctions.add(occurrences));
             this.size += occurrences;
             return updatedOccurrences;
@@ -140,6 +142,7 @@ public abstract class AbstractHashBag<T> extends AbstractMutableBag<T>
     @Override
     public boolean add(T item)
     {
+        BagCardinality.checkAdd(this.size, 1);
         this.items.updateValue(item, 0, IntToIntFunctions.increment());
         this.size++;
         return true;
@@ -257,6 +260,11 @@ public abstract class AbstractHashBag<T> extends AbstractMutableBag<T>
         if (originalOccurrences == occurrences)
         {
             return false;
+        }
+
+        if (occurrences > originalOccurrences)
+        {
+            BagCardinality.checkAdd(this.size, occurrences - originalOccurrences);
         }
 
         if (occurrences == 0)

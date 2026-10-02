@@ -23,6 +23,9 @@ import org.mapdb.collections.impl.test.Verify;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * JUnit test for {@link <name>HashBag}.
@@ -82,6 +85,99 @@ public class <name>HashBagTest extends AbstractMutable<name>BagTestCase
         <name>HashBag hashBag = <name>HashBag.newBagWith(<["1", "1", "2", "2", "2", "2", "3"]:(literal.(type))(); separator=", ">);
         <wrapperName> sum = hashBag.injectInto(<wrapperName>.valueOf(<(literal.(type))("4")>), (<wrapperName> result, <type> value) -> <wrapperName>.valueOf((<type>) (result + value)));
         assertEquals(<wrapperName>.valueOf(<(literal.(type))("17")>), sum);
+    }
+
+    /**
+     * Cardinality overflow (spec algorithms.md): an add whose resulting total
+     * size would exceed Integer.MAX_VALUE throws ArithmeticException before any
+     * mutation; reaching exactly Integer.MAX_VALUE is allowed; a bulk add of
+     * known size is refused as a whole.
+     */
+    @Test
+    public void cardinalityOverflow()
+    {
+        <type> a = <(literal.(type))("1")>;
+        <type> b = <(literal.(type))("2")>;
+        <type> c = <(literal.(type))("3")>;
+        <type> d = <(literal.(type))("4")>;
+        <name>HashBag bag = new <name>HashBag();
+        bag.addOccurrences(a, Integer.MAX_VALUE - 10);
+        bag.addOccurrences(b, 5);
+        assertEquals(Integer.MAX_VALUE - 5, bag.size());
+        String nearMax = cardinalityState(bag);
+
+        assertThrows(ArithmeticException.class, () -> bag.addOccurrences(a, 6));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addOccurrences(c, 6));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addOccurrences(c, Integer.MAX_VALUE));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertFalse(bag.contains(c));
+
+        <name>HashBag six = new <name>HashBag();
+        six.addOccurrences(c, 3);
+        six.addOccurrences(d, 3);
+        assertThrows(ArithmeticException.class, () -> bag.addAll(six));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.withAll(six));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addAll(c, c, c, d, d, d));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addAll(<name>ArrayList.newListWith(c, c, c, d, d, d)));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addAll(bag));
+        assertEquals(nearMax, cardinalityState(bag));
+        assertFalse(bag.contains(c));
+        assertFalse(bag.contains(d));
+
+        bag.addOccurrences(c, 5);
+        assertEquals(Integer.MAX_VALUE, bag.size());
+        String atMax = cardinalityState(bag);
+        assertThrows(ArithmeticException.class, () -> bag.add(a));
+        assertEquals(atMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.add(d));
+        assertEquals(atMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.addOccurrences(c, 1));
+        assertEquals(atMax, cardinalityState(bag));
+        assertThrows(ArithmeticException.class, () -> bag.with(d));
+        assertEquals(atMax, cardinalityState(bag));
+        assertFalse(bag.contains(d));
+        bag.addOccurrences(a, 0);
+        assertEquals(atMax, cardinalityState(bag));
+
+        // an unsized (lazy) source is checked per element: earlier elements land
+        <name>HashBag lazyTarget = new <name>HashBag();
+        lazyTarget.addOccurrences(a, Integer.MAX_VALUE - 1);
+        assertThrows(ArithmeticException.class, () -> lazyTarget.addAll(<name>ArrayList.newListWith(b, c).asLazy()));
+        assertEquals(Integer.MAX_VALUE, lazyTarget.size());
+        assertFalse(lazyTarget.contains(c));
+    }
+
+    /**
+     * removeOccurrences of more occurrences than present (or of an absent
+     * value) must subtract only the occurrences that were there; the size used
+     * to go negative, which also broke the cardinality overflow check.
+     */
+    @Test
+    public void removeOccurrencesBeyondCountKeepsSize()
+    {
+        <name>HashBag bag = new <name>HashBag();
+        assertFalse(bag.removeOccurrences(<(literal.(type))("1")>, 2));
+        assertEquals(0, bag.size());
+        bag.addOccurrences(<(literal.(type))("1")>, 3);
+        bag.addOccurrences(<(literal.(type))("2")>, 1);
+        assertTrue(bag.removeOccurrences(<(literal.(type))("1")>, 5));
+        assertEquals(1, bag.size());
+        assertEquals(0, bag.occurrencesOf(<(literal.(type))("1")>));
+        bag.addOccurrences(<(literal.(type))("1")>, Integer.MAX_VALUE - 1);
+        assertEquals(Integer.MAX_VALUE, bag.size());
+    }
+
+    private static String cardinalityState(<name>HashBag bag)
+    {
+        long[] total = new long[1];
+        bag.forEachWithOccurrences((<type> each, int count) -> total[0] += count);
+        return bag.size() + "/" + bag.sizeDistinct() + "/" + total[0] + "/" + bag.toStringOfItemToCount();
     }
 }
 

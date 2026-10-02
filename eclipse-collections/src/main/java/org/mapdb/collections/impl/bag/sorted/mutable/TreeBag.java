@@ -40,6 +40,7 @@ import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.api.stack.MutableStack;
 import org.mapdb.collections.api.tuple.Pair;
 import org.mapdb.collections.impl.Counter;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.block.factory.Comparators;
 import org.mapdb.collections.impl.block.procedure.checked.CheckedProcedure2;
 import org.mapdb.collections.impl.map.sorted.mutable.TreeSortedMap;
@@ -478,6 +479,7 @@ public class TreeBag<T>
         }
         if (occurrences > 0)
         {
+            BagCardinality.checkAdd(this.size, occurrences);
             Counter counter = this.items.getIfAbsentPut(item, Counter::new);
             counter.add(occurrences);
             this.size += occurrences;
@@ -531,6 +533,11 @@ public class TreeBag<T>
         if (originalOccurrences == occurrences)
         {
             return false;
+        }
+
+        if (occurrences > originalOccurrences)
+        {
+            BagCardinality.checkAdd(this.size, occurrences - originalOccurrences);
         }
 
         if (occurrences == 0)
@@ -755,6 +762,7 @@ public class TreeBag<T>
     @Override
     public boolean add(T item)
     {
+        BagCardinality.checkAdd(this.size, 1);
         Counter counter = this.items.getIfAbsentPut(item, Counter::new);
         counter.increment();
         this.size++;

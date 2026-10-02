@@ -35,6 +35,7 @@ import org.mapdb.collections.api.multimap.bag.ImmutableBagMultimap;
 import org.mapdb.collections.api.ordered.OrderedIterable;
 import org.mapdb.collections.api.set.ImmutableSet;
 import org.mapdb.collections.api.tuple.Pair;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.bag.mutable.HashBag;
 import org.mapdb.collections.impl.block.factory.Predicates2;
 import org.mapdb.collections.impl.list.fixed.ArrayAdapter;
@@ -165,6 +166,7 @@ public class ImmutableArrayBag<T>
     @Override
     public ImmutableBag<T> newWith(T element)
     {
+        BagCardinality.checkAdd(this.size(), 1);
         int elementIndex = ArrayIterate.detectIndexWith(this.keys, Predicates2.equal(), element);
         int distinctItemCount = this.sizeDistinct() + (elementIndex == -1 ? 1 : 0);
         if (distinctItemCount > MAXIMUM_USEFUL_ARRAY_BAG_SIZE)

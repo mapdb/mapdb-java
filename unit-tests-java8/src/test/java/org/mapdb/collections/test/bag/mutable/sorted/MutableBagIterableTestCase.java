@@ -40,8 +40,19 @@ public interface MutableBagIterableTestCase extends MutableCollectionTestCase
                 () -> mutableBag.addOccurrences(4, -1));
         assertEquals(Bags.immutable.with(1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 4), mutableBag);
 
-        assertEquals(-2147483647, mutableBag.addOccurrences(3, Integer.MAX_VALUE - 1));
-        assertEquals(-2147483638, mutableBag.size());
+        // Cardinality overflow (spec algorithms.md): refused before mutation, not wrapped
+        assertThrows(
+                ArithmeticException.class,
+                () -> mutableBag.addOccurrences(3, Integer.MAX_VALUE - 1));
+        assertEquals(Bags.immutable.with(1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 4), mutableBag);
+        assertEquals(12, mutableBag.size());
+
+        // reaching exactly Integer.MAX_VALUE is allowed
+        assertEquals(Integer.MAX_VALUE - 9, mutableBag.addOccurrences(3, Integer.MAX_VALUE - 12));
+        assertEquals(Integer.MAX_VALUE, mutableBag.size());
+        assertThrows(ArithmeticException.class, () -> mutableBag.addOccurrences(5, 1));
+        assertEquals(Integer.MAX_VALUE, mutableBag.size());
+        assertFalse(mutableBag.contains(5));
     }
 
     @Test

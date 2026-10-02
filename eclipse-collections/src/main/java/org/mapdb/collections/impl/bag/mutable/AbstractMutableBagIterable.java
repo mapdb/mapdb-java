@@ -41,6 +41,7 @@ import org.mapdb.collections.api.map.primitive.MutableObjectLongMap;
 import org.mapdb.collections.api.tuple.Twin;
 import org.mapdb.collections.api.tuple.primitive.ObjectIntPair;
 import org.mapdb.collections.impl.bag.AbstractBag;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.block.factory.Predicates2;
 import org.mapdb.collections.impl.block.factory.PrimitiveFunctions;
 import org.mapdb.collections.impl.block.factory.Procedures2;
@@ -60,12 +61,25 @@ public abstract class AbstractMutableBagIterable<T>
         return this.addAllIterable(source);
     }
 
+    /**
+     * Cardinality overflow: when the number of added occurrences is known up
+     * front (a {@link Bag} or a {@link Collection} source) the whole batch is
+     * checked before any element is added, so a refused batch adds nothing.
+     * For any other {@link Iterable} the length is unknown and the source may
+     * be single-pass, so each element is checked as it is added and the
+     * {@link ArithmeticException} is thrown at the first element that would
+     * overflow, after the earlier elements were added.
+     */
     @Override
     public boolean addAllIterable(Iterable<? extends T> iterable)
     {
         if (iterable instanceof Bag)
         {
             return this.addAllBag((Bag<T>) iterable);
+        }
+        if (iterable instanceof Collection)
+        {
+            BagCardinality.checkAdd(this.size(), ((Collection<?>) iterable).size());
         }
         int oldSize = this.size();
         Iterate.forEachWith(iterable, Procedures2.addToCollection(), this);
@@ -74,6 +88,7 @@ public abstract class AbstractMutableBagIterable<T>
 
     protected boolean addAllBag(Bag<? extends T> source)
     {
+        BagCardinality.checkAdd(this.size(), source.size());
         source.forEachWithOccurrences(this::addOccurrences);
         return source.notEmpty();
     }

@@ -43,6 +43,7 @@ import org.mapdb.collections.api.partition.bag.sorted.PartitionImmutableSortedBa
 import org.mapdb.collections.api.set.sorted.ImmutableSortedSet;
 import org.mapdb.collections.api.set.sorted.MutableSortedSet;
 import org.mapdb.collections.impl.Counter;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.block.factory.Comparators;
 import org.mapdb.collections.impl.list.fixed.ArrayAdapter;
 import org.mapdb.collections.impl.list.mutable.FastList;
@@ -111,6 +112,7 @@ class ImmutableSortedBagImpl<T>
     @Override
     public ImmutableSortedBag<T> newWith(T element)
     {
+        BagCardinality.checkAdd(this.size, 1);
         int index = Arrays.binarySearch(this.elements, element, this.comparator);
 
         if (index >= 0)

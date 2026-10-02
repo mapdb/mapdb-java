@@ -39,6 +39,7 @@ import org.mapdb.collections.api.list.primitive.MutableBooleanList;
 import org.mapdb.collections.api.set.primitive.BooleanSet;
 import org.mapdb.collections.api.set.primitive.MutableBooleanSet;
 import org.mapdb.collections.api.tuple.primitive.BooleanIntPair;
+import org.mapdb.collections.impl.bag.BagCardinality;
 import org.mapdb.collections.impl.bag.mutable.HashBag;
 import org.mapdb.collections.impl.lazy.primitive.LazyBooleanIterableAdapter;
 import org.mapdb.collections.impl.list.mutable.primitive.BooleanArrayList;
@@ -245,6 +246,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
     @Override
     public boolean add(boolean item)
     {
+        BagCardinality.checkAdd(this.size(), 1);
         if (item)
         {
             this.trueCount++;
@@ -286,6 +288,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
             return false;
         }
 
+        BagCardinality.checkAdd(this.size(), source.length);
         for (boolean each : source)
         {
             this.add(each);
@@ -299,6 +302,12 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
         if (source.isEmpty())
         {
             return false;
+        }
+        // Lazy sources are not pre-sized: size() would evaluate the pipeline an
+        // extra time. They are checked per element by add().
+        if (!(source instanceof LazyBooleanIterable))
+        {
+            BagCardinality.checkAdd(this.size(), source.size());
         }
         if (source instanceof BooleanBag otherBag)
         {
@@ -410,6 +419,7 @@ public final class BooleanHashBag implements MutableBooleanBag, Externalizable
         }
         if (occurrences > 0)
         {
+            BagCardinality.checkAdd(this.size(), occurrences);
             if (item)
             {
                 this.trueCount += occurrences;
