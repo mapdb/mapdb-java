@@ -107,7 +107,7 @@ public final class ValidationRunner {
     private static final Pattern PANIC_SENTINEL_LINE = Pattern.compile("^[A-Za-z0-9_+-]+: ");
 
     // Per-dir tallies for the summary table.
-    private final Map<String, int[]> dirStats = new java.util.TreeMap<>(); // dir -> [pass, fail, skipUnsupported]
+    private final Map<String, int[]> dirStats = new java.util.TreeMap<String, int[]>(); // dir -> [pass, fail, skipUnsupported]
 
     public static void main(String[] args) throws IOException {
         if (args.length == 1 && "--panic-judge-selftest".equals(args[0])) {
@@ -381,9 +381,11 @@ public final class ValidationRunner {
     }
 
     /** Records a put/remove key. Integer 99 anywhere in a key field suppresses the absent-99 probes. */
-    private static int noteKey(JsonNode op, Set<Integer> keys, boolean[] saw99) {
+    private static int noteKey(JsonNode op, List<Integer> keys, boolean[] saw99) {
         int k = requireInt(op, "key");
-        keys.add(k);
+        if (!keys.contains(k)) {
+            keys.add(k);
+        }
         if (k == 99) {
             saw99[0] = true;
         }
@@ -405,7 +407,7 @@ public final class ValidationRunner {
 
     private Map<String, String> traceIntIntMap(JsonNode scenario) {
         IntIntHashMap map = new IntIntHashMap();
-        Set<Integer> keys = new LinkedHashSet<>();
+        List<Integer> keys = new ArrayList<>();
         boolean[] saw99 = new boolean[1];
         applyMapOps(scenario, keys, saw99, new MapTraceOps() {
             @Override
@@ -423,7 +425,7 @@ public final class ValidationRunner {
                 map.clear();
             }
         }, "hashmap");
-        Map<String, String> obs = new TreeMap<>();
+        Map<String, String> obs = new TreeMap<String, String>();
         addObs(obs, "size", evalIntIntMap("size", map));
         addObs(obs, "is_empty", evalIntIntMap("is_empty", map));
         addObs(obs, "sorted_keys", evalIntIntMap("sorted_keys", map));
@@ -465,7 +467,7 @@ public final class ValidationRunner {
                 }
             }
         }
-        Map<String, String> obs = new TreeMap<>();
+        Map<String, String> obs = new TreeMap<String, String>();
         addObs(obs, "size", evalIntList("size", list));
         addObs(obs, "is_empty", evalIntList("is_empty", list));
         addObs(obs, "to_sorted_array", evalIntList("to_sorted_array", list));
@@ -478,7 +480,7 @@ public final class ValidationRunner {
 
     private Map<String, String> traceIntTreeMap(JsonNode scenario) {
         NavigableTreeMap<Integer, Integer> map = NavigableTreeMap.newMap();
-        Set<Integer> keys = new LinkedHashSet<>();
+        List<Integer> keys = new ArrayList<>();
         boolean[] saw99 = new boolean[1];
         applyMapOps(scenario, keys, saw99, new MapTraceOps() {
             @Override
@@ -497,7 +499,7 @@ public final class ValidationRunner {
             }
         }, "treemap");
         List<Integer> empty = List.of();
-        Map<String, String> obs = new TreeMap<>();
+        Map<String, String> obs = new TreeMap<String, String>();
         addObs(obs, "size", evalIntTreeMap("size", map, null, empty, empty, empty, empty, empty));
         addObs(obs, "is_empty", evalIntTreeMap("is_empty", map, null, empty, empty, empty, empty, empty));
         addObs(obs, "sorted_keys", evalIntTreeMap("sorted_keys", map, null, empty, empty, empty, empty, empty));
@@ -536,7 +538,7 @@ public final class ValidationRunner {
         void clear();
     }
 
-    private static void applyMapOps(JsonNode scenario, Set<Integer> keys, boolean[] saw99,
+    private static void applyMapOps(JsonNode scenario, List<Integer> keys, boolean[] saw99,
                                     MapTraceOps ops, String kind) {
         JsonNode nodes = traceOps(scenario);
         if (nodes == null) {
